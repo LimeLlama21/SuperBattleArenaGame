@@ -26,15 +26,37 @@ emission_energy_multiplier = 2.0
 material = SubResource("StandardMaterial3D_nose")
 size = Vector3(0.2, 0.18, 0.5)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stab"]
-albedo_color = Color(1, 0.1, 0.8, 0.8)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_slash"]
+albedo_color = Color(1, 0.2, 0.85, 0.85)
 emission_enabled = true
-emission = Color(1, 0.15, 0.85, 1)
+emission = Color(1, 0.2, 0.9, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_slash"]
+material = SubResource("StandardMaterial3D_slash")
+size = Vector3(3.6, 0.2, 1.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_heavy_slash"]
+albedo_color = Color(0.2, 0.9, 1.0, 0.9)
+emission_enabled = true
+emission = Color(0.2, 0.95, 1.0, 1)
 emission_energy_multiplier = 5.0
 
-[sub_resource type="BoxMesh" id="BoxMesh_stab"]
-material = SubResource("StandardMaterial3D_stab")
-size = Vector3(0.8, 0.25, 2.4)
+[sub_resource type="BoxMesh" id="BoxMesh_heavy_slash"]
+material = SubResource("StandardMaterial3D_heavy_slash")
+size = Vector3(4.2, 0.25, 1.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crash_aoe"]
+albedo_color = Color(0.7, 0.2, 1.0, 0.55)
+emission_enabled = true
+emission = Color(0.8, 0.2, 1.0, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_crash_aoe"]
+material = SubResource("StandardMaterial3D_crash_aoe")
+top_radius = 6.0
+bottom_radius = 6.0
+height = 0.35
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 0.8)
@@ -49,6 +71,17 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_block"]
+transparency = 1
+albedo_color = Color(0.2, 0.75, 1.0, 0.6)
+emission_enabled = true
+emission = Color(0.2, 0.8, 1.0, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_block"]
+material = SubResource("StandardMaterial3D_block")
+size = Vector3(2.6, 1.8, 0.25)
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
 properties/0/path = NodePath(".:position")
@@ -70,15 +103,16 @@ is_melee_character = true
 dash_impulse = 28.0
 max_dash_charges = 2
 dash_cooldown = 1.0
-dash_recharge_time = 10.0
+dash_recharge_time = 15.0
 attack_cooldown = 0.45
 ability_one_cooldown = 5.0
 ability_two_cooldown = 9.0
+ability_three_cooldown = 8.0
 windup_time = 0.0
 melee_windup_time = 0.0
-melee_damage = 65.0
-melee_size = 2.4
-melee_angle_deg = 45.0
+melee_damage = 42.0
+melee_size = 2.8
+melee_angle_deg = 135.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -95,9 +129,30 @@ mesh = SubResource("BoxMesh_nose")
 [node name="MeleeVisual" type="Node3D" parent="."]
 visible = false
 
-[node name="StabIndicator" type="MeshInstance3D" parent="MeleeVisual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.3)
-mesh = SubResource("BoxMesh_stab")
+[node name="SlashIndicator" type="MeshInstance3D" parent="MeleeVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.0)
+mesh = SubResource("BoxMesh_slash")
+
+[node name="AbilityOneVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="HeavySlashIndicator" type="MeshInstance3D" parent="AbilityOneVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.0)
+mesh = SubResource("BoxMesh_heavy_slash")
+
+[node name="BlockVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="BlockMesh" type="MeshInstance3D" parent="BlockVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, -1.2)
+mesh = SubResource("BoxMesh_block")
+
+[node name="CrashVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="CrashRing" type="MeshInstance3D" parent="CrashVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+mesh = SubResource("CylinderMesh_crash_aoe")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
@@ -135,9 +190,9 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -140.0
-offset_right = 240.0
-offset_bottom = -20.0
+offset_top = -165.0
+offset_right = 260.0
+offset_bottom = -15.0
 grow_vertical = 0
 
 [node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox"]
@@ -159,10 +214,15 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Two [Q]: READY"
 
+[node name="AbilityThreeCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Three [E]: READY"
+
 [node name="DashCD" type="Label" parent="PlayerHUD/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "Dash [Shift]: 2/2 READY"
+text = "Dash [Shift]: READY"
 
 [node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
 visible = false

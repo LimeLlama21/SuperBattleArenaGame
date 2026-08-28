@@ -12,16 +12,19 @@ const CHARACTERS: Dictionary = {
 @export var terrain_scene: PackedScene = preload("res://temporary_terrain.tscn")
 @export var vision_flare_scene: PackedScene = preload("res://vision_flare.tscn")
 @export var vision_reveal_zone_scene: PackedScene = preload("res://vision_reveal_zone.tscn")
+@export var slowing_dot_zone_scene: PackedScene = preload("res://slowing_dot_zone.tscn")
 
 @onready var players_container: Node3D = $Players
 @onready var projectiles_container: Node3D = $Projectiles
 @onready var terrain_container: Node3D = $TerrainObjects
 @onready var vision_container: Node3D = $VisionZones
+@onready var hazard_container: Node3D = $HazardZones
 @onready var spawn_points: Node3D = $SpawnPoints
 @onready var player_spawner: MultiplayerSpawner = $PlayerSpawner
 @onready var projectile_spawner: MultiplayerSpawner = $ProjectileSpawner
 @onready var terrain_spawner: MultiplayerSpawner = $TerrainSpawner
 @onready var vision_spawner: MultiplayerSpawner = $VisionSpawner
+@onready var hazard_spawner: MultiplayerSpawner = $HazardSpawner
 
 @onready var menu_panel: PanelContainer = $UI/MainMenu
 @onready var lobby_panel: PanelContainer = $UI/LobbyRoom
@@ -61,6 +64,7 @@ func _ready() -> void:
 	projectile_spawner.spawn_function = _custom_spawn_projectile
 	terrain_spawner.spawn_function = _custom_spawn_terrain
 	vision_spawner.spawn_function = _custom_spawn_vision_zone
+	hazard_spawner.spawn_function = _custom_spawn_hazard_zone
 	
 	match_over_panel.hide()
 	_select_character("poke")
@@ -73,13 +77,13 @@ func _select_character(char_key: String) -> void:
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Poke (Selected)"
-		char_desc_label.text = "POKE: Sniper (80 HP). [LMB]: Rail shots (50 dmg). [RMB]: Repulsor bolt (knockback + stun). [Q]: Recon Flare (multi-screen vision dart + lingering reveal zone). Dash: 4s."
+		char_desc_label.text = "POKE: Sniper (80 HP). Passive [Fleet Foot]: +15% MS on hit. [LMB]: Rail shot. [RMB]: Repulsor. [Q]: Corrosive Zone (DoT + 50% slow). [E]: Recon Flare."
 	elif char_key == "crush":
 		select_crush_button.text = "★ Crush (Selected)"
-		char_desc_label.text = "CRUSH: Juggernaut (160 HP). [LMB]: Slam (55 dmg). [RMB]: Fan ground stun. [Q]: Fortify shockwave (20 dmg, slow + 40 shield). Dash: 8s."
+		char_desc_label.text = "CRUSH: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
 	elif char_key == "dive":
 		select_dive_button.text = "★ Dive (Selected)"
-		char_desc_label.text = "DIVE: Striker (100 HP). [LMB]: Melee thrust (65 dmg). [RMB]: Slow dart. [Q]: Channel -> Earth Tremor creating terrain pillar! Dash: 2 charges."
+		char_desc_label.text = "DIVE: Striker (100 HP). Passive [Rupture Marks]: Stacking burst marks. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
 	
 	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		if multiplayer.is_server():
@@ -305,8 +309,10 @@ func _custom_spawn_projectile(data: Variant) -> Node:
 func spawn_temporary_terrain(pos: Vector3, lifetime: float = 5.0) -> void:
 	if not multiplayer.is_server():
 		return
+	var terr_pos = pos
+	terr_pos.y = 0.0
 	var data = {
-		"pos": pos,
+		"pos": terr_pos,
 		"lifetime": lifetime
 	}
 	terrain_spawner.spawn(data)
@@ -344,4 +350,27 @@ func _custom_spawn_vision_zone(data: Variant) -> Node:
 	zone.radius = data.get("rad", 12.0)
 	zone.lifetime = data.get("life", 5.5)
 	zone.owner_id = data.get("owner_id", 0)
+	return zone
+
+func spawn_slowing_dot_zone(pos: Vector3, rad: float = 4.5, dur: float = 4.0, dmg_ps: float = 24.0, slow_pct: float = 0.5, shooter_id: int = 0) -> void:
+	if not multiplayer.is_server():
+		return
+	var data = {
+		"pos": pos,
+		"rad": rad,
+		"dur": dur,
+		"dmg_ps": dmg_ps,
+		"slow_pct": slow_pct,
+		"shooter_id": shooter_id
+	}
+	hazard_spawner.spawn(data)
+
+func _custom_spawn_hazard_zone(data: Variant) -> Node:
+	var zone = slowing_dot_zone_scene.instantiate()
+	zone.position = data["pos"]
+	zone.radius = data.get("rad", 4.5)
+	zone.duration = data.get("dur", 4.0)
+	zone.damage_per_second = data.get("dmg_ps", 24.0)
+	zone.slow_percent = data.get("slow_pct", 0.5)
+	zone.shooter_id = data.get("shooter_id", 0)
 	return zone

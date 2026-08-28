@@ -69,6 +69,15 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gray_fg"]
+bg_color = Color(0.7, 0.72, 0.76, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_1"]
+
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
 properties/0/path = NodePath(".:position")
 properties/0/spawn = true
@@ -92,6 +101,7 @@ dash_recharge_time = 8.0
 attack_cooldown = 0.65
 ability_one_cooldown = 7.5
 ability_two_cooldown = 8.0
+ability_three_cooldown = 10.0
 melee_windup_time = 0.28
 melee_damage = 55.0
 melee_size = 4.2
@@ -143,11 +153,21 @@ transparent_bg = true
 size = Vector2i(150, 20)
 render_target_update_mode = 4
 
-[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+[node name="GrayProgressBar" type="ProgressBar" parent="HealthBarViewport"]
 custom_minimum_size = Vector2(150, 20)
 offset_right = 150.0
 offset_bottom = 20.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_gray_fg")
+value = 160.0
+max_value = 160.0
+show_percentage = false
+
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+custom_minimum_size = Vector2(150, 20)
+offset_right = 150.0
+offset_bottom = 20.0
+theme_override_styles/background = SubResource("StyleBoxEmpty_1")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
 value = 160.0
 max_value = 160.0
@@ -166,9 +186,9 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -140.0
-offset_right = 240.0
-offset_bottom = -20.0
+offset_top = -165.0
+offset_right = 260.0
+offset_bottom = -15.0
 grow_vertical = 0
 
 [node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox"]
@@ -189,6 +209,11 @@ text = "One [RMB]: READY"
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Two [Q]: READY"
+
+[node name="AbilityThreeCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Three [E]: READY"
 
 [node name="DashCD" type="Label" parent="PlayerHUD/VBox"]
 layout_mode = 2

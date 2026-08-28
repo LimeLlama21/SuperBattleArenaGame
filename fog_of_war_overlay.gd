@@ -41,17 +41,22 @@ func _draw() -> void:
 	var my_id = multiplayer.get_unique_id()
 	var local_player = _get_local_player(main_node, my_id)
 	
-	if not local_player or local_player.get("is_dead"):
-		draw_rect(Rect2(Vector2.ZERO, vp_size), Color(1, 1, 1, 1))
-		_reveal_all_players(main_node)
-		return
+	var focus_player = local_player
+	if not focus_player or focus_player.get("is_dead"):
+		if local_player and local_player.get("spectate_target") != null and is_instance_valid(local_player.spectate_target) and not local_player.spectate_target.get("is_dead"):
+			focus_player = local_player.spectate_target
+		else:
+			draw_rect(Rect2(Vector2.ZERO, vp_size), Color(1, 1, 1, 1))
+			_reveal_all_players(main_node)
+			return
 
-	var player_pos_3d = local_player.global_position
+	var focus_id = focus_player.name.to_int()
+	var player_pos_3d = focus_player.global_position
 	var eye_pos = player_pos_3d + Vector3(0, 1.25, 0)
-	var space_state = local_player.get_world_3d().direct_space_state
+	var space_state = focus_player.get_world_3d().direct_space_state
 
 	# Calculate 3D forward and right basis vectors
-	var fwd_3d = -local_player.global_transform.basis.z.normalized()
+	var fwd_3d = -focus_player.global_transform.basis.z.normalized()
 	fwd_3d.y = 0.0
 	if fwd_3d.length_squared() < 0.0001:
 		fwd_3d = Vector3.FORWARD
@@ -85,7 +90,7 @@ func _draw() -> void:
 	if vision_zones_container:
 		for zone in vision_zones_container.get_children():
 			if zone.is_inside_tree():
-				if zone.get("owner_id") != null and zone.owner_id != 0 and zone.owner_id != my_id:
+				if zone.get("owner_id") != null and zone.owner_id != 0 and zone.owner_id != focus_id:
 					continue
 				
 				var z_pos_3d = zone.global_position
@@ -103,7 +108,7 @@ func _draw() -> void:
 	if proj_container:
 		for proj in proj_container.get_children():
 			if proj.get("vision_radius") != null and proj.is_inside_tree():
-				if proj.get("shooter_id") != null and proj.shooter_id != 0 and proj.shooter_id != my_id:
+				if proj.get("shooter_id") != null and proj.shooter_id != 0 and proj.shooter_id != focus_id:
 					continue
 
 				var f_pos_3d = proj.global_position
@@ -117,8 +122,12 @@ func _draw() -> void:
 					draw_polyline(f_loop, rim_color, 2.5, true)
 				active_reveal_sources.append({"pos": f_pos_3d, "radius": f_rad_m})
 
-	# Update opponent visibility with 3D Line-of-Sight & terrain occlusion
-	_update_enemies_visibility(main_node, local_player, eye_pos, space_state, active_reveal_sources)
+	# Spectated player is always visible to spectator
+	if focus_player != local_player:
+		focus_player.set_opponent_visible(true)
+
+	# Update opponent visibility with 3D Line-of-Sight & terrain occlusion from focus player perspective
+	_update_enemies_visibility(main_node, focus_player, eye_pos, space_state, active_reveal_sources)
 
 func _make_circle_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, radius: float, num_rays: int) -> PackedVector2Array:
 	var pts_2d = PackedVector2Array()

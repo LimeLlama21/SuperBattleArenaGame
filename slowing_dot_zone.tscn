@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://cshvcca1jn21m"]
+
+[ext_resource type="Script" path="res://slowing_dot_zone.gd" id="1_dot"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_1"]
+height = 2.0
+radius = 4.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ring"]
+transparency = 1
+albedo_color = Color(0.1, 0.9, 0.7, 0.6)
+emission_enabled = true
+emission = Color(0.1, 0.95, 0.7, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="TorusMesh" id="TorusMesh_ring"]
+material = SubResource("StandardMaterial3D_ring")
+inner_radius = 4.3
+outer_radius = 4.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fill"]
+transparency = 1
+albedo_color = Color(0.1, 0.85, 0.6, 0.22)
+emission_enabled = true
+emission = Color(0.1, 0.8, 0.5, 1)
+emission_energy_multiplier = 1.2
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_fill"]
+material = SubResource("StandardMaterial3D_fill")
+top_radius = 4.3
+bottom_radius = 4.3
+height = 0.1
+
+[node name="SlowingDoTZone" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_dot")
+radius = 4.5
+duration = 4.0
+damage_per_second = 24.0
+slow_percent = 0.5
+slow_duration = 1.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+shape = SubResource("CylinderShape3D_1")
+
+[node name="RingInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+mesh = SubResource("TorusMesh_ring")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("CylinderMesh_fill")

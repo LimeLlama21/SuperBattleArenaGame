@@ -55,7 +55,8 @@ max_move_speed = 11.5
 dash_impulse = 28.0
 attack_cooldown = 0.9
 ability_one_cooldown = 6.5
-ability_two_cooldown = 11.0
+ability_two_cooldown = 7.5
+ability_three_cooldown = 11.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1856021603]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
@@ -104,9 +105,9 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -140.0
-offset_right = 240.0
-offset_bottom = -20.0
+offset_top = -165.0
+offset_right = 260.0
+offset_bottom = -15.0
 grow_vertical = 0
 
 [node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox" unique_id=1879832025]
@@ -127,6 +128,11 @@ text = "One [RMB]: READY"
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Two [Q]: READY"
+
+[node name="AbilityThreeCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Three [E]: READY"
 
 [node name="DashCD" type="Label" parent="PlayerHUD/VBox" unique_id=1065917800]
 layout_mode = 2

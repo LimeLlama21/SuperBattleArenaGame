@@ -12,10 +12,12 @@ extends Area3D
 
 var shooter_id: int = 0
 var direction: Vector3 = Vector3.FORWARD
+var spawn_origin: Vector3 = Vector3.ZERO
 var hit_targets: Array = []
 var has_spawned_terrain: bool = false
 
 func _ready() -> void:
+	spawn_origin = global_position
 	scale = Vector3.ONE * size
 	if direction != Vector3.ZERO:
 		look_at(global_position + direction, Vector3.UP)
@@ -47,14 +49,19 @@ func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_damage") and body.name != str(shooter_id):
 		if not body.get("is_dead") and not (body in hit_targets):
 			hit_targets.append(body)
-			body.take_damage(damage)
+			
+			var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
+			if shooter and shooter.get("character_name") == "Poke":
+				if shooter.has_method("apply_speed_boost"):
+					shooter.apply_speed_boost(2.5, 0.15)
+					
+			body.take_damage(damage, shooter_id)
 			if effect_type == "slow" and body.has_method("apply_slow"):
 				body.apply_slow(effect_duration, effect_intensity)
 			elif effect_type == "knockback_stun":
 				if body.has_method("apply_knockback"):
-					var kb_dir = direction.normalized()
-					kb_dir.y = 0.2
-					body.apply_knockback(kb_dir.normalized() * effect_intensity)
+					var kb_dir = Vector3(direction.x, 0.35, direction.z).normalized()
+					body.apply_knockback(kb_dir * effect_intensity)
 				if body.has_method("apply_stun"):
 					body.apply_stun(effect_duration)
 			
@@ -62,5 +69,7 @@ func _on_body_entered(body: Node) -> void:
 				_trigger_death_effects()
 				queue_free()
 	elif body is StaticBody3D:
+		if body.name == "Floor":
+			return
 		_trigger_death_effects()
 		queue_free()

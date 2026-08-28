@@ -154,6 +154,11 @@ spawn_path = NodePath("../TerrainObjects")
 [node name="VisionSpawner" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("../VisionZones")
 
+[node name="HazardZones" type="Node3D" parent="."]
+
+[node name="HazardSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../HazardZones")
+
 [node name="FogOfWarCanvas" type="CanvasLayer" parent="."]
 layer = 2
 
