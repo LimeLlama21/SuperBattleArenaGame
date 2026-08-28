@@ -127,6 +127,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.1, 4)
 [node name="Marker3D2" type="Marker3D" parent="SpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, 4)
 
+[node name="Marker3D3" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -12)
+
 [node name="Players" type="Node3D" parent="."]
 
 [node name="Projectiles" type="Node3D" parent="."]
@@ -243,3 +246,34 @@ autowrap_mode = 2
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "START MATCH"
+
+[node name="MatchOverPanel" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -60.0
+offset_right = 180.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="UI/MatchOverPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WinnerLabel" type="Label" parent="UI/MatchOverPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "MATCH OVER!
+HOST (P1) WINS!"
+horizontal_alignment = 1
+
+[node name="SubLabel" type="Label" parent="UI/MatchOverPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Returning to lobby in 3 seconds..."
+horizontal_alignment = 1

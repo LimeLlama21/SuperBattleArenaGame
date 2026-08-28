@@ -73,7 +73,7 @@ mesh = SubResource("BoxMesh_nose")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
-current = true
+current = false
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_1")
@@ -121,3 +121,24 @@ text = "Attack [LMB]: READY"
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Dash [Shift]: READY"
+
+[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -175.0
+offset_top = 20.0
+offset_right = 175.0
+offset_bottom = 76.0
+grow_horizontal = 2
+
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel"]
+layout_mode = 2
+
+[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "SPECTATING: Player
+[LMB / RMB to Cycle]"
+horizontal_alignment = 1

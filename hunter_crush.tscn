@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://player_base.gd" id="1_base"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
-radius = 0.55
-height = 2.1
+radius = 0.75
+height = 2.4
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crush"]
 albedo_color = Color(0.9, 0.3, 0.15, 1)
@@ -13,25 +13,25 @@ roughness = 0.4
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
 material = SubResource("StandardMaterial3D_crush")
-radius = 0.55
-height = 2.1
+radius = 0.75
+height = 2.4
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nose"]
 albedo_color = Color(1, 0.9, 0.9, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_nose"]
 material = SubResource("StandardMaterial3D_nose")
-size = Vector3(0.35, 0.25, 0.5)
+size = Vector3(0.45, 0.3, 0.6)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_slam"]
-albedo_color = Color(1, 0.3, 0.1, 0.65)
+albedo_color = Color(1, 0.3, 0.1, 0.7)
 emission_enabled = true
 emission = Color(1, 0.4, 0.1, 1)
-emission_energy_multiplier = 3.0
+emission_energy_multiplier = 4.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_slam"]
 material = SubResource("StandardMaterial3D_slam")
-size = Vector3(3.2, 0.3, 2.8)
+size = Vector3(4.5, 0.3, 3.8)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 0.8)
@@ -69,31 +69,31 @@ dash_cooldown = 8.0
 attack_cooldown = 0.65
 melee_windup_time = 0.28
 melee_damage = 55.0
-melee_range = 3.4
-melee_angle_deg = 100.0
+melee_range = 4.2
+melee_angle_deg = 120.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 shape = SubResource("CapsuleShape3D_1")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 mesh = SubResource("CapsuleMesh_1")
 
 [node name="FacingIndicator" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -0.45)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.6)
 mesh = SubResource("BoxMesh_nose")
 
 [node name="MeleeVisual" type="Node3D" parent="."]
 visible = false
 
 [node name="SlamIndicator" type="MeshInstance3D" parent="MeleeVisual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -1.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -2.1)
 mesh = SubResource("BoxMesh_slam")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
-current = true
+current = false
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("SceneReplicationConfig_1")
@@ -101,13 +101,13 @@ replication_config = SubResource("SceneReplicationConfig_1")
 [node name="HealthBarViewport" type="SubViewport" parent="."]
 disable_3d = true
 transparent_bg = true
-size = Vector2i(140, 18)
+size = Vector2i(150, 20)
 render_target_update_mode = 4
 
 [node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
-custom_minimum_size = Vector2(140, 18)
-offset_right = 140.0
-offset_bottom = 18.0
+custom_minimum_size = Vector2(150, 20)
+offset_right = 150.0
+offset_bottom = 20.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
 value = 160.0
@@ -115,7 +115,7 @@ max_value = 160.0
 show_percentage = false
 
 [node name="HealthBarSprite" type="Sprite3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.55, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 0)
 billboard = 1
 double_sided = false
 no_depth_test = true
@@ -141,3 +141,24 @@ text = "Attack [LMB]: READY"
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Dash [Shift]: READY"
+
+[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -175.0
+offset_top = 20.0
+offset_right = 175.0
+offset_bottom = 76.0
+grow_horizontal = 2
+
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel"]
+layout_mode = 2
+
+[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "SPECTATING: Player
+[LMB / RMB to Cycle]"
+horizontal_alignment = 1

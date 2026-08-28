@@ -17,6 +17,9 @@ const CHARACTERS: Dictionary = {
 
 @onready var menu_panel: PanelContainer = $UI/MainMenu
 @onready var lobby_panel: PanelContainer = $UI/LobbyRoom
+@onready var match_over_panel: PanelContainer = $UI/MatchOverPanel
+@onready var winner_label: Label = $UI/MatchOverPanel/VBox/WinnerLabel
+
 @onready var host_button: Button = $UI/MainMenu/VBox/HostButton
 @onready var room_code_input: LineEdit = $UI/MainMenu/VBox/RoomCodeInput
 @onready var join_button: Button = $UI/MainMenu/VBox/JoinButton
@@ -30,7 +33,7 @@ const CHARACTERS: Dictionary = {
 
 var selected_character: String = "poke"
 var connected_players: Dictionary = {}
-var upnp: UPNP
+var match_in_progress: bool = false
 
 func _ready() -> void:
 	host_button.pressed.connect(_on_host_pressed)
@@ -47,6 +50,7 @@ func _ready() -> void:
 	player_spawner.spawn_function = _custom_spawn_player
 	projectile_spawner.spawn_function = _custom_spawn_projectile
 	
+	match_over_panel.hide()
 	_select_character("poke")
 
 func _select_character(char_key: String) -> void:
@@ -60,17 +64,15 @@ func _select_character(char_key: String) -> void:
 		select_crush_button.text = "★ Crush (Selected)"
 		char_desc_label.text = "CRUSH: Heavy Melee Juggernaut. Area Slam (55 dmg, 0.28s cast), Dash Cooldown: 8.0s (160 HP)."
 	
-	if multiplayer.multiplayer_peer:
-		update_player_character.rpc_id(1, multiplayer.get_unique_id(), selected_character)
+	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		if multiplayer.is_server():
+			if connected_players.has(1):
+				connected_players[1]["character"] = selected_character
+				sync_lobby_state.rpc(connected_players)
+		else:
+			update_player_character.rpc_id(1, selected_character)
 
 func _on_host_pressed() -> void:
-	upnp = UPNP.new()
-	var external_ip = "127.0.0.1"
-	var upnp_res = upnp.discover()
-	if upnp_res == UPNP.UPNP_RESULT_SUCCESS and upnp.get_gateway() and upnp.get_gateway().is_valid_gateway():
-		upnp.add_port_mapping(PORT, PORT, "SuperviveRoom", "UDP")
-		external_ip = upnp.query_external_address()
-	
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_server(PORT)
 	if error != OK:
@@ -78,19 +80,21 @@ func _on_host_pressed() -> void:
 		return
 
 	multiplayer.multiplayer_peer = peer
-	var room_code = NetworkUtils.ip_to_room_code(external_ip)
 	
 	menu_panel.hide()
 	lobby_panel.show()
-	lobby_code_label.text = "ROOM CODE: %s\n(Direct IP: %s)" % [room_code, external_ip]
+	lobby_code_label.text = "ROOM CODE: LOCAL-01\n(Port: %d)" % PORT
 	start_match_button.visible = true
 
+	connected_players.clear()
 	connected_players[1] = {"character": selected_character, "name": "Host (P1)"}
 	_refresh_lobby_ui()
 
 func _on_join_pressed() -> void:
 	var raw_code = room_code_input.text.strip_edges()
 	var target_ip = NetworkUtils.room_code_to_ip(raw_code)
+	if target_ip.is_empty():
+		target_ip = "127.0.0.1"
 
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(target_ip, PORT)
@@ -101,12 +105,12 @@ func _on_join_pressed() -> void:
 	multiplayer.multiplayer_peer = peer
 	menu_panel.hide()
 	lobby_panel.show()
-	lobby_code_label.text = "Connecting to: %s..." % raw_code.to_upper()
+	lobby_code_label.text = "Connecting to %s..." % target_ip
 	start_match_button.visible = false
 
 func _on_connected_to_server() -> void:
 	lobby_code_label.text = "Connected to Lobby!"
-	update_player_character.rpc_id(1, multiplayer.get_unique_id(), selected_character)
+	register_player_to_server.rpc_id(1, selected_character)
 
 func _on_connection_failed() -> void:
 	lobby_panel.hide()
@@ -114,9 +118,7 @@ func _on_connection_failed() -> void:
 	multiplayer.multiplayer_peer = null
 
 func _on_peer_connected(id: int) -> void:
-	if multiplayer.is_server():
-		connected_players[id] = {"character": "poke", "name": "Player " + str(id)}
-		sync_lobby_state.rpc(connected_players)
+	pass
 
 func _on_peer_disconnected(id: int) -> void:
 	if multiplayer.is_server():
@@ -125,19 +127,36 @@ func _on_peer_disconnected(id: int) -> void:
 		var player_node = players_container.get_node_or_null(str(id))
 		if player_node:
 			player_node.queue_free()
+		if match_in_progress:
+			_check_match_status()
 
-@rpc("any_peer", "call_local", "reliable")
-func update_player_character(peer_id: int, char_key: String) -> void:
-	if multiplayer.is_server():
-		if not connected_players.has(peer_id):
-			connected_players[peer_id] = {"name": "Player " + str(peer_id)}
-		connected_players[peer_id]["character"] = char_key
+@rpc("any_peer", "call_remote", "reliable")
+func register_player_to_server(char_key: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	connected_players[sender_id] = {
+		"character": char_key,
+		"name": "Player " + str(sender_id)
+	}
+	sync_lobby_state.rpc(connected_players)
+
+@rpc("any_peer", "call_remote", "reliable")
+func update_player_character(char_key: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	if connected_players.has(sender_id):
+		connected_players[sender_id]["character"] = char_key
 		sync_lobby_state.rpc(connected_players)
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func sync_lobby_state(players_dict: Dictionary) -> void:
 	connected_players = players_dict
-	_refresh_lobby_ui()
+	if not match_in_progress:
+		menu_panel.hide()
+		lobby_panel.show()
+		_refresh_lobby_ui()
 
 func _refresh_lobby_ui() -> void:
 	var list_text = "Players in Lobby:\n"
@@ -151,11 +170,18 @@ func _on_start_match_pressed() -> void:
 		return
 	start_game.rpc()
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func start_game() -> void:
+	match_in_progress = true
 	lobby_panel.hide()
+	match_over_panel.hide()
 	
 	if multiplayer.is_server():
+		for c in players_container.get_children():
+			c.queue_free()
+		for proj in projectiles_container.get_children():
+			proj.queue_free()
+			
 		var p_ids = connected_players.keys()
 		for i in range(p_ids.size()):
 			var pid = p_ids[i]
@@ -178,6 +204,42 @@ func _custom_spawn_player(data: Variant) -> Node:
 	player_instance.name = str(data["peer_id"])
 	player_instance.position = data["pos"]
 	return player_instance
+
+func on_player_died(peer_id: int) -> void:
+	if not multiplayer.is_server() or not match_in_progress:
+		return
+	_check_match_status()
+
+func _check_match_status() -> void:
+	var alive_players = []
+	for p in players_container.get_children():
+		if not p.get("is_dead"):
+			alive_players.append(p)
+	
+	if alive_players.size() <= 1:
+		var winner_str = "NO ONE"
+		if alive_players.size() == 1:
+			var w_node = alive_players[0]
+			winner_str = "Host (P1)" if w_node.name == "1" else ("Player " + w_node.name)
+		end_match.rpc(winner_str)
+
+@rpc("any_peer", "call_local", "reliable")
+func end_match(winner_name: String) -> void:
+	match_in_progress = false
+	winner_label.text = "MATCH OVER!\n%s WINS!" % winner_name.to_upper()
+	match_over_panel.show()
+	
+	await get_tree().create_timer(3.5).timeout
+	
+	match_over_panel.hide()
+	lobby_panel.show()
+	_refresh_lobby_ui()
+	
+	if multiplayer.is_server():
+		for c in players_container.get_children():
+			c.queue_free()
+		for proj in projectiles_container.get_children():
+			proj.queue_free()
 
 func spawn_projectile(pos: Vector3, dir: Vector3, shooter_id: int, dmg: float = 22.0, spd: float = 34.0) -> void:
 	if not multiplayer.is_server():

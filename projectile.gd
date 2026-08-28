@@ -23,7 +23,8 @@ func _on_body_entered(body: Node) -> void:
 		return
 	
 	if body.has_method("take_damage") and body.name != str(shooter_id):
-		body.take_damage(damage)
-		queue_free()
+		if not body.get("is_dead"):
+			body.take_damage(damage)
+			queue_free()
 	elif body is StaticBody3D:
 		queue_free()
