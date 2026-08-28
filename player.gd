@@ -18,6 +18,9 @@ extends CharacterBody3D
 @export var dash_impulse: float = 26.0
 @export var dash_cooldown: float = 0.75
 @export var shoot_cooldown: float = 0.25
+@export var projectile_damage: float = 50.0
+@export var projectile_speed: float = 70.0
+@export var projectile_size: float = 1.0
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 24.0)
 
@@ -131,9 +134,9 @@ func _physics_process(delta: float) -> void:
 		var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
 		
 		if multiplayer.is_server():
-			get_tree().root.get_node("Main").spawn_projectile(spawn_pos, facing_dir, 1)
+			get_tree().root.get_node("Main").spawn_projectile(spawn_pos, facing_dir, 1, projectile_damage, projectile_speed, projectile_size)
 		else:
-			request_fire.rpc_id(1, spawn_pos, facing_dir)
+			request_fire.rpc_id(1, spawn_pos, facing_dir, projectile_damage, projectile_speed, projectile_size)
 
 	move_and_slide()
 
@@ -157,11 +160,11 @@ func aim_at_mouse() -> void:
 			rotation.z = 0.0
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_fire(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
+func request_fire(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
-	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id)
+	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size)
 
 func take_damage(amount: float) -> void:
 	if not multiplayer.is_server():

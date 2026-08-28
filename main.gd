@@ -3,17 +3,25 @@ extends Node3D
 const PORT: int = 7000
 
 const CHARACTERS: Dictionary = {
-	"poke": preload("res://hunter_poke.tscn"),
-	"crush": preload("res://hunter_crush.tscn")
+	"poke": preload("res://hunters/poke.tscn"),
+	"crush": preload("res://hunters/crush.tscn"),
+	"dive": preload("res://hunters/dive.tscn")
 }
 
 @export var projectile_scene: PackedScene = preload("res://projectile.tscn")
+@export var terrain_scene: PackedScene = preload("res://temporary_terrain.tscn")
+@export var vision_flare_scene: PackedScene = preload("res://vision_flare.tscn")
+@export var vision_reveal_zone_scene: PackedScene = preload("res://vision_reveal_zone.tscn")
 
 @onready var players_container: Node3D = $Players
 @onready var projectiles_container: Node3D = $Projectiles
+@onready var terrain_container: Node3D = $TerrainObjects
+@onready var vision_container: Node3D = $VisionZones
 @onready var spawn_points: Node3D = $SpawnPoints
 @onready var player_spawner: MultiplayerSpawner = $PlayerSpawner
 @onready var projectile_spawner: MultiplayerSpawner = $ProjectileSpawner
+@onready var terrain_spawner: MultiplayerSpawner = $TerrainSpawner
+@onready var vision_spawner: MultiplayerSpawner = $VisionSpawner
 
 @onready var menu_panel: PanelContainer = $UI/MainMenu
 @onready var lobby_panel: PanelContainer = $UI/LobbyRoom
@@ -28,6 +36,7 @@ const CHARACTERS: Dictionary = {
 @onready var player_list_label: Label = $UI/LobbyRoom/VBox/PlayerListLabel
 @onready var select_poke_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectPoke
 @onready var select_crush_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectCrush
+@onready var select_dive_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectDive
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var start_match_button: Button = $UI/LobbyRoom/VBox/StartMatchButton
 
@@ -40,8 +49,9 @@ func _ready() -> void:
 	join_button.pressed.connect(_on_join_pressed)
 	select_poke_button.pressed.connect(func(): _select_character("poke"))
 	select_crush_button.pressed.connect(func(): _select_character("crush"))
+	select_dive_button.pressed.connect(func(): _select_character("dive"))
 	start_match_button.pressed.connect(_on_start_match_pressed)
-
+	
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -49,20 +59,27 @@ func _ready() -> void:
 	
 	player_spawner.spawn_function = _custom_spawn_player
 	projectile_spawner.spawn_function = _custom_spawn_projectile
+	terrain_spawner.spawn_function = _custom_spawn_terrain
+	vision_spawner.spawn_function = _custom_spawn_vision_zone
 	
 	match_over_panel.hide()
 	_select_character("poke")
 
 func _select_character(char_key: String) -> void:
 	selected_character = char_key
+	select_poke_button.text = "Poke (Select)"
+	select_crush_button.text = "Crush (Select)"
+	select_dive_button.text = "Dive (Select)"
+
 	if char_key == "poke":
 		select_poke_button.text = "★ Poke (Selected)"
-		select_crush_button.text = "Crush (Select)"
-		char_desc_label.text = "POKE: Agile Ranged Scout. Fast skillshot blasters (22 dmg), Dash Cooldown: 4.0s (80 HP)."
-	else:
-		select_poke_button.text = "Poke (Select)"
+		char_desc_label.text = "POKE: Sniper (80 HP). [LMB]: Rail shots (50 dmg). [RMB]: Repulsor bolt (knockback + stun). [Q]: Recon Flare (multi-screen vision dart + lingering reveal zone). Dash: 4s."
+	elif char_key == "crush":
 		select_crush_button.text = "★ Crush (Selected)"
-		char_desc_label.text = "CRUSH: Heavy Melee Juggernaut. Area Slam (55 dmg, 0.28s cast), Dash Cooldown: 8.0s (160 HP)."
+		char_desc_label.text = "CRUSH: Juggernaut (160 HP). [LMB]: Slam (55 dmg). [RMB]: Fan ground stun. [Q]: Fortify shockwave (20 dmg, slow + 40 shield). Dash: 8s."
+	elif char_key == "dive":
+		select_dive_button.text = "★ Dive (Selected)"
+		char_desc_label.text = "DIVE: Striker (100 HP). [LMB]: Melee thrust (65 dmg). [RMB]: Slow dart. [Q]: Channel -> Earth Tremor creating terrain pillar! Dash: 2 charges."
 	
 	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		if multiplayer.is_server():
@@ -181,6 +198,10 @@ func start_game() -> void:
 			c.queue_free()
 		for proj in projectiles_container.get_children():
 			proj.queue_free()
+		for terr in terrain_container.get_children():
+			terr.queue_free()
+		for v in vision_container.get_children():
+			v.queue_free()
 			
 		var p_ids = connected_players.keys()
 		for i in range(p_ids.size()):
@@ -240,8 +261,12 @@ func end_match(winner_name: String) -> void:
 			c.queue_free()
 		for proj in projectiles_container.get_children():
 			proj.queue_free()
+		for terr in terrain_container.get_children():
+			terr.queue_free()
+		for v in vision_container.get_children():
+			v.queue_free()
 
-func spawn_projectile(pos: Vector3, dir: Vector3, shooter_id: int, dmg: float = 22.0, spd: float = 34.0) -> void:
+func spawn_projectile(pos: Vector3, dir: Vector3, shooter_id: int, dmg: float = 50.0, spd: float = 70.0, p_size: float = 1.0, life: float = 2.5, eff_type: String = "", eff_dur: float = 0.0, eff_int: float = 0.0, pierce: bool = false, spawn_terr: bool = false) -> void:
 	if not multiplayer.is_server():
 		return
 	
@@ -250,7 +275,14 @@ func spawn_projectile(pos: Vector3, dir: Vector3, shooter_id: int, dmg: float = 
 		"dir": dir,
 		"shooter_id": shooter_id,
 		"dmg": dmg,
-		"spd": spd
+		"spd": spd,
+		"size": p_size,
+		"life": life,
+		"eff_type": eff_type,
+		"eff_dur": eff_dur,
+		"eff_int": eff_int,
+		"pierce": pierce,
+		"spawn_terr": spawn_terr
 	}
 	projectile_spawner.spawn(spawn_data)
 
@@ -258,7 +290,58 @@ func _custom_spawn_projectile(data: Variant) -> Node:
 	var proj = projectile_scene.instantiate()
 	proj.shooter_id = data["shooter_id"]
 	proj.direction = data["dir"]
-	proj.damage = data.get("dmg", 22.0)
-	proj.speed = data.get("spd", 34.0)
+	proj.damage = data.get("dmg", 50.0)
+	proj.speed = data.get("spd", 70.0)
+	proj.size = data.get("size", 1.0)
+	proj.lifetime = data.get("life", 2.5)
+	proj.effect_type = data.get("eff_type", "")
+	proj.effect_duration = data.get("eff_dur", 0.0)
+	proj.effect_intensity = data.get("eff_int", 0.0)
+	proj.pierces = data.get("pierce", false)
+	proj.spawn_terrain_on_death = data.get("spawn_terr", false)
 	proj.position = data["pos"]
 	return proj
+
+func spawn_temporary_terrain(pos: Vector3, lifetime: float = 5.0) -> void:
+	if not multiplayer.is_server():
+		return
+	var data = {
+		"pos": pos,
+		"lifetime": lifetime
+	}
+	terrain_spawner.spawn(data)
+
+func _custom_spawn_terrain(data: Variant) -> Node:
+	var terrain = terrain_scene.instantiate()
+	terrain.position = data["pos"]
+	terrain.lifetime = data.get("lifetime", 5.0)
+	return terrain
+
+func spawn_vision_flare(pos: Vector3, dir: Vector3, target_dist: float, shooter_id: int = 0) -> void:
+	if not multiplayer.is_server():
+		return
+	var flare = vision_flare_scene.instantiate()
+	flare.position = pos
+	flare.direction = dir
+	flare.target_distance = target_dist
+	flare.shooter_id = shooter_id
+	projectiles_container.add_child(flare, true)
+
+func spawn_vision_reveal_zone(pos: Vector3, rad: float = 12.0, lifetime: float = 5.5, owner_id: int = 0) -> void:
+	if not multiplayer.is_server():
+		return
+	var data = {
+		"pos": pos,
+		"rad": rad,
+		"life": lifetime,
+		"owner_id": owner_id
+	}
+	vision_spawner.spawn(data)
+
+func _custom_spawn_vision_zone(data: Variant) -> Node:
+	var zone = vision_reveal_zone_scene.instantiate()
+	zone.position = data["pos"]
+	zone.radius = data.get("rad", 12.0)
+	zone.lifetime = data.get("life", 5.5)
+	zone.owner_id = data.get("owner_id", 0)
+	return zone

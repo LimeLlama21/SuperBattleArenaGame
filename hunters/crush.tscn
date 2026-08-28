@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://c6l2crush0b0i4e"]
+[gd_scene format=3 uid="uid://dx60vi13ahgks"]
 
 [ext_resource type="Script" path="res://player_base.gd" id="1_base"]
 
@@ -33,6 +33,28 @@ emission_energy_multiplier = 4.0
 material = SubResource("StandardMaterial3D_slam")
 size = Vector3(4.5, 0.3, 3.8)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fan_stun"]
+albedo_color = Color(1, 0.85, 0.2, 0.75)
+emission_enabled = true
+emission = Color(1, 0.8, 0.1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_fan_stun"]
+material = SubResource("StandardMaterial3D_fan_stun")
+size = Vector3(5.4, 0.25, 4.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aoe_shock"]
+albedo_color = Color(1, 0.5, 0.1, 0.5)
+emission_enabled = true
+emission = Color(1, 0.45, 0.1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_aoe_shock"]
+material = SubResource("StandardMaterial3D_aoe_shock")
+top_radius = 6.5
+bottom_radius = 6.5
+height = 0.3
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 0.8)
 corner_radius_top_left = 4
@@ -66,10 +88,13 @@ max_move_speed = 8.5
 is_melee_character = true
 dash_impulse = 24.0
 dash_cooldown = 8.0
+dash_recharge_time = 8.0
 attack_cooldown = 0.65
+ability_one_cooldown = 7.5
+ability_two_cooldown = 8.0
 melee_windup_time = 0.28
 melee_damage = 55.0
-melee_range = 4.2
+melee_size = 4.2
 melee_angle_deg = 120.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
@@ -90,6 +115,20 @@ visible = false
 [node name="SlamIndicator" type="MeshInstance3D" parent="MeleeVisual"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -2.1)
 mesh = SubResource("BoxMesh_slam")
+
+[node name="AbilityOneVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="FanIndicator" type="MeshInstance3D" parent="AbilityOneVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -2.4)
+mesh = SubResource("BoxMesh_fan_stun")
+
+[node name="AbilityTwoVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="ShockwaveIndicator" type="MeshInstance3D" parent="AbilityTwoVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+mesh = SubResource("CylinderMesh_aoe_shock")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
@@ -127,15 +166,29 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -80.0
+offset_top = -140.0
 offset_right = 240.0
 offset_bottom = -20.0
 grow_vertical = 0
+
+[node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
 
 [node name="AttackCD" type="Label" parent="PlayerHUD/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Attack [LMB]: READY"
+
+[node name="AbilityOneCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "One [RMB]: READY"
+
+[node name="AbilityTwoCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Two [Q]: READY"
 
 [node name="DashCD" type="Label" parent="PlayerHUD/VBox"]
 layout_mode = 2

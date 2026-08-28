@@ -1,0 +1,155 @@
+[gd_scene format=3 uid="uid://cyuxw5fo6xm6a"]
+
+[ext_resource type="Script" uid="uid://dx03yi1xres3g" path="res://player_base.gd" id="1_base"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.35
+height = 1.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_poke"]
+albedo_color = Color(0.1, 0.8, 0.95, 1)
+metallic = 0.3
+roughness = 0.3
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+material = SubResource("StandardMaterial3D_poke")
+radius = 0.35
+height = 1.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nose"]
+albedo_color = Color(1, 0.9, 0.2, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_nose"]
+material = SubResource("StandardMaterial3D_nose")
+size = Vector3(0.15, 0.15, 0.45)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
+bg_color = Color(0.1, 0.85, 0.95, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Poke" type="CharacterBody3D" unique_id=1504492069]
+collision_layer = 2
+script = ExtResource("1_base")
+character_name = "Poke"
+max_health = 80.0
+current_health = 80.0
+max_move_speed = 11.5
+dash_impulse = 28.0
+attack_cooldown = 0.9
+ability_one_cooldown = 6.5
+ability_two_cooldown = 11.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1856021603]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1266904463]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("CapsuleMesh_1")
+
+[node name="FacingIndicator" type="MeshInstance3D" parent="." unique_id=1696700082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, -0.35)
+mesh = SubResource("BoxMesh_nose")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=534297690]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=2147193977]
+replication_config = SubResource("SceneReplicationConfig_1")
+
+[node name="HealthBarViewport" type="SubViewport" parent="." unique_id=1172474910]
+disable_3d = true
+transparent_bg = true
+size = Vector2i(120, 16)
+render_target_update_mode = 4
+
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=1738470589]
+custom_minimum_size = Vector2(120, 16)
+offset_right = 120.0
+offset_bottom = 16.0
+theme_override_styles/background = SubResource("StyleBoxFlat_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
+max_value = 80.0
+value = 80.0
+show_percentage = false
+
+[node name="HealthBarSprite" type="Sprite3D" parent="." unique_id=1065039526]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0)
+billboard = 1
+double_sided = false
+no_depth_test = true
+
+[node name="PlayerHUD" type="CanvasLayer" parent="." unique_id=1425862011]
+
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD" unique_id=1929910548]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -140.0
+offset_right = 240.0
+offset_bottom = -20.0
+grow_vertical = 0
+
+[node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox" unique_id=1879832025]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+
+[node name="AttackCD" type="Label" parent="PlayerHUD/VBox" unique_id=140496665]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Attack [LMB]: READY"
+
+[node name="AbilityOneCD" type="Label" parent="PlayerHUD/VBox" unique_id=946995548]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "One [RMB]: READY"
+
+[node name="AbilityTwoCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Two [Q]: READY"
+
+[node name="DashCD" type="Label" parent="PlayerHUD/VBox" unique_id=1065917800]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Dash [Shift]: READY"
+
+[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD" unique_id=1254145492]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -175.0
+offset_top = 20.0
+offset_right = 175.0
+offset_bottom = 76.0
+grow_horizontal = 2
+
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel" unique_id=1402635284]
+layout_mode = 2
+
+[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox" unique_id=191713405]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "SPECTATING: Player
+[LMB / RMB to Cycle]"
+horizontal_alignment = 1

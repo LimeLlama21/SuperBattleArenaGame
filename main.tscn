@@ -1,6 +1,10 @@
-[gd_scene load_steps=15 format=3 uid="uid://b12b5b3x4x8y7"]
+[gd_scene format=3 uid="uid://b12b5b3x4x8y7"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_2"]
+[ext_resource type="Script" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_mul"]
+blend_mode = 3
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -140,7 +144,44 @@ spawn_path = NodePath("../Players")
 [node name="ProjectileSpawner" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("../Projectiles")
 
+[node name="TerrainObjects" type="Node3D" parent="."]
+
+[node name="TerrainSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../TerrainObjects")
+
+[node name="VisionZones" type="Node3D" parent="."]
+
+[node name="VisionSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../VisionZones")
+
+[node name="FogOfWarCanvas" type="CanvasLayer" parent="."]
+layer = 2
+
+[node name="VisionSubViewport" type="SubViewport" parent="FogOfWarCanvas"]
+disable_3d = true
+transparent_bg = false
+size = Vector2i(1280, 720)
+render_target_update_mode = 4
+
+[node name="VisionDrawer" type="Control" parent="FogOfWarCanvas/VisionSubViewport"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("2_fow_script")
+
+[node name="FogOfWarTexture" type="TextureRect" parent="FogOfWarCanvas"]
+material = SubResource("CanvasItemMaterial_mul")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+
 [node name="UI" type="CanvasLayer" parent="."]
+layer = 10
 
 [node name="MainMenu" type="PanelContainer" parent="UI"]
 anchors_preset = 8
@@ -233,6 +274,12 @@ custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Crush (Select)"
+
+[node name="SelectDive" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Dive (Select)"
 
 [node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox"]
 custom_minimum_size = Vector2(0, 36)
