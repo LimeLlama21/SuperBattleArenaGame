@@ -1,8 +1,20 @@
-# Supervive Sandbox - Momentum Physics & Jumping
+# Supervive Sandbox - Poke & Crush
 
-## New Features:
-- **Momentum-Based Dash**: Dashing injects an impulse into `velocity` rather than hard-locking your position.
-- **Air vs Ground Friction**: 
-  - On the ground, friction (`40.0`) brings you back down to normal running speed rapidly.
-  - In the air, low aerodynamic drag (`3.5`) lets you preserve massive dash momentum when leaping off platforms or air-dashing.
-- **Interactive Obstacles**: Jumpable boxes, stair steps, and elevated platforms added to the sandbox arena.
+## Characters:
+
+### 1. Poke (Agile Ranged Scout)
+- **Health**: 80 HP
+- **Move Speed**: 11.5
+- **Primary Attack [LMB]**: Fast Skillshot Blaster (22 Damage, 0.25s cooldown)
+- **Dash [Shift / RMB]**: Quick Momentum Dash (Cooldown: **4.0 seconds**)
+
+### 2. Crush (Heavy Area Melee Brawler)
+- **Health**: 160 HP
+- **Move Speed**: 8.5
+- **Primary Attack [LMB]**: Heavy Ground Slam / Area Melee Strike
+  - **Cast / Windup Delay**: 0.28 seconds with visual ground indicator
+  - **Damage**: 55 Damage in a forward 100° cone arc
+- **Dash [Shift / RMB]**: Heavy Momentum Thrust (Cooldown: **8.0 seconds**)
+
+## HUD:
+- Added real-time ability cooldown timers in the bottom-left corner of the screen for both Dash and Primary Attacks.

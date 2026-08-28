@@ -119,17 +119,6 @@ mesh = SubResource("BoxMesh_box_sm")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/Step1"]
 shape = SubResource("BoxShape3D_box_sm")
 
-[node name="Step2" type="StaticBody3D" parent="Arena"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.2, -3)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/Step2"]
-mesh = SubResource("BoxMesh_box_med")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/Step2"]
-shape = SubResource("BoxShape3D_box_med")
-
 [node name="SpawnPoints" type="Node3D" parent="."]
 
 [node name="Marker3D" type="Marker3D" parent="SpawnPoints"]
@@ -143,7 +132,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, 4)
 [node name="Projectiles" type="Node3D" parent="."]
 
 [node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
-_spawnable_scenes = PackedStringArray("res://player.tscn")
 spawn_path = NodePath("../Players")
 
 [node name="ProjectileSpawner" type="MultiplayerSpawner" parent="."]
@@ -151,41 +139,107 @@ spawn_path = NodePath("../Projectiles")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="Menu" type="PanelContainer" parent="UI"]
+[node name="MainMenu" type="PanelContainer" parent="UI"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -110.0
-offset_top = -70.0
-offset_right = 110.0
-offset_bottom = 70.0
+offset_left = -140.0
+offset_top = -90.0
+offset_right = 140.0
+offset_bottom = 90.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 
-[node name="VBox" type="VBoxContainer" parent="UI/Menu"]
+[node name="VBox" type="VBoxContainer" parent="UI/MainMenu"]
 layout_mode = 2
-mouse_filter = 0
-theme_override_constants/separation = 10
+theme_override_constants/separation = 12
 
-[node name="HostButton" type="Button" parent="UI/Menu/VBox"]
+[node name="Title" type="Label" parent="UI/MainMenu/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "SUPERVIVE SANDBOX"
+horizontal_alignment = 1
+
+[node name="HostButton" type="Button" parent="UI/MainMenu/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-mouse_filter = 0
-text = "Host Server"
+text = "Create Lobby (Host)"
 
-[node name="AddressInput" type="LineEdit" parent="UI/Menu/VBox"]
+[node name="RoomCodeInput" type="LineEdit" parent="UI/MainMenu/VBox"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
-mouse_filter = 0
-text = "127.0.0.1"
-placeholder_text = "Server IP"
+text = "LOCAL-01"
+placeholder_text = "Enter Room Code or IP"
 alignment = 1
 
-[node name="JoinButton" type="Button" parent="UI/Menu/VBox"]
+[node name="JoinButton" type="Button" parent="UI/MainMenu/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-mouse_filter = 0
-text = "Join Game"
+text = "Join Lobby"
+
+[node name="LobbyRoom" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -230.0
+offset_top = -180.0
+offset_right = 230.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="UI/LobbyRoom"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RoomCodeDisplay" type="Label" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "ROOM CODE: LOCAL-01"
+horizontal_alignment = 1
+
+[node name="PlayerListLabel" type="Label" parent="UI/LobbyRoom/VBox"]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+text = "Players in Lobby:
+• Host (P1) — [POKE]"
+
+[node name="SelectHeader" type="Label" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Select Your Character:"
+horizontal_alignment = 1
+
+[node name="HBoxSelect" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SelectPoke" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "★ Poke (Selected)"
+
+[node name="SelectCrush" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Crush (Select)"
+
+[node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "POKE: Agile Ranged Scout. Fast skillshot blasters (22 dmg), Dash Cooldown: 4.0s (80 HP)."
+autowrap_mode = 2
+
+[node name="StartMatchButton" type="Button" parent="UI/LobbyRoom/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "START MATCH"
