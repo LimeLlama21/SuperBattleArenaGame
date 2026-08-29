@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://main.gd" id="1_2"]
 [ext_resource type="Script" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
+[ext_resource type="Script" path="res://settings_ui.gd" id="3_settings_script"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_mul"]
 blend_mode = 3
@@ -23,38 +24,71 @@ glow_enabled = true
 size = Vector3(70, 1, 70)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
-albedo_color = Color(0.2, 0.23, 0.26, 1)
+albedo_color = Color(0.18, 0.21, 0.25, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
 material = SubResource("StandardMaterial3D_floor")
 size = Vector3(70, 1, 70)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_box"]
-albedo_color = Color(0.85, 0.55, 0.25, 1)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_center_cone"]
+albedo_color = Color(0.32, 0.38, 0.46, 1)
+metallic = 0.25
+roughness = 0.35
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_platform"]
-albedo_color = Color(0.3, 0.55, 0.75, 1)
+[sub_resource type="CylinderMesh" id="CylinderMesh_center_cone"]
+material = SubResource("StandardMaterial3D_center_cone")
+top_radius = 0.0
+bottom_radius = 6.0
+height = 7.0
+radial_segments = 32
 
-[sub_resource type="BoxMesh" id="BoxMesh_box_sm"]
-material = SubResource("StandardMaterial3D_box")
-size = Vector3(3, 1.2, 3)
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_center_cone"]
+height = 7.0
+radius = 5.5
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_box_sm"]
-size = Vector3(3, 1.2, 3)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_obstacle"]
+albedo_color = Color(0.72, 0.5, 0.28, 1)
+roughness = 0.5
 
-[sub_resource type="BoxMesh" id="BoxMesh_box_med"]
-material = SubResource("StandardMaterial3D_box")
-size = Vector3(4, 2.4, 4)
+[sub_resource type="BoxMesh" id="BoxMesh_quad_pillar"]
+material = SubResource("StandardMaterial3D_obstacle")
+size = Vector3(3.5, 3.0, 3.5)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_box_med"]
-size = Vector3(4, 2.4, 4)
+[sub_resource type="BoxShape3D" id="BoxShape3D_quad_pillar"]
+size = Vector3(3.5, 3.0, 3.5)
 
-[sub_resource type="BoxMesh" id="BoxMesh_platform"]
-material = SubResource("StandardMaterial3D_platform")
-size = Vector3(12, 3.6, 8)
+[sub_resource type="BoxMesh" id="BoxMesh_side_cover"]
+material = SubResource("StandardMaterial3D_obstacle")
+size = Vector3(2.5, 2.4, 2.5)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_platform"]
-size = Vector3(12, 3.6, 8)
+[sub_resource type="BoxShape3D" id="BoxShape3D_side_cover"]
+size = Vector3(2.5, 2.4, 2.5)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_small_cone"]
+material = SubResource("StandardMaterial3D_center_cone")
+top_radius = 0.0
+bottom_radius = 2.2
+height = 3.0
+radial_segments = 24
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_small_cone"]
+height = 3.0
+radius = 2.0
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_training_floor"]
+height = 1.0
+radius = 16.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_training_floor"]
+albedo_color = Color(0.14, 0.17, 0.22, 1)
+roughness = 0.4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_training_floor"]
+material = SubResource("StandardMaterial3D_training_floor")
+top_radius = 16.0
+bottom_radius = 16.0
+height = 1.0
+radial_segments = 48
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_2")
@@ -68,71 +102,155 @@ shadow_enabled = true
 
 [node name="Arena" type="Node3D" parent="."]
 
-[node name="Floor" type="StaticBody3D" parent="Arena"]
+[node name="DefaultMap" type="Node3D" parent="Arena"]
+
+[node name="Floor" type="StaticBody3D" parent="Arena/DefaultMap"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 collision_layer = 1
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/Floor"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Floor"]
 shape = SubResource("BoxShape3D_floor")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/Floor"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Floor"]
 mesh = SubResource("BoxMesh_floor")
 
-[node name="SmallBox1" type="StaticBody3D" parent="Arena"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.6, -4)
+[node name="CenterCone" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
 collision_layer = 1
 collision_mask = 0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/SmallBox1"]
-mesh = SubResource("BoxMesh_box_sm")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/CenterCone"]
+mesh = SubResource("CylinderMesh_center_cone")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/SmallBox1"]
-shape = SubResource("BoxShape3D_box_sm")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/CenterCone"]
+shape = SubResource("CylinderShape3D_center_cone")
 
-[node name="MediumBox1" type="StaticBody3D" parent="Arena"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.2, -8.5)
+[node name="Obstacle_NW" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 1.5, -12)
 collision_layer = 1
 collision_mask = 0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/MediumBox1"]
-mesh = SubResource("BoxMesh_box_med")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_NW"]
+mesh = SubResource("BoxMesh_quad_pillar")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/MediumBox1"]
-shape = SubResource("BoxShape3D_box_med")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_NW"]
+shape = SubResource("BoxShape3D_quad_pillar")
 
-[node name="HighPlatform" type="StaticBody3D" parent="Arena"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.8, -6)
+[node name="Obstacle_NE" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.5, -12)
 collision_layer = 1
 collision_mask = 0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/HighPlatform"]
-mesh = SubResource("BoxMesh_platform")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_NE"]
+mesh = SubResource("BoxMesh_quad_pillar")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/HighPlatform"]
-shape = SubResource("BoxShape3D_platform")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_NE"]
+shape = SubResource("BoxShape3D_quad_pillar")
 
-[node name="Step1" type="StaticBody3D" parent="Arena"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.6, 0)
+[node name="Obstacle_SW" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 1.5, 12)
 collision_layer = 1
 collision_mask = 0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/Step1"]
-mesh = SubResource("BoxMesh_box_sm")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_SW"]
+mesh = SubResource("BoxMesh_quad_pillar")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/Step1"]
-shape = SubResource("BoxShape3D_box_sm")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_SW"]
+shape = SubResource("BoxShape3D_quad_pillar")
+
+[node name="Obstacle_SE" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.5, 12)
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_SE"]
+mesh = SubResource("BoxMesh_quad_pillar")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_SE"]
+shape = SubResource("BoxShape3D_quad_pillar")
+
+[node name="Obstacle_North" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -18)
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_North"]
+mesh = SubResource("CylinderMesh_small_cone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_North"]
+shape = SubResource("CylinderShape3D_small_cone")
+
+[node name="Obstacle_South" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 18)
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_South"]
+mesh = SubResource("CylinderMesh_small_cone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_South"]
+shape = SubResource("CylinderShape3D_small_cone")
+
+[node name="Obstacle_LeftMid" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 1.2, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_LeftMid"]
+mesh = SubResource("BoxMesh_side_cover")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_LeftMid"]
+shape = SubResource("BoxShape3D_side_cover")
+
+[node name="Obstacle_RightMid" type="StaticBody3D" parent="Arena/DefaultMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 1.2, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_RightMid"]
+mesh = SubResource("BoxMesh_side_cover")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_RightMid"]
+shape = SubResource("BoxShape3D_side_cover")
+
+[node name="TrainingMap" type="Node3D" parent="Arena"]
+visible = false
+
+[node name="TrainingFloor" type="StaticBody3D" parent="Arena/TrainingMap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/TrainingMap/TrainingFloor"]
+shape = SubResource("CylinderShape3D_training_floor")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/TrainingMap/TrainingFloor"]
+mesh = SubResource("CylinderMesh_training_floor")
 
 [node name="SpawnPoints" type="Node3D" parent="."]
 
-[node name="Marker3D" type="Marker3D" parent="SpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.1, 4)
+[node name="Team1_Spawns" type="Node3D" parent="SpawnPoints"]
 
-[node name="Marker3D2" type="Marker3D" parent="SpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, 4)
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -6)
 
-[node name="Marker3D3" type="Marker3D" parent="SpawnPoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -12)
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 0)
+
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 6)
+
+[node name="Team2_Spawns" type="Node3D" parent="SpawnPoints"]
+
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -6)
+
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 0)
+
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 6)
 
 [node name="Players" type="Node3D" parent="."]
 
@@ -228,6 +346,16 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Join Lobby"
 
+[node name="TrainingButton" type="Button" parent="UI/MainMenu/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "🎯 Solo Training Session"
+
+[node name="SettingsButton" type="Button" parent="UI/MainMenu/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "⚙ Settings"
+
 [node name="LobbyRoom" type="PanelContainer" parent="UI"]
 visible = false
 anchors_preset = 8
@@ -235,10 +363,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -230.0
-offset_top = -180.0
-offset_right = 230.0
-offset_bottom = 180.0
+offset_left = -320.0
+offset_top = -240.0
+offset_right = 320.0
+offset_bottom = 240.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -252,16 +380,10 @@ theme_override_font_sizes/font_size = 15
 text = "ROOM CODE: LOCAL-01"
 horizontal_alignment = 1
 
-[node name="PlayerListLabel" type="Label" parent="UI/LobbyRoom/VBox"]
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-text = "Players in Lobby:
-• Host (P1) — [POKE]"
-
 [node name="SelectHeader" type="Label" parent="UI/LobbyRoom/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "Select Your Character:"
+text = "1. Choose Your Hunter:"
 horizontal_alignment = 1
 
 [node name="HBoxSelect" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
@@ -287,12 +409,80 @@ size_flags_horizontal = 3
 text = "Dive (Select)"
 
 [node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox"]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 11
 text = "POKE: Agile Ranged Scout. Fast skillshot blasters (22 dmg), Dash Cooldown: 4.0s (80 HP)."
 autowrap_mode = 2
+
+[node name="TeamSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TeamHeader" type="Label" parent="UI/LobbyRoom/VBox/TeamSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "2. Select Team & Slot (3v3 Max):"
+horizontal_alignment = 1
+
+[node name="HBoxTeams" type="HBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="VBoxTeam1" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Team1Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "TEAM 1 (LEFT / BLUE)"
+horizontal_alignment = 1
+
+[node name="T1Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 1 : Open ]"
+
+[node name="T1Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 2 : Open ]"
+
+[node name="T1Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 3 : Open ]"
+
+[node name="VBoxTeam2" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Team2Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "TEAM 2 (RIGHT / RED)"
+horizontal_alignment = 1
+
+[node name="T2Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 1 : Open ]"
+
+[node name="T2Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 2 : Open ]"
+
+[node name="T2Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 3 : Open ]"
 
 [node name="StartMatchButton" type="Button" parent="UI/LobbyRoom/VBox"]
 custom_minimum_size = Vector2(0, 42)
@@ -321,7 +511,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "MATCH OVER!
-HOST (P1) WINS!"
+TEAM 1 WINS!"
 horizontal_alignment = 1
 
 [node name="SubLabel" type="Label" parent="UI/MatchOverPanel/VBox"]
@@ -329,3 +519,190 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Returning to lobby in 3 seconds..."
 horizontal_alignment = 1
+
+[node name="EscapeMenu" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="UI/EscapeMenu"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EscapeTabContainer" type="TabContainer" parent="UI/EscapeMenu/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Menu" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "MATCH PAUSED"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Resume Game"
+
+[node name="SettingsButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "⚙ Settings"
+
+[node name="LeaveMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Leave Match / Main Menu"
+
+[node name="Switch Hunter" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SwitchHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Select Hunter to Swap Instantly:"
+horizontal_alignment = 1
+
+[node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "🏹 Poke (Sniper - 80 HP)"
+
+[node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "🛡 Crush (Juggernaut - 160 HP)"
+
+[node name="SwitchDive" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "💥 Dive (Brawler - 120 HP)"
+
+[node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "Swaps your character immediately at your current position with full health."
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="SettingsMenu" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -270.0
+offset_top = -250.0
+offset_right = 270.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_settings_script")
+
+[node name="VBox" type="VBoxContainer" parent="UI/SettingsMenu"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="UI/SettingsMenu/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "SETTINGS"
+horizontal_alignment = 1
+
+[node name="TabContainer" type="TabContainer" parent="UI/SettingsMenu/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Display" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HBoxMode" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Display"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxMode"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Window Mode:"
+
+[node name="WindowModeOption" type="OptionButton" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxMode"]
+custom_minimum_size = Vector2(180, 32)
+layout_mode = 2
+
+[node name="HBoxVSync" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Display"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxVSync"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Vertical Sync (VSync):"
+
+[node name="VSyncCheck" type="CheckBox" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxVSync"]
+layout_mode = 2
+text = "Enabled"
+
+[node name="Audio" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HBoxMaster" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Audio"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Master Volume:"
+
+[node name="MasterSlider" type="HSlider" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_vertical = 4
+value = 100.0
+
+[node name="MasterValLabel" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster"]
+custom_minimum_size = Vector2(45, 0)
+layout_mode = 2
+text = "100%"
+horizontal_alignment = 2
+
+[node name="Controls" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Scroll" type="ScrollContainer" parent="UI/SettingsMenu/VBox/TabContainer/Controls"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ControlsContainer" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Controls/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ResetControlsButton" type="Button" parent="UI/SettingsMenu/VBox/TabContainer/Controls"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "Reset Controls to Default"
+
+[node name="CloseButton" type="Button" parent="UI/SettingsMenu/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Save & Close Settings"

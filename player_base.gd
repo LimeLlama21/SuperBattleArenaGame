@@ -1,7 +1,19 @@
 class_name BasePlayer
 extends CharacterBody3D
 
+enum ActionType {
+	ATTACK = 0,      # Primary / Basic Attack (e.g. LMB: Rail Shot, Melee Slam, Melee Slash)
+	ABILITY = 1,     # Special Hunter Ability / Spell (e.g. RMB, Q, E, Shift / Crash)
+	ENVIRONMENT = 2  # Map Hazards / Void / Wall Impact
+}
+
+signal attack_performed(attack_name: String)
+signal ability_cast(ability_name: String, slot_key: String)
+signal damage_dealt(target: Node, amount: float, action_type: int)
+signal damage_taken(attacker_id: int, amount: float, action_type: int)
+
 @export var character_name: String = "Hunter"
+@export var team_id: int = 1
 @export var max_health: float = 100.0
 @export var current_health: float = 100.0:
 	set(value):
@@ -34,10 +46,11 @@ var shield_timer: float = 0.0
 @export var windup_time: float = 0.0 # Attack windup delay
 @export var melee_windup_time: float = 0.28 # Default melee windup
 
-# Ability One (RMB), Ability Two (Q), and Ability Three (E) Parameters
+# Ability One (RMB), Ability Two (Q), Ability Three (E), and Ultimate (R) Parameters
 @export var ability_one_cooldown: float = 6.0
 @export var ability_two_cooldown: float = 8.0
 @export var ability_three_cooldown: float = 8.0
+@export var ability_four_cooldown: float = 24.0
 @export var can_cast_while_stunned: bool = false
 @export var is_cc_immune: bool = false
 
@@ -46,8 +59,9 @@ var shield_timer: float = 0.0
 @export var projectile_damage: float = 50.0
 @export var projectile_speed: float = 70.0
 
-# Melee Attack Stats (Size, Damage)
+# Melee Attack Stats (Size, Damage, Height)
 @export var melee_size: float = 4.2 # Radius / range of the melee hitbox
+@export var melee_height: float = 2.4 # Vertical hit height / thickness (centered at chest/strike level)
 @export var melee_damage: float = 55.0
 @export var melee_angle_deg: float = 120.0
 
@@ -78,18 +92,36 @@ var attack_timer: float = 0.0
 var ability_one_timer: float = 0.0
 var ability_two_timer: float = 0.0
 var ability_three_timer: float = 0.0
+var ability_four_timer: float = 0.0
 var is_casting_melee: bool = false
 var is_casting_ability_one: bool = false
 var is_casting_ability_two: bool = false
 var is_casting_ability_three: bool = false
+var is_casting_ability_four: bool = false
 var is_dead: bool = false
 
-# Status effects state
+# Status effects state (Stun, Slow, Silence)
 var stun_timer: float = 0.0
 var slow_timer: float = 0.0
 var slow_initial_duration: float = 0.0
 var slow_initial_percent: float = 0.0
 var slow_percent: float = 0.0
+var silence_timer: float = 0.0
+
+# Crush Ultimate: Juggernaut Charge & Grab State
+var is_crush_charging: bool = false
+var crush_charge_timer: float = 0.0
+var crush_charge_dir: Vector3 = Vector3.FORWARD
+var crush_grabbed_peer_id: int = 0
+const CRUSH_CHARGE_DURATION: float = 1.0
+const CRUSH_CHARGE_SPEED: float = 28.0
+const CRUSH_CHARGE_TURN_SPEED: float = 1.8
+
+# Dive Ultimate: Tectonic Buff State
+var dive_ult_buff_timer: float = 0.0
+const DIVE_ULT_BUFF_DURATION: float = 6.0
+const DIVE_ULT_SPEED_MULT: float = 0.35
+const DIVE_ULT_ATTACK_SPEED_MULT: float = 0.40
 
 # Channeling state (Self-inflicted CC condition)
 var is_channeling: bool = false
@@ -101,6 +133,8 @@ var spectate_target: Node3D = null
 var spectate_index: int = 0
 
 const CAMERA_OFFSET: Vector3 = Vector3(0, 17, 9.5)
+const CAMERA_ZOOMED_OFFSET: Vector3 = Vector3(0, 30, 16.5)
+var current_camera_offset: Vector3 = Vector3(0, 17, 9.5)
 const VOID_DEATH_Y: float = -8.0
 
 # Passives & Special Ability State
@@ -123,9 +157,11 @@ const BLOCK_DURATION: float = 3.0
 const BLOCK_MAX_TURN_SPEED: float = 2.2 # Max turn speed (rad/s) while blocking
 const BLOCK_DR_PERCENT: float = 0.75 # 75% damage reduction from front 140 deg
 
-# Poke: Fleet Foot
+# Poke: Fleet Foot & Eagle Eye Ultimate
 var poke_speed_boost_timer: float = 0.0
 var poke_speed_boost_percent: float = 0.0
+var poke_ult_buff_timer: float = 0.0
+const POKE_ULT_BUFF_DURATION: float = 12.0
 
 # Wall Impact Damage System (Calculated from knockback_velocity caused by external enemies/hazards)
 var knockback_velocity: Vector3 = Vector3.ZERO
@@ -138,21 +174,22 @@ var is_holding_shoot: bool = false
 var is_holding_ability_one: bool = false
 var is_holding_ability_two: bool = false
 var is_holding_ability_three: bool = false
+var is_holding_ability_four: bool = false
 
 var ind_attack: Node3D = null
 var ind_ability_one: Node3D = null
 var ind_ability_two: Node3D = null
 var ind_ability_three: Node3D = null
+var ind_ability_four: Node3D = null
 var ind_dive_crash_range: MeshInstance3D = null
 var ind_dive_crash_circle: Node3D = null
 var ind_poke_flare_circle: Node3D = null
 var ind_poke_dot_zone: Node3D = null
 
-@onready var camera: Camera3D = $Camera3D
-@onready var synchronizer: MultiplayerSynchronizer = $MultiplayerSynchronizer
+@onready var sprite_3d: Sprite3D = $HealthBarSprite
 @onready var health_bar: ProgressBar = $HealthBarViewport/ProgressBar
 @onready var gray_health_bar: ProgressBar = get_node_or_null("HealthBarViewport/GrayProgressBar")
-@onready var sprite_3d: Sprite3D = $HealthBarSprite
+@onready var camera: Camera3D = $Camera3D
 @onready var melee_visual: Node3D = get_node_or_null("MeleeVisual")
 @onready var ability_one_visual: Node3D = get_node_or_null("AbilityOneVisual")
 @onready var ability_two_visual: Node3D = get_node_or_null("AbilityTwoVisual")
@@ -164,6 +201,7 @@ var ind_poke_dot_zone: Node3D = null
 @onready var ability_one_cd_label: Label = get_node_or_null("PlayerHUD/VBox/AbilityOneCD")
 @onready var ability_two_cd_label: Label = get_node_or_null("PlayerHUD/VBox/AbilityTwoCD")
 @onready var ability_three_cd_label: Label = get_node_or_null("PlayerHUD/VBox/AbilityThreeCD")
+@onready var ability_four_cd_label: Label = get_node_or_null("PlayerHUD/VBox/AbilityFourCD")
 @onready var dash_cd_label: Label = get_node_or_null("PlayerHUD/VBox/DashCD")
 @onready var spectator_panel: PanelContainer = $PlayerHUD/SpectatorPanel
 @onready var spectator_label: Label = $PlayerHUD/SpectatorPanel/VBox/SpectatorLabel
@@ -200,6 +238,7 @@ func _ready() -> void:
 	dash_lockout_timer = 0.0
 	dash_recharge_timer = 0.0
 	sprite_3d.texture = $HealthBarViewport.get_texture()
+	_update_team_visuals()
 	update_health_bar()
 	if melee_visual:
 		melee_visual.visible = false
@@ -216,24 +255,64 @@ func _ready() -> void:
 	if spectator_panel:
 		spectator_panel.hide()
 
+func set_team_id(new_team: int) -> void:
+	team_id = new_team
+	_update_team_visuals()
+
+func is_enemy(other: Node) -> bool:
+	if not is_instance_valid(other) or not other.has_method("take_damage"):
+		return false
+	if other == self:
+		return false
+	if other.get("team_id") != null and other.team_id == team_id and team_id > 0:
+		return false
+	return true
+
+func _update_team_visuals() -> void:
+	if not health_bar:
+		return
+	var my_local_id = multiplayer.get_unique_id()
+	var is_teammate = false
+	var local_player = get_tree().root.get_node_or_null("Main/Players/" + str(my_local_id))
+	if local_player and local_player.get("team_id") != null:
+		is_teammate = (local_player.team_id == team_id)
+	elif name.to_int() == my_local_id:
+		is_teammate = true
+	else:
+		is_teammate = (team_id == 1 and my_local_id == 1)
+	
+	var fill_style = StyleBoxFlat.new()
+	fill_style.corner_radius_top_left = 4
+	fill_style.corner_radius_top_right = 4
+	fill_style.corner_radius_bottom_right = 4
+	fill_style.corner_radius_bottom_left = 4
+	if is_teammate:
+		fill_style.bg_color = Color(0.1, 0.85, 0.95, 1.0) # Friendly Blue / Cyan
+	else:
+		fill_style.bg_color = Color(0.95, 0.3, 0.25, 1.0) # Enemy Red / Coral
+	health_bar.add_theme_stylebox_override("fill", fill_style)
+
 func _setup_local_indicators() -> void:
 	if character_name == "Crush":
-		# LMB: 4.2m, 120 deg Slam
-		ind_attack = AbilityIndicator.create_sector_indicator(melee_size, melee_angle_deg, Color(1.0, 0.4, 0.1, 0.28), Color(1.0, 0.65, 0.2, 0.95))
 		# RMB: 5.2m, 100 deg Fan Stun
 		ind_ability_one = AbilityIndicator.create_sector_indicator(5.2, 100.0, Color(1.0, 0.85, 0.1, 0.32), Color(1.0, 0.95, 0.3, 0.95))
 		# Q: 6.5m Radius Shockwave Circle
 		ind_ability_two = AbilityIndicator.create_circle_indicator(6.5, Color(1.0, 0.45, 0.15, 0.22), Color(1.0, 0.6, 0.25, 0.9))
+		# R: 28m x 2.4m Juggernaut Charge line
+		ind_ability_four = AbilityIndicator.create_line_indicator(28.0, 2.4, Color(1.0, 0.4, 0.1, 0.32), Color(1.0, 0.65, 0.2, 0.95))
+		ind_ability_four.top_level = true
 	elif character_name == "Dive":
-		# LMB: 2.8m, 135 deg Slash
-		ind_attack = AbilityIndicator.create_sector_indicator(melee_size, melee_angle_deg, Color(0.9, 0.2, 0.85, 0.28), Color(1.0, 0.35, 0.95, 0.95))
 		# RMB: 3.0m, 135 deg Heavy Cleave
 		ind_ability_one = AbilityIndicator.create_sector_indicator(3.0, 135.0, Color(0.2, 0.9, 1.0, 0.32), Color(0.35, 0.95, 1.0, 0.95))
 		# Q: 14.0m x 1.5m Earth Tremor path with end pillar circle
 		ind_ability_two = AbilityIndicator.create_line_indicator(14.0, 1.5, Color(0.8, 0.3, 1.0, 0.28), Color(0.9, 0.45, 1.0, 0.95), true, 1.4)
+		ind_ability_two.top_level = true
 		
 		# E: 140 deg Frontal Guard Arc indicator
 		ind_ability_three = AbilityIndicator.create_sector_indicator(2.5, 140.0, Color(0.2, 0.8, 1.0, 0.35), Color(0.3, 0.9, 1.0, 0.95))
+		
+		# R: 6.0m Tectonic Uprising Burst & Rock Ring Circle
+		ind_ability_four = AbilityIndicator.create_circle_indicator(6.0, Color(0.75, 0.2, 1.0, 0.32), Color(0.9, 0.4, 1.0, 0.95))
 		
 		# Contextual Aerial Crash Down: Range ring + 6.0m landing circle
 		ind_dive_crash_range = AbilityIndicator.create_ring_indicator(6.0, Color(1.0, 0.3, 0.9, 0.65))
@@ -246,10 +325,9 @@ func _setup_local_indicators() -> void:
 		add_child(ind_dive_crash_circle)
 		ind_dive_crash_circle.hide()
 	elif character_name == "Poke":
-		# LMB: 50m Rail Shot line
-		ind_attack = AbilityIndicator.create_line_indicator(50.0, 1.0, Color(0.1, 0.85, 0.95, 0.25), Color(0.3, 0.95, 1.0, 0.95))
 		# RMB: 60m Repulsor Bolt line
 		ind_ability_one = AbilityIndicator.create_line_indicator(60.0, 0.7, Color(1.0, 0.8, 0.2, 0.28), Color(1.0, 0.9, 0.3, 0.95))
+		ind_ability_one.top_level = true
 		
 		# Q: 4.5m Radius Corrosive DoT Zone Ground Circle
 		ind_poke_dot_zone = AbilityIndicator.create_circle_indicator(4.5, Color(0.1, 0.9, 0.6, 0.28), Color(0.2, 1.0, 0.7, 0.95))
@@ -259,14 +337,15 @@ func _setup_local_indicators() -> void:
 		
 		# E: Recon Flare Targeting Line and 12.0m radius reveal circle
 		ind_ability_three = AbilityIndicator.create_line_indicator(65.0, 0.8, Color(0.2, 0.9, 0.9, 0.25), Color(0.3, 1.0, 0.95, 0.95))
+		ind_ability_three.top_level = true
 		ind_poke_flare_circle = AbilityIndicator.create_circle_indicator(12.0, Color(0.2, 0.9, 0.9, 0.22), Color(0.3, 1.0, 0.95, 0.95))
 		ind_poke_flare_circle.top_level = true
 		add_child(ind_poke_flare_circle)
 		ind_poke_flare_circle.hide()
-
-	if ind_attack:
-		add_child(ind_attack)
-		ind_attack.hide()
+		
+		# R: 75m Orbital Lance Piercing Beam line
+		ind_ability_four = AbilityIndicator.create_line_indicator(75.0, 2.2, Color(0.15, 0.9, 1.0, 0.32), Color(0.35, 1.0, 1.0, 0.95))
+		ind_ability_four.top_level = true
 	if ind_ability_one:
 		add_child(ind_ability_one)
 		ind_ability_one.hide()
@@ -276,9 +355,15 @@ func _setup_local_indicators() -> void:
 	if ind_ability_three:
 		add_child(ind_ability_three)
 		ind_ability_three.hide()
+	if ind_ability_four:
+		add_child(ind_ability_four)
+		ind_ability_four.hide()
 
 func is_stunned() -> bool:
 	return stun_timer > 0.0 and not is_cc_immune
+
+func is_silenced() -> bool:
+	return silence_timer > 0.0 and not is_cc_immune
 
 func is_slowed() -> bool:
 	return slow_timer > 0.0 and not is_cc_immune
@@ -340,6 +425,16 @@ func _physics_process(delta: float) -> void:
 			poke_speed_boost_timer = 0.0
 			poke_speed_boost_percent = 0.0
 
+	if dive_ult_buff_timer > 0.0:
+		dive_ult_buff_timer -= delta
+		if dive_ult_buff_timer <= 0.0:
+			dive_ult_buff_timer = 0.0
+
+	if silence_timer > 0.0:
+		silence_timer -= delta
+		if silence_timer <= 0.0:
+			silence_timer = 0.0
+
 	if wall_impact_cooldown_timer > 0.0:
 		wall_impact_cooldown_timer -= delta
 		if wall_impact_cooldown_timer < 0.0:
@@ -398,7 +493,10 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if DisplayServer.window_is_focused() and camera and is_instance_valid(camera) and camera.is_inside_tree():
-		camera.global_position = global_position + CAMERA_OFFSET
+		var target_cam_offset = CAMERA_ZOOMED_OFFSET if (character_name == "Poke" and poke_ult_buff_timer > 0.0) else CAMERA_OFFSET
+		current_camera_offset = current_camera_offset.lerp(target_cam_offset, 5.0 * delta)
+		camera.global_position = global_position + current_camera_offset
+		camera.look_at(global_position, Vector3.UP)
 
 	if dash_lockout_timer > 0.0:
 		dash_lockout_timer -= delta
@@ -444,6 +542,9 @@ func _physics_process(delta: float) -> void:
 
 	if ability_three_timer > 0.0:
 		ability_three_timer -= delta
+
+	if ability_four_timer > 0.0:
+		ability_four_timer -= delta
 
 	_update_hud()
 
@@ -492,16 +593,72 @@ func _physics_process(delta: float) -> void:
 			_execute_dive_crash_impact()
 
 	# Momentum & Movement Physics (Existing velocity continues smoothly under physics!)
-	if not is_crashing_down:
+	if is_crush_charging:
+		crush_charge_timer -= delta
+		# Limited steering during unstoppable charge
+		var aim_info = get_3d_aim_info()
+		var target_fwd_2d = Vector2(aim_info.dir.x, aim_info.dir.z).normalized()
+		var curr_fwd_2d = Vector2(crush_charge_dir.x, crush_charge_dir.z).normalized()
+		if target_fwd_2d.length_squared() > 0.1:
+			var target_angle = atan2(-target_fwd_2d.x, -target_fwd_2d.y)
+			var current_angle = atan2(-curr_fwd_2d.x, -curr_fwd_2d.y)
+			var new_angle = rotate_toward(current_angle, target_angle, CRUSH_CHARGE_TURN_SPEED * delta)
+			crush_charge_dir = Vector3(-sin(new_angle), 0, -cos(new_angle)).normalized()
+			rotation.y = new_angle
+
+		velocity.x = crush_charge_dir.x * CRUSH_CHARGE_SPEED
+		velocity.z = crush_charge_dir.z * CRUSH_CHARGE_SPEED
+		
+		# Server-authoritative Grab & Wall Collision
+		if multiplayer.is_server():
+			if crush_grabbed_peer_id == 0:
+				var players_container = get_tree().root.get_node_or_null("Main/Players")
+				if players_container:
+					for p in players_container.get_children():
+						if is_enemy(p) and not p.get("is_dead"):
+							var diff = p.global_position - global_position
+							if diff.length() <= 2.2 and abs(diff.y) <= 2.5:
+								var to_p = Vector2(diff.x, diff.z).normalized()
+								var fwd_2d = Vector2(crush_charge_dir.x, crush_charge_dir.z).normalized()
+								if fwd_2d.dot(to_p) > 0.4:
+									crush_grabbed_peer_id = p.name.to_int()
+									if p.has_method("apply_stun"):
+										p.apply_stun(1.8)
+									sync_crush_grab.rpc(crush_grabbed_peer_id)
+									break
+
+			if crush_grabbed_peer_id > 0:
+				var grabbed_player = get_tree().root.get_node_or_null("Main/Players/" + str(crush_grabbed_peer_id))
+				if grabbed_player and not grabbed_player.get("is_dead"):
+					grabbed_player.global_position = global_position + crush_charge_dir * 1.6
+					if grabbed_player.has_method("apply_stun"):
+						grabbed_player.apply_stun(0.2)
+
+			var hit_wall = false
+			for i in range(get_slide_collision_count()):
+				var col = get_slide_collision(i)
+				var col_obj = col.get_collider()
+				if col_obj is StaticBody3D and col_obj.name != "Floor":
+					hit_wall = true
+					break
+
+			if crush_charge_timer <= 0.0 or hit_wall:
+				_finish_crush_charge_slam_server(hit_wall)
+	elif not is_crashing_down:
 		var current_horizontal = Vector2(velocity.x, velocity.z)
-		var speed = current_horizontal.length()
-		var speed_mult = slow_mult * (1.0 + poke_speed_boost_percent)
-		var effective_max_speed = max_move_speed * speed_mult
-		var effective_accel = ground_acceleration * speed_mult
+		var current_speed = current_horizontal.length()
+
+		# Effective movement speed calculation with buffs and debuffs
+		var effective_max_speed = max_move_speed * slow_mult
+		if poke_speed_boost_timer > 0.0:
+			effective_max_speed *= (1.0 + poke_speed_boost_percent)
+		if dive_ult_buff_timer > 0.0:
+			effective_max_speed *= (1.0 + DIVE_ULT_SPEED_MULT)
+		var effective_accel = ground_acceleration * (1.0 + (DIVE_ULT_ATTACK_SPEED_MULT if dive_ult_buff_timer > 0.0 else 0.0))
 
 		if on_floor:
 			if target_dir != Vector3.ZERO:
-				if speed > effective_max_speed:
+				if current_speed > effective_max_speed:
 					current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * effective_max_speed, ground_friction * delta)
 				else:
 					current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * effective_max_speed, effective_accel * delta)
@@ -509,8 +666,8 @@ func _physics_process(delta: float) -> void:
 				current_horizontal = current_horizontal.move_toward(Vector2.ZERO, ground_friction * delta)
 		else:
 			if target_dir != Vector3.ZERO:
-				if speed > effective_max_speed:
-					current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * speed, air_acceleration * 0.5 * delta)
+				if current_speed > effective_max_speed:
+					current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * current_speed, air_acceleration * 0.5 * delta)
 					current_horizontal = current_horizontal.move_toward(Vector2.ZERO, air_drag * delta)
 				else:
 					current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * effective_max_speed, air_acceleration * delta)
@@ -590,24 +747,14 @@ func _physics_process(delta: float) -> void:
 	if stunned or is_dead or is_channeling or is_crashing_down:
 		_cancel_all_hold_indicators()
 	else:
-		# Primary Attack [LMB]
-		if Input.is_action_just_pressed("shoot") and attack_timer <= 0.0 and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three:
-			is_holding_shoot = true
-			if ind_attack:
-				ind_attack.show()
-
-		if is_holding_shoot:
-			if not Input.is_action_pressed("shoot"):
-				is_holding_shoot = false
-				if ind_attack:
-					ind_attack.hide()
-				if attack_timer <= 0.0 and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three:
-					if character_name == "Dive":
-						_perform_dive_melee()
-					elif is_melee_character:
-						_perform_crush_melee_windup()
-					else:
-						_perform_poke_ranged_attack()
+		# Primary Attack [LMB] - Fires immediately on press/hold with no preview indicator
+		if Input.is_action_pressed("shoot") and attack_timer <= 0.0 and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three and not is_channeling and not is_crashing_down:
+			if character_name == "Dive":
+				_perform_dive_melee()
+			elif is_melee_character:
+				_perform_crush_melee_windup()
+			else:
+				_perform_poke_ranged_attack()
 
 		# Ability One [RMB]
 		if Input.is_action_just_pressed("ability_one") and ability_one_timer <= 0.0 and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three:
@@ -642,7 +789,7 @@ func _physics_process(delta: float) -> void:
 					_perform_ability_two()
 
 		# Ability Three [E]
-		if Input.is_action_just_pressed("ability_three") and (ability_three_timer <= 0.0 or (character_name == "Dive" and is_blocking)) and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three:
+		if Input.is_action_just_pressed("ability_three") and (ability_three_timer <= 0.0 or (character_name == "Dive" and is_blocking)) and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three and not is_casting_ability_four and not is_silenced():
 			if character_name == "Poke":
 				is_holding_ability_three = true
 				if ind_ability_three:
@@ -659,8 +806,30 @@ func _physics_process(delta: float) -> void:
 					ind_ability_three.hide()
 				if ind_poke_flare_circle:
 					ind_poke_flare_circle.hide()
-				if ability_three_timer <= 0.0 and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three and (not stunned or can_cast_while_stunned) and not is_channeling and not is_crashing_down:
+				if ability_three_timer <= 0.0 and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three and not is_casting_ability_four and (not stunned or can_cast_while_stunned) and not is_channeling and not is_crashing_down and not is_silenced():
 					_perform_ability_three()
+
+		# Ultimate Ability [R]
+		# Dive's Ult can be cast while CC'd (except Silence) and cleanses CC!
+		if character_name == "Dive":
+			if Input.is_action_just_pressed("ability_four") and ability_four_timer <= 0.0 and not is_silenced() and not is_dead and not is_casting_ability_four:
+				_perform_ability_four()
+		else:
+			if Input.is_action_just_pressed("ability_four") and ability_four_timer <= 0.0 and not is_silenced() and not stunned and not is_dead and not is_channeling and not is_crashing_down and not is_casting_melee and not is_casting_ability_one and not is_casting_ability_two and not is_casting_ability_three and not is_casting_ability_four:
+				if character_name in ["Crush", "Poke"]:
+					is_holding_ability_four = true
+					if ind_ability_four:
+						ind_ability_four.show()
+				else:
+					_perform_ability_four()
+
+		if is_holding_ability_four:
+			if not Input.is_action_pressed("ability_four"):
+				is_holding_ability_four = false
+				if ind_ability_four:
+					ind_ability_four.hide()
+				if ability_four_timer <= 0.0 and not is_silenced() and not stunned and not is_dead and not is_channeling and not is_crashing_down:
+					_perform_ability_four()
 
 	var pre_move_velocity = velocity
 	move_and_slide()
@@ -783,6 +952,9 @@ func _update_hud() -> void:
 		elif is_casting_melee:
 			attack_cd_label.text = "Attack [LMB]: STRIKING..."
 			attack_cd_label.modulate = Color(1, 0.8, 0.2)
+		elif poke_ult_buff_timer > 0.0 and character_name == "Poke":
+			attack_cd_label.text = "Attack [LMB]: ✦ EMPOWERED PIERCING LANCE (%.1fs) ✦" % poke_ult_buff_timer
+			attack_cd_label.modulate = Color(0.2, 0.95, 1.0)
 		elif is_crush_empowered and character_name == "Crush":
 			attack_cd_label.text = "Attack [LMB]: ✦ EMPOWERED ✦"
 			attack_cd_label.modulate = Color(1.0, 0.85, 0.2)
@@ -831,6 +1003,9 @@ func _update_hud() -> void:
 		if is_stunned() and not can_cast_while_stunned:
 			ability_three_cd_label.text = "Three [E]: DISABLED (STUNNED)"
 			ability_three_cd_label.modulate = Color(0.7, 0.4, 0.4)
+		elif is_silenced():
+			ability_three_cd_label.text = "Three [E]: DISABLED (SILENCED)"
+			ability_three_cd_label.modulate = Color(0.7, 0.4, 0.4)
 		elif is_channeling:
 			ability_three_cd_label.text = "Three [E]: CHANNELING..."
 			ability_three_cd_label.modulate = Color(0.7, 0.7, 0.3)
@@ -847,10 +1022,49 @@ func _update_hud() -> void:
 			ability_three_cd_label.text = "Three [E]: READY"
 			ability_three_cd_label.modulate = Color(0.4, 1, 0.4)
 
+	# Ultimate [R]
+	if ability_four_cd_label:
+		if is_crush_charging:
+			ability_four_cd_label.text = "Ult [R]: CHARGING (UNSTOPPABLE)!"
+			ability_four_cd_label.modulate = Color(1.0, 0.85, 0.2)
+		elif dive_ult_buff_timer > 0.0:
+			ability_four_cd_label.text = "Ult [R]: SURGING (%.1fs)" % dive_ult_buff_timer
+			ability_four_cd_label.modulate = Color(0.3, 0.95, 1.0)
+		elif is_silenced():
+			ability_four_cd_label.text = "Ult [R]: DISABLED (SILENCED)"
+			ability_four_cd_label.modulate = Color(0.7, 0.4, 0.4)
+		elif is_stunned() and character_name != "Dive":
+			ability_four_cd_label.text = "Ult [R]: DISABLED (STUNNED)"
+			ability_four_cd_label.modulate = Color(0.7, 0.4, 0.4)
+		elif is_channeling:
+			ability_four_cd_label.text = "Ult [R]: WINDUP / CHANNEL..."
+			ability_four_cd_label.modulate = Color(0.7, 0.7, 0.3)
+		elif ability_four_timer > 0.0:
+			ability_four_cd_label.text = "Ult [R]: %.1fs" % ability_four_timer
+			ability_four_cd_label.modulate = Color(1, 0.5, 0.5)
+		elif is_casting_ability_four:
+			ability_four_cd_label.text = "Ult [R]: CASTING..."
+			ability_four_cd_label.modulate = Color(1, 0.8, 0.2)
+		else:
+			if character_name == "Dive":
+				ability_four_cd_label.text = "Ult [R]: READY (CLEANSE + SURGE)"
+			elif character_name == "Crush":
+				ability_four_cd_label.text = "Ult [R]: READY (CHARGE SLAM)"
+			elif character_name == "Poke" and poke_ult_buff_timer > 0.0:
+				ability_four_cd_label.text = "Ult [R]: EAGLE EYE ACTIVE (%.1fs)" % poke_ult_buff_timer
+				ability_four_cd_label.modulate = Color(0.2, 0.95, 1.0)
+			else:
+				ability_four_cd_label.text = "Ult [R]: READY (EAGLE EYE)"
+			if not (character_name == "Poke" and poke_ult_buff_timer > 0.0):
+				ability_four_cd_label.modulate = Color(0.4, 1, 0.4)
+
 	# Dash [Shift]
 	if dash_cd_label:
 		if is_stunned():
 			dash_cd_label.text = "Dash [Shift]: DISABLED (STUNNED)"
+			dash_cd_label.modulate = Color(0.7, 0.4, 0.4)
+		elif is_silenced():
+			dash_cd_label.text = "Dash [Shift]: DISABLED (SILENCED)"
 			dash_cd_label.modulate = Color(0.7, 0.4, 0.4)
 		elif is_channeling:
 			dash_cd_label.text = "Dash [Shift]: CHANNELING..."
@@ -893,16 +1107,32 @@ func _perform_poke_ranged_attack() -> void:
 		await get_tree().create_timer(actual_windup).timeout
 
 	attack_timer = attack_cooldown
-	var facing_dir = -global_transform.basis.z.normalized()
-	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.1
+	var is_empowered = (poke_ult_buff_timer > 0.0)
+	if is_empowered:
+		poke_ult_buff_timer = 0.0
+		sync_poke_ult_buff.rpc(0.0)
+		attack_performed.emit("Empowered Piercing Lance")
+	else:
+		attack_performed.emit("Rail Shot")
+
+	var aim_info = get_3d_aim_info()
+	var shoot_dir = aim_info.dir
+	var spawn_pos = global_position + Vector3(0, 0.85, 0) + shoot_dir * 1.1
+	var max_range: float = 95.0 if is_empowered else 50.0
+	var speed: float = 95.0 if is_empowered else projectile_speed
+	var size: float = 1.3 if is_empowered else projectile_size
+	var proj_life: float = max_range / speed
+	var eff_type: String = "execute_scaling" if is_empowered else ""
+	var pierces: bool = is_empowered
 	
 	if multiplayer.is_server():
-		get_tree().root.get_node("Main").spawn_projectile(spawn_pos, facing_dir, name.to_int(), projectile_damage, projectile_speed, projectile_size)
+		get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, name.to_int(), projectile_damage, speed, size, proj_life, eff_type, 0.0, 0.0, pierces, false, 0, ActionType.ATTACK, max_range)
 	else:
-		request_fire.rpc_id(1, spawn_pos, facing_dir, projectile_damage, projectile_speed, projectile_size)
+		request_fire.rpc_id(1, spawn_pos, shoot_dir, projectile_damage, speed, size, proj_life, ActionType.ATTACK, eff_type, pierces, max_range)
 
 func _perform_dive_melee() -> void:
 	attack_timer = attack_cooldown
+	attack_performed.emit("Slash")
 	show_melee_effect.rpc(true)
 	get_tree().create_timer(0.18).timeout.connect(func(): show_melee_effect.rpc(false))
 	
@@ -916,6 +1146,7 @@ func _perform_crush_melee_windup() -> void:
 	is_casting_melee = true
 	var actual_windup = windup_time if windup_time > 0.0 else melee_windup_time
 	attack_timer = attack_cooldown + actual_windup
+	attack_performed.emit("Slam")
 	
 	var was_empowered = is_crush_empowered
 	set_crush_empowered(false) # Consumed whether it hits or not
@@ -1012,25 +1243,29 @@ func _perform_ability_one() -> void:
 
 func _perform_poke_ability_one() -> void:
 	ability_one_timer = ability_one_cooldown
-	var facing_dir = -global_transform.basis.z.normalized()
-	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.1
+	ability_cast.emit("Repulsor Bolt", "RMB")
+	var aim_info = get_3d_aim_info()
+	var shoot_dir = aim_info.dir
+	var spawn_pos = global_position + Vector3(0, 0.85, 0) + shoot_dir * 1.1
 	
 	var bolt_dmg: float = 20.0
 	var bolt_spd: float = 85.0
 	var bolt_size: float = 0.35
-	var bolt_life: float = 1.0 # 85 meters range coverage
+	var max_range: float = 60.0
+	var bolt_life: float = max_range / bolt_spd # 60 meters max distance
 	var stun_dur: float = 1.0
 	var kb_force: float = 36.0
 	
 	if multiplayer.is_server():
-		get_tree().root.get_node("Main").spawn_projectile(spawn_pos, facing_dir, name.to_int(), bolt_dmg, bolt_spd, bolt_size, bolt_life, "knockback_stun", stun_dur, kb_force)
+		get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, name.to_int(), bolt_dmg, bolt_spd, bolt_size, bolt_life, "knockback_stun", stun_dur, kb_force, false, false, 0, ActionType.ABILITY, max_range)
 	else:
-		request_fire_ability_one.rpc_id(1, spawn_pos, facing_dir, bolt_dmg, bolt_spd, bolt_size, bolt_life, "knockback_stun", stun_dur, kb_force)
+		request_fire_ability_one.rpc_id(1, spawn_pos, shoot_dir, bolt_dmg, bolt_spd, bolt_size, bolt_life, "knockback_stun", stun_dur, kb_force, ActionType.ABILITY, max_range)
 
 func _perform_dive_ability_one() -> void:
 	is_casting_ability_one = true
 	var windup_delay = 0.18
 	ability_one_timer = ability_one_cooldown + windup_delay
+	ability_cast.emit("Heavy Cleave", "RMB")
 	
 	show_ability_one_visual.rpc(true)
 	await get_tree().create_timer(windup_delay).timeout
@@ -1051,6 +1286,7 @@ func _perform_crush_ability_one() -> void:
 	is_casting_ability_one = true
 	var windup_delay = 0.16
 	ability_one_timer = ability_one_cooldown + windup_delay
+	ability_cast.emit("Fan Stun", "RMB")
 	
 	show_ability_one_visual.rpc(true)
 	await get_tree().create_timer(windup_delay).timeout
@@ -1077,6 +1313,7 @@ func _perform_ability_two() -> void:
 func _perform_crush_ability_two() -> void:
 	ability_two_timer = ability_two_cooldown
 	is_casting_ability_two = true
+	ability_cast.emit("Shockwave Shield", "Q")
 	
 	# Grant Crush a temporary shield
 	apply_shield(40.0, 5.0)
@@ -1100,26 +1337,28 @@ func _perform_dive_ability_two() -> void:
 
 func _on_dive_q_channel_finished() -> void:
 	ability_two_timer = ability_two_cooldown
-	var facing_dir = -global_transform.basis.z.normalized()
-	facing_dir.y = 0.0
-	facing_dir = facing_dir.normalized()
-	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.2
+	ability_cast.emit("Earth Tremor", "Q")
+	var aim_info = get_3d_aim_info()
+	var shoot_dir = aim_info.dir
+	var spawn_pos = global_position + Vector3(0, 0.85, 0) + shoot_dir * 1.2
 	
 	var tremor_dmg: float = 18.0
 	var tremor_speed: float = 28.0
 	var tremor_size: float = 1.5
-	var tremor_life: float = 0.5 # Distance: 14.0m (half range)
+	var max_range: float = 14.0
+	var tremor_life: float = max_range / tremor_speed # Distance: 14.0m max distance always
 	var slow_dur: float = 2.0
 	var slow_pct: float = 0.4
 	
 	# Dive sends forward a piercing tremor that travels far, slows enemies in its path, and spawns temporary terrain at the end
 	if multiplayer.is_server():
-		get_tree().root.get_node("Main").spawn_projectile(spawn_pos, facing_dir, name.to_int(), tremor_dmg, tremor_speed, tremor_size, tremor_life, "slow", slow_dur, slow_pct, true, true)
+		get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, name.to_int(), tremor_dmg, tremor_speed, tremor_size, tremor_life, "slow", slow_dur, slow_pct, true, true, 0, ActionType.ABILITY, max_range)
 	else:
-		request_fire_ability_two.rpc_id(1, spawn_pos, facing_dir, tremor_dmg, tremor_speed, tremor_size, tremor_life, "slow", slow_dur, slow_pct, true, true)
+		request_fire_ability_two.rpc_id(1, spawn_pos, shoot_dir, tremor_dmg, tremor_speed, tremor_size, tremor_life, "slow", slow_dur, slow_pct, true, true, ActionType.ABILITY, max_range)
 
 func _perform_poke_ability_two() -> void:
 	ability_two_timer = ability_two_cooldown
+	ability_cast.emit("Corrosive Zone", "Q")
 	var hit_pos = _get_mouse_ground_hit()
 	var spawn_pos = Vector3(global_position.x, 0.0, global_position.z)
 	var target_pos = spawn_pos + (-global_transform.basis.z.normalized()) * 16.0
@@ -1231,20 +1470,16 @@ func sync_block_state(active: bool) -> void:
 
 func _perform_poke_ability_three() -> void:
 	ability_three_timer = ability_three_cooldown
-	var facing_dir = -global_transform.basis.z.normalized()
-	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.1
-	
-	var target_dist: float = 45.0
-	var hit_pos = _get_mouse_ground_hit()
-	if hit_pos != null:
-		var diff = hit_pos - global_position
-		diff.y = 0.0
-		target_dist = clamp(diff.length(), 6.0, 65.0)
+	ability_cast.emit("Recon Flare", "E")
+	var aim_info = get_3d_aim_info()
+	var shoot_dir = aim_info.dir
+	var spawn_pos = global_position + Vector3(0, 0.85, 0) + shoot_dir * 1.1
+	var max_flare_range: float = 65.0 # Always travels full max distance
 	
 	if multiplayer.is_server():
-		get_tree().root.get_node("Main").spawn_vision_flare(spawn_pos, facing_dir, target_dist, name.to_int())
+		get_tree().root.get_node("Main").spawn_vision_flare(spawn_pos, shoot_dir, max_flare_range, name.to_int())
 	else:
-		request_fire_vision_flare.rpc_id(1, spawn_pos, facing_dir, target_dist)
+		request_fire_vision_flare.rpc_id(1, spawn_pos, shoot_dir, max_flare_range)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_fire_vision_flare(spawn_pos: Vector3, shoot_dir: Vector3, target_dist: float) -> void:
@@ -1289,18 +1524,19 @@ func execute_crush_fan_stun_on_server(origin_pos: Vector3, forward_dir: Vector3,
 		return
 	
 	var fwd_2d = Vector2(forward_dir.x, forward_dir.z).normalized()
+	var fan_height = 2.6
 	
 	for player in players_container.get_children():
-		if player.name != str(attacker_id) and player.has_method("take_damage") and not player.get("is_dead"):
+		if is_enemy(player) and not player.get("is_dead"):
 			var diff = player.global_position - origin_pos
 			var diff_2d = Vector2(diff.x, diff.z)
 			var dist = diff_2d.length()
 			
-			if abs(diff.y) <= 3.0 and dist <= 5.2:
+			if abs(diff.y) <= (fan_height * 0.5) and dist <= 5.2:
 				var to_target_2d = diff_2d.normalized()
 				var angle = rad_to_deg(fwd_2d.angle_to(to_target_2d))
 				if abs(angle) <= (100.0 * 0.5):
-					player.take_damage(20.0, attacker_id)
+					player.take_damage(20.0, attacker_id, ActionType.ABILITY)
 					if player.has_method("apply_stun"):
 						player.apply_stun(1.3)
 
@@ -1316,28 +1552,30 @@ func execute_crush_aoe_two_on_server(origin_pos: Vector3, attacker_id: int) -> v
 	if not players_container:
 		return
 	
+	var shockwave_height = 3.2
+	
 	for player in players_container.get_children():
-		if player.name != str(attacker_id) and player.has_method("take_damage") and not player.get("is_dead"):
+		if is_enemy(player) and not player.get("is_dead"):
 			var diff = player.global_position - origin_pos
 			var dist = diff.length()
-			if dist <= 6.5:
-				player.take_damage(20.0, attacker_id)
+			if abs(diff.y) <= (shockwave_height * 0.5) and dist <= 6.5:
+				player.take_damage(20.0, attacker_id, ActionType.ABILITY)
 				if player.has_method("apply_slow"):
 					player.apply_slow(2.5, 0.3)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_fire_ability_one(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float, life: float, eff_type: String, eff_dur: float, eff_int: float) -> void:
+func request_fire_ability_one(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float, life: float, eff_type: String, eff_dur: float, eff_int: float, action_type: int = ActionType.ABILITY, max_rng: float = 0.0) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
-	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size, life, eff_type, eff_dur, eff_int)
+	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size, life, eff_type, eff_dur, eff_int, false, false, 0, action_type, max_rng)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_fire_ability_two(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float, life: float, eff_type: String, eff_dur: float, eff_int: float, pierce: bool, spawn_terr: bool) -> void:
+func request_fire_ability_two(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float, life: float, eff_type: String, eff_dur: float, eff_int: float, pierce: bool, spawn_terr: bool, action_type: int = ActionType.ABILITY, max_rng: float = 0.0) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
-	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size, life, eff_type, eff_dur, eff_int, pierce, spawn_terr)
+	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size, life, eff_type, eff_dur, eff_int, pierce, spawn_terr, 0, action_type, max_rng)
 
 @rpc("any_peer", "call_local", "reliable")
 func show_melee_effect(active: bool) -> void:
@@ -1361,16 +1599,16 @@ func execute_melee_hit_on_server(origin_pos: Vector3, forward_dir: Vector3, atta
 	var hit_count = 0
 	
 	for player in players_container.get_children():
-		if player.name != str(attacker_id) and player.has_method("take_damage") and not player.get("is_dead"):
+		if is_enemy(player) and not player.get("is_dead"):
 			var diff = player.global_position - origin_pos
 			var diff_2d = Vector2(diff.x, diff.z)
 			var dist = diff_2d.length()
 			
-			if abs(diff.y) <= 3.0 and dist <= size:
+			if abs(diff.y) <= (melee_height * 0.5) and dist <= size:
 				var to_target_2d = diff_2d.normalized()
 				var angle = rad_to_deg(fwd_2d.angle_to(to_target_2d))
 				if abs(angle) <= (angle_deg * 0.5):
-					player.take_damage(final_dmg, attacker_id)
+					player.take_damage(final_dmg, attacker_id, ActionType.ATTACK)
 					hit_count += 1
 					
 	# Crush Titan's Surge heal trigger (triggers once if at least 1 enemy was hit)
@@ -1394,16 +1632,16 @@ func execute_dive_melee_hit_on_server(origin_pos: Vector3, forward_dir: Vector3,
 	var fwd_2d = Vector2(forward_dir.x, forward_dir.z).normalized()
 	
 	for player in players_container.get_children():
-		if player.name != str(attacker_id) and player.has_method("take_damage") and not player.get("is_dead"):
+		if is_enemy(player) and not player.get("is_dead"):
 			var diff = player.global_position - origin_pos
 			var diff_2d = Vector2(diff.x, diff.z)
 			var dist = diff_2d.length()
 			
-			if abs(diff.y) <= 3.0 and dist <= size:
+			if abs(diff.y) <= (melee_height * 0.5) and dist <= size:
 				var to_target_2d = diff_2d.normalized()
 				var angle = rad_to_deg(fwd_2d.angle_to(to_target_2d))
 				if abs(angle) <= (angle_deg * 0.5):
-					player.take_damage(dmg, attacker_id)
+					player.take_damage(dmg, attacker_id, ActionType.ATTACK)
 					if player.has_method("apply_knockback"):
 						var kb_dir = Vector3(forward_dir.x, 0.25, forward_dir.z).normalized()
 						player.apply_knockback(kb_dir * 9.5)
@@ -1421,18 +1659,19 @@ func execute_dive_ability_one_on_server(origin_pos: Vector3, forward_dir: Vector
 		return
 	
 	var fwd_2d = Vector2(forward_dir.x, forward_dir.z).normalized()
+	var cleave_height = 2.4
 	
 	for player in players_container.get_children():
-		if player.name != str(attacker_id) and player.has_method("take_damage") and not player.get("is_dead"):
+		if is_enemy(player) and not player.get("is_dead"):
 			var diff = player.global_position - origin_pos
 			var diff_2d = Vector2(diff.x, diff.z)
 			var dist = diff_2d.length()
 			
-			if abs(diff.y) <= 3.0 and dist <= size:
+			if abs(diff.y) <= (cleave_height * 0.5) and dist <= size:
 				var to_target_2d = diff_2d.normalized()
 				var angle = rad_to_deg(fwd_2d.angle_to(to_target_2d))
 				if abs(angle) <= (angle_deg * 0.5):
-					player.take_damage(dmg, attacker_id)
+					player.take_damage(dmg, attacker_id, ActionType.ABILITY)
 					if player.has_method("apply_slow"):
 						player.apply_slow(1.6, 0.75)
 					if player.has_method("apply_knockback"):
@@ -1464,13 +1703,14 @@ func execute_crash_down_impact_on_server(impact_pos: Vector3, attacker_id: int) 
 	
 	var aoe_radius: float = 6.0
 	var damage_amount: float = 48.0
+	var crash_height: float = 4.0
 	
 	for player in players_container.get_children():
-		if player.name != str(attacker_id) and player.has_method("take_damage") and not player.get("is_dead"):
+		if is_enemy(player) and not player.get("is_dead"):
 			var diff = player.global_position - impact_pos
 			var dist = diff.length()
-			if dist <= aoe_radius:
-				player.take_damage(damage_amount, attacker_id)
+			if diff.y >= -1.0 and diff.y <= crash_height and dist <= aoe_radius:
+				player.take_damage(damage_amount, attacker_id, ActionType.ABILITY)
 				if player.has_method("apply_knockback"):
 					var horiz_diff = Vector3(diff.x, 0, diff.z)
 					var horiz_dir = horiz_diff.normalized() if horiz_diff.length_squared() > 0.01 else -player.global_transform.basis.z.normalized()
@@ -1479,32 +1719,41 @@ func execute_crash_down_impact_on_server(impact_pos: Vector3, attacker_id: int) 
 					player.apply_knockback(airborne_impulse)
 
 func aim_at_mouse(delta: float = 0.0) -> void:
-	var viewport = get_viewport()
-	if not viewport or not camera:
-		return
+	var aim_info = get_3d_aim_info()
+	var dir_3d = aim_info.dir
+	var horiz_dir = Vector3(dir_3d.x, 0.0, dir_3d.z)
+	
+	if horiz_dir.length_squared() > 0.001:
+		var target := global_position + horiz_dir.normalized()
+		if is_blocking and delta > 0.0:
+			var target_diff = target - global_position
+			var target_angle = atan2(-target_diff.x, -target_diff.z)
+			var current_angle = rotation.y
+			rotation.y = rotate_toward(current_angle, target_angle, BLOCK_MAX_TURN_SPEED * delta)
+			rotation.x = 0.0
+			rotation.z = 0.0
+		else:
+			look_at(target, Vector3.UP)
+			rotation.x = 0.0
+			rotation.z = 0.0
 
-	var mouse_pos = viewport.get_mouse_position()
-	var ray_origin = camera.project_ray_origin(mouse_pos)
-	var ray_dir = camera.project_ray_normal(mouse_pos)
-
-	var ground_plane = Plane(Vector3.UP, global_position.y)
-	var hit_pos = ground_plane.intersects_ray(ray_origin, ray_dir)
-
-	if hit_pos != null:
-		var target := Vector3(hit_pos.x, global_position.y, hit_pos.z)
-		if global_position.distance_squared_to(target) > 0.3:
-			if is_blocking and delta > 0.0:
-				# Smoothly clamp turn speed while blocking in defensive stance
-				var target_diff = target - global_position
-				var target_angle = atan2(-target_diff.x, -target_diff.z)
-				var current_angle = rotation.y
-				rotation.y = rotate_toward(current_angle, target_angle, BLOCK_MAX_TURN_SPEED * delta)
-				rotation.x = 0.0
-				rotation.z = 0.0
-			else:
-				look_at(target, Vector3.UP)
-				rotation.x = 0.0
-				rotation.z = 0.0
+	var spawn_pos = global_position + Vector3(0, 0.85, 0)
+	var up_vec = Vector3.UP if abs(dir_3d.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
+	
+	# Update 3D orientation for straight line ability indicators when held
+	if is_holding_ability_one and ind_ability_one and character_name == "Poke":
+		ind_ability_one.global_position = spawn_pos
+		ind_ability_one.look_at(spawn_pos + dir_3d, up_vec)
+	elif is_holding_ability_two and ind_ability_two and character_name == "Dive":
+		ind_ability_two.global_position = spawn_pos
+		ind_ability_two.look_at(spawn_pos + dir_3d, up_vec)
+	elif is_holding_ability_three and ind_ability_three and character_name == "Poke":
+		ind_ability_three.global_position = spawn_pos
+		ind_ability_three.look_at(spawn_pos + dir_3d, up_vec)
+	elif is_holding_ability_four and ind_ability_four:
+		if character_name in ["Crush", "Poke"]:
+			ind_ability_four.global_position = spawn_pos
+			ind_ability_four.look_at(spawn_pos + dir_3d, up_vec)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_wall_impact_damage(dmg: float, impact_spd: float) -> void:
@@ -1513,7 +1762,7 @@ func request_wall_impact_damage(dmg: float, impact_spd: float) -> void:
 	var sender_id = multiplayer.get_remote_sender_id()
 	var player = get_tree().root.get_node_or_null("Main/Players/" + str(sender_id))
 	if player and not player.get("is_dead"):
-		player.take_damage(dmg)
+		player.take_damage(dmg, 0, ActionType.ENVIRONMENT)
 
 @rpc("any_peer", "call_local", "reliable")
 func show_wall_impact_effect(pos: Vector3, normal: Vector3) -> void:
@@ -1527,11 +1776,11 @@ func show_wall_impact_effect(pos: Vector3, normal: Vector3) -> void:
 		tween.tween_callback(func(): crash_visual.visible = false)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_fire(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float) -> void:
+func request_fire(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float, life: float = 2.5, action_type: int = ActionType.ATTACK, eff_type: String = "", pierces: bool = false, max_rng: float = 0.0) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
-	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size)
+	get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size, life, eff_type, 0.0, 0.0, pierces, false, 0, action_type, max_rng)
 
 func apply_stun(duration: float) -> void:
 	if is_dead or is_cc_immune:
@@ -1548,7 +1797,7 @@ func apply_stun(duration: float) -> void:
 	_cancel_all_hold_indicators()
 	stun_timer = max(stun_timer, duration)
 	if multiplayer.is_server():
-		sync_status_effects.rpc(stun_timer, slow_timer, slow_percent)
+		sync_status_effects.rpc(stun_timer, slow_timer, slow_percent, silence_timer)
 
 func apply_slow(duration: float, percent: float) -> void:
 	if is_dead or is_cc_immune:
@@ -1556,7 +1805,17 @@ func apply_slow(duration: float, percent: float) -> void:
 	slow_timer = max(slow_timer, duration)
 	slow_percent = max(slow_percent, percent)
 	if multiplayer.is_server():
-		sync_status_effects.rpc(stun_timer, slow_timer, slow_percent)
+		sync_status_effects.rpc(stun_timer, slow_timer, slow_percent, silence_timer)
+
+func apply_silence(duration: float) -> void:
+	if is_dead or is_cc_immune:
+		return
+	if is_channeling:
+		cancel_channel()
+	_cancel_all_hold_indicators()
+	silence_timer = max(silence_timer, duration)
+	if multiplayer.is_server():
+		sync_status_effects.rpc(stun_timer, slow_timer, slow_percent, silence_timer)
 
 func apply_knockback(impulse: Vector3) -> void:
 	if is_dead:
@@ -1571,14 +1830,20 @@ func receive_knockback(impulse: Vector3) -> void:
 	knockback_velocity = impulse
 
 @rpc("any_peer", "call_local", "reliable")
-func sync_status_effects(s_timer: float, sl_timer: float, sl_pct: float) -> void:
+func sync_status_effects(s_timer: float, sl_timer: float, sl_pct: float, sil_timer: float = 0.0) -> void:
 	stun_timer = s_timer
 	slow_timer = sl_timer
 	slow_percent = sl_pct
+	silence_timer = sil_timer
 
-func take_damage(amount: float, attacker_id: int = 0) -> void:
+func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ABILITY) -> void:
 	if not multiplayer.is_server() or is_dead:
 		return
+
+	if attacker_id > 0:
+		var attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
+		if attacker and not is_enemy(attacker):
+			return
 
 	# Dive Directional Block Check (75% DR against frontal 140 deg arc)
 	if is_blocking and attacker_id > 0:
@@ -1613,6 +1878,18 @@ func take_damage(amount: float, attacker_id: int = 0) -> void:
 	
 	time_since_last_damage = 0.0
 
+	# Spawn floating damage number
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and main_node.has_method("display_damage_number"):
+		main_node.display_damage_number.rpc(amount, global_position + Vector3(0, 0.5, 0), action_type)
+
+	# Emit combat signals on server
+	damage_taken.emit(attacker_id, amount, action_type)
+	if attacker_id > 0:
+		var attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
+		if attacker and attacker.has_signal("damage_dealt"):
+			attacker.damage_dealt.emit(self, amount, action_type)
+
 	if current_health <= 0.0:
 		die()
 		return
@@ -1620,7 +1897,7 @@ func take_damage(amount: float, attacker_id: int = 0) -> void:
 	# Dive Passive Rupture Mark Application
 	if attacker_id > 0:
 		var attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
-		if attacker and attacker.get("character_name") == "Dive":
+		if attacker and attacker.get("character_name") == "Dive" and is_enemy(attacker):
 			apply_dive_mark(attacker_id)
 
 func heal(amount: float) -> void:
@@ -1721,6 +1998,26 @@ func die() -> void:
 	if not multiplayer.is_server() or is_dead:
 		return
 	
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and main_node.get("is_training_mode") == true:
+		# In training mode, player respawns automatically at full health!
+		current_health = max_health
+		current_shield = 0.0
+		gray_health = 0.0
+		dive_marks_count = 0
+		dive_mark_timer = 0.0
+		stun_timer = 0.0
+		slow_timer = 0.0
+		silence_timer = 0.0
+		knockback_velocity = Vector3.ZERO
+		velocity = Vector3.ZERO
+		global_position = Vector3(-8.0, 0.1, 0.0)
+		sync_health.rpc(max_health)
+		sync_status_effects.rpc(0.0, 0.0, 0.0, 0.0)
+		sync_shield.rpc(0.0)
+		sync_gray_health.rpc(0.0)
+		return
+
 	is_dead = true
 	current_shield = 0.0
 	gray_health = 0.0
@@ -1732,7 +2029,8 @@ func die() -> void:
 	sync_dive_marks.rpc(0, 0.0)
 	sync_shield.rpc(0.0)
 	notify_death.rpc()
-	get_tree().root.get_node("Main").on_player_died(name.to_int())
+	if main_node and main_node.has_method("on_player_died"):
+		main_node.on_player_died(name.to_int())
 
 @rpc("any_peer", "call_local", "reliable")
 func notify_death() -> void:
@@ -1805,15 +2103,23 @@ func _cycle_spectator(dir: int) -> void:
 	var t_name = "Player " + spectate_target.name
 	if spectate_target.name == "1":
 		t_name = "Host (P1)"
-	spectator_label.text = "SPECTATING: %s (%s)\n[LMB / RMB to Cycle]" % [t_name, spectate_target.get("character_name")]
+	var t_side = " (Teammate)" if spectate_target.get("team_id") == team_id else " (Enemy)"
+	spectator_label.text = "SPECTATING: %s%s (%s)\n[LMB / RMB to Cycle]" % [t_name, t_side, spectate_target.get("character_name")]
 
 func _get_alive_players() -> Array:
 	var list = []
+	var team_list = []
+	var enemy_list = []
 	var container = get_tree().root.get_node_or_null("Main/Players")
 	if container:
 		for p in container.get_children():
 			if not p.get("is_dead") and p != self:
-				list.append(p)
+				if p.get("team_id") == team_id:
+					team_list.append(p)
+				else:
+					enemy_list.append(p)
+	list.append_array(team_list)
+	list.append_array(enemy_list)
 	return list
 
 func update_health_bar() -> void:
@@ -1824,6 +2130,71 @@ func update_health_bar() -> void:
 		gray_health_bar.max_value = max_health
 		gray_health_bar.value = current_health + gray_health
 
+func get_3d_aim_info() -> Dictionary:
+	var default_fwd = -global_transform.basis.z.normalized()
+	default_fwd.y = 0.0
+	if default_fwd.length_squared() < 0.0001:
+		default_fwd = Vector3.FORWARD
+	default_fwd = default_fwd.normalized()
+	
+	var spawn_pos = global_position + Vector3(0, 0.85, 0)
+	
+	var viewport = get_viewport()
+	if not viewport or not camera:
+		return {
+			"target_pos": spawn_pos + default_fwd * 50.0,
+			"dir": default_fwd,
+			"is_target_player": false,
+			"target_node": null
+		}
+	
+	var mouse_pos = viewport.get_mouse_position()
+	var ray_origin = camera.project_ray_origin(mouse_pos)
+	var ray_dir = camera.project_ray_normal(mouse_pos)
+	var space_state = get_world_3d().direct_space_state
+	
+	# 1. First priority: Check if mousing over any player (Collision Layer 2 = Players)
+	var player_query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 300.0, 2)
+	player_query.collide_with_areas = false
+	player_query.collide_with_bodies = true
+	player_query.exclude = [get_rid()]
+	var player_result = space_state.intersect_ray(player_query)
+	
+	if not player_result.is_empty():
+		var hit_collider = player_result.collider
+		if hit_collider != self and hit_collider is CharacterBody3D and not hit_collider.get("is_dead"):
+			# Target center of mass / chest level of the targeted player
+			var target_pos = hit_collider.global_position + Vector3(0, 0.85, 0)
+			var shoot_dir = (target_pos - spawn_pos).normalized()
+			return {
+				"target_pos": target_pos,
+				"dir": shoot_dir,
+				"is_target_player": true,
+				"target_node": hit_collider
+			}
+	
+	# 2. Main Aiming Plane: Raycast against horizontal plane at the shooter's chest height
+	var chest_plane = Plane(Vector3.UP, spawn_pos.y)
+	var plane_hit = chest_plane.intersects_ray(ray_origin, ray_dir)
+	if plane_hit != null:
+		var shoot_dir = (plane_hit - spawn_pos)
+		shoot_dir.y = 0.0
+		if shoot_dir.length_squared() > 0.0001:
+			shoot_dir = shoot_dir.normalized()
+			return {
+				"target_pos": spawn_pos + shoot_dir * 50.0,
+				"dir": shoot_dir,
+				"is_target_player": false,
+				"target_node": null
+			}
+	
+	return {
+		"target_pos": spawn_pos + default_fwd * 50.0,
+		"dir": default_fwd,
+		"is_target_player": false,
+		"target_node": null
+	}
+
 func _get_mouse_ground_hit() -> Variant:
 	var viewport = get_viewport()
 	if not viewport or not camera:
@@ -1831,6 +2202,16 @@ func _get_mouse_ground_hit() -> Variant:
 	var mouse_pos = viewport.get_mouse_position()
 	var ray_origin = camera.project_ray_origin(mouse_pos)
 	var ray_dir = camera.project_ray_normal(mouse_pos)
+	
+	var space_state = get_world_3d().direct_space_state
+	# First check terrain / obstacles surface (layer 1)
+	var terrain_query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 300.0, 1)
+	terrain_query.collide_with_areas = false
+	terrain_query.collide_with_bodies = true
+	var result = space_state.intersect_ray(terrain_query)
+	if not result.is_empty():
+		return result.position
+
 	var ground_plane = Plane(Vector3.UP, 0.0)
 	return ground_plane.intersects_ray(ray_origin, ray_dir)
 
@@ -1839,6 +2220,7 @@ func _cancel_all_hold_indicators() -> void:
 	is_holding_ability_one = false
 	is_holding_ability_two = false
 	is_holding_ability_three = false
+	is_holding_ability_four = false
 	if ind_attack:
 		ind_attack.hide()
 	if ind_ability_one:
@@ -1847,6 +2229,8 @@ func _cancel_all_hold_indicators() -> void:
 		ind_ability_two.hide()
 	if ind_ability_three:
 		ind_ability_three.hide()
+	if ind_ability_four:
+		ind_ability_four.hide()
 	if ind_poke_dot_zone:
 		ind_poke_dot_zone.hide()
 	if ind_poke_flare_circle:
@@ -1855,3 +2239,207 @@ func _cancel_all_hold_indicators() -> void:
 		ind_dive_crash_circle.hide()
 	if ind_dive_crash_range:
 		ind_dive_crash_range.hide()
+
+# --- Ultimate Ability (R) Implementations ---
+func _perform_ability_four() -> void:
+	if character_name == "Crush":
+		_perform_crush_ability_four()
+	elif character_name == "Dive":
+		_perform_dive_ability_four()
+	else:
+		_perform_poke_ability_four()
+
+func _perform_crush_ability_four() -> void:
+	# Crush channels for a brief moment (0.5s). If canceled by CC, goes on cooldown without charge!
+	ability_four_timer = ability_four_cooldown
+	is_casting_ability_four = true
+	ability_cast.emit("Juggernaut Charge", "R")
+	start_channel(0.5, Callable(self, "_on_crush_ult_channel_complete"))
+
+func _on_crush_ult_channel_complete() -> void:
+	is_casting_ability_four = false
+	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
+	
+	if multiplayer.is_server():
+		start_crush_charge_server(global_position, facing_dir)
+	else:
+		request_crush_ult_charge.rpc_id(1, global_position, facing_dir)
+
+func start_crush_charge_server(start_pos: Vector3, charge_dir: Vector3) -> void:
+	is_crush_charging = true
+	is_cc_immune = true
+	crush_charge_timer = CRUSH_CHARGE_DURATION
+	crush_charge_dir = charge_dir
+	crush_grabbed_peer_id = 0
+	sync_crush_charge_state.rpc(true, charge_dir)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_crush_ult_charge(origin_pos: Vector3, charge_dir: Vector3) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	var player = get_tree().root.get_node_or_null("Main/Players/" + str(sender_id))
+	if player and not player.get("is_dead"):
+		player.start_crush_charge_server(origin_pos, charge_dir)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_crush_charge_state(charging: bool, charge_dir: Vector3) -> void:
+	is_crush_charging = charging
+	crush_charge_dir = charge_dir
+	if not charging:
+		crush_charge_timer = 0.0
+		is_cc_immune = false
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_crush_grab(grabbed_id: int) -> void:
+	crush_grabbed_peer_id = grabbed_id
+
+func _finish_crush_charge_slam_server(hit_wall: bool = false) -> void:
+	is_crush_charging = false
+	is_cc_immune = false
+	sync_crush_charge_state.rpc(false, crush_charge_dir)
+	
+	var slam_pos = global_position
+	show_crash_impact_effect.rpc(slam_pos)
+	
+	var players_container = get_tree().root.get_node_or_null("Main/Players")
+	if crush_grabbed_peer_id > 0 and players_container:
+		var grabbed_player = players_container.get_node_or_null(str(crush_grabbed_peer_id))
+		if grabbed_player and not grabbed_player.get("is_dead"):
+			var damage = 110.0 + (25.0 if hit_wall else 0.0)
+			grabbed_player.take_damage(damage, name.to_int(), ActionType.ABILITY)
+			if grabbed_player.has_method("apply_stun"):
+				grabbed_player.apply_stun(1.4)
+			if grabbed_player.has_method("apply_knockback"):
+				var kb_dir = (crush_charge_dir + Vector3.UP * 0.35).normalized()
+				grabbed_player.apply_knockback(kb_dir * 12.0)
+		crush_grabbed_peer_id = 0
+		sync_crush_grab.rpc(0)
+	else:
+		if players_container:
+			for p in players_container.get_children():
+				if is_enemy(p) and not p.get("is_dead"):
+					var diff = p.global_position - slam_pos
+					if diff.length() <= 4.2 and abs(diff.y) <= 2.5:
+						p.take_damage(50.0, name.to_int(), ActionType.ABILITY)
+						if p.has_method("apply_stun"):
+							p.apply_stun(0.75)
+						if p.has_method("apply_knockback"):
+							var kb = (Vector3(diff.x, 0.4, diff.z)).normalized() * 14.0
+							p.apply_knockback(kb)
+
+func _perform_dive_ability_four() -> void:
+	# Dive's Ult can be cast while under CC (except Silence), cleanses all CC immediately!
+	stun_timer = 0.0
+	slow_timer = 0.0
+	slow_percent = 0.0
+	if is_channeling:
+		cancel_channel()
+	
+	ability_four_timer = ability_four_cooldown
+	ability_cast.emit("Tectonic Uprising", "R")
+	
+	dive_ult_buff_timer = DIVE_ULT_BUFF_DURATION
+	if current_dash_charges < 2:
+		current_dash_charges += 1
+	
+	if multiplayer.is_server():
+		execute_dive_ult_on_server(global_position, name.to_int())
+	else:
+		request_dive_ult.rpc_id(1, global_position)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_dive_ult(origin_pos: Vector3) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	execute_dive_ult_on_server(origin_pos, sender_id)
+
+func execute_dive_ult_on_server(origin_pos: Vector3, attacker_id: int) -> void:
+	var players_container = get_tree().root.get_node_or_null("Main/Players")
+	if not players_container:
+		return
+	
+	var dive_player = players_container.get_node_or_null(str(attacker_id))
+	if dive_player:
+		# Cleanse all CC on Dive
+		dive_player.stun_timer = 0.0
+		dive_player.slow_timer = 0.0
+		dive_player.slow_percent = 0.0
+		dive_player.silence_timer = 0.0
+		if dive_player.is_channeling:
+			dive_player.cancel_channel()
+		dive_player.dive_ult_buff_timer = DIVE_ULT_BUFF_DURATION
+		if dive_player.current_dash_charges < 2:
+			dive_player.current_dash_charges += 1
+		dive_player.sync_dive_ult_buff.rpc(DIVE_ULT_BUFF_DURATION, dive_player.current_dash_charges)
+		dive_player.sync_status_effects.rpc(0.0, 0.0, 0.0, 0.0)
+
+	# Instantaneous burst damage & radial knockback to all enemies within 6.0m
+	var aoe_radius: float = 6.0
+	var ult_dmg: float = 65.0
+	for p in players_container.get_children():
+		if is_enemy(p) and not p.get("is_dead"):
+			var diff = p.global_position - origin_pos
+			var dist = diff.length()
+			if dist <= aoe_radius and abs(diff.y) <= 3.5:
+				p.take_damage(ult_dmg, attacker_id, ActionType.ABILITY)
+				if p.has_method("apply_knockback"):
+					var horiz = Vector3(diff.x, 0, diff.z)
+					var horiz_dir = horiz.normalized() if horiz.length_squared() > 0.01 else -p.global_transform.basis.z.normalized()
+					var impulse = horiz_dir * 18.0 + Vector3.UP * 16.0
+					p.apply_knockback(impulse)
+
+	# Spawn ring of 8 stone pillars around origin_pos at radius 5.5m
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and main_node.has_method("spawn_temporary_terrain"):
+		var ring_count = 8
+		var ring_radius = 5.5
+		for i in range(ring_count):
+			var angle = i * (TAU / ring_count)
+			var pillar_pos = origin_pos + Vector3(cos(angle), 0.0, sin(angle)) * ring_radius
+			main_node.spawn_temporary_terrain(pillar_pos, 5.0)
+
+	show_dive_ult_effect.rpc(origin_pos)
+
+@rpc("any_peer", "call_local", "reliable")
+func show_dive_ult_effect(pos: Vector3) -> void:
+	if crash_visual:
+		crash_visual.global_position = pos
+		crash_visual.visible = true
+		crash_visual.scale = Vector3(0.4, 1.0, 0.4)
+		var tween = create_tween()
+		tween.tween_property(crash_visual, "scale", Vector3(1.2, 1.0, 1.2), 0.35).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+		tween.tween_property(crash_visual, "scale", Vector3(0.01, 1.0, 0.01), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_callback(func(): crash_visual.visible = false)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_dive_ult_buff(buff_time: float, dash_charges: int) -> void:
+	dive_ult_buff_timer = buff_time
+	current_dash_charges = dash_charges
+
+func _perform_poke_ability_four() -> void:
+	# Poke enters Eagle Eye state: massive vision range, sees through terrain on cone, zoomed camera, next shot deals execute damage and pierces terrain
+	ability_four_timer = ability_four_cooldown
+	poke_ult_buff_timer = POKE_ULT_BUFF_DURATION
+	ability_cast.emit("Eagle Eye", "R")
+	if multiplayer.is_server():
+		sync_poke_ult_buff.rpc(POKE_ULT_BUFF_DURATION)
+	else:
+		request_poke_ult.rpc_id(1)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_poke_ult() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	var player = get_tree().root.get_node_or_null("Main/Players/" + str(sender_id))
+	if player and not player.get("is_dead"):
+		player.poke_ult_buff_timer = POKE_ULT_BUFF_DURATION
+		player.sync_poke_ult_buff.rpc(POKE_ULT_BUFF_DURATION)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_poke_ult_buff(buff_time: float) -> void:
+	poke_ult_buff_timer = buff_time

@@ -51,16 +51,21 @@ func _draw() -> void:
 			return
 
 	var focus_id = focus_player.name.to_int()
-	var player_pos_3d = focus_player.global_position
-	var eye_pos = player_pos_3d + Vector3(0, 1.25, 0)
+	var focus_team = focus_player.get("team_id") if focus_player.get("team_id") != null else 1
 	var space_state = focus_player.get_world_3d().direct_space_state
 
-	# Calculate 3D forward and right basis vectors
-	var fwd_3d = -focus_player.global_transform.basis.z.normalized()
-	fwd_3d.y = 0.0
-	if fwd_3d.length_squared() < 0.0001:
-		fwd_3d = Vector3.FORWARD
-	fwd_3d = fwd_3d.normalized()
+	# Collect all living teammates (including focus player)
+	var teammates: Array = []
+	var players_container = main_node.get_node_or_null("Players")
+	if players_container:
+		for p in players_container.get_children():
+			if not p.get("is_dead"):
+				var p_team = p.get("team_id") if p.get("team_id") != null else 1
+				if p_team == focus_team or p == focus_player:
+					teammates.append(p)
+
+	if teammates.is_empty():
+		teammates.append(focus_player)
 
 	# 1. Base dark Fog of War background (Multiply layer)
 	draw_rect(Rect2(Vector2.ZERO, vp_size), Color(0.08, 0.09, 0.13, 1.0))
@@ -69,28 +74,51 @@ func _draw() -> void:
 	var clear_color = Color(1.0, 1.0, 1.0, 1.0)
 	var rim_color = Color(0.2, 0.85, 1.0, 0.5)
 
-	# 2. Draw 3D Raycasted Close Vision Circle (5.5m radius)
-	var close_poly = _make_circle_poly_3d(camera, space_state, eye_pos, CLOSE_RADIUS_M, 32)
-	if close_poly.size() >= 3:
-		draw_colored_polygon(close_poly, clear_color)
-		var close_loop = PackedVector2Array(close_poly)
-		close_loop.append(close_poly[0])
-		draw_polyline(close_loop, rim_color, 2.5, true)
+	# 2. Draw 3D Raycasted Vision Shapes for all living teammates
+	for tm in teammates:
+		var tm_pos_3d = tm.global_position
+		var tm_eye_pos = tm_pos_3d + Vector3(0, 1.25, 0)
+		var tm_fwd_3d = -tm.global_transform.basis.z.normalized()
+		tm_fwd_3d.y = 0.0
+		if tm_fwd_3d.length_squared() < 0.0001:
+			tm_fwd_3d = Vector3.FORWARD
+		tm_fwd_3d = tm_fwd_3d.normalized()
 
-	# 3. Draw 3D Raycasted Acute Forward Cone (24.0m radius, 45 degrees)
-	var cone_poly = _make_cone_poly_3d(camera, space_state, eye_pos, fwd_3d, deg_to_rad(CONE_HALF_ANGLE_DEG), CONE_RADIUS_M, 24)
-	if cone_poly.size() >= 3:
-		draw_colored_polygon(cone_poly, clear_color)
-		var cone_loop = PackedVector2Array(cone_poly)
-		cone_loop.append(cone_poly[0])
-		draw_polyline(cone_loop, rim_color, 2.5, true)
+		# Close circle (5.5m)
+		var close_poly = _make_circle_poly_3d(camera, space_state, tm_eye_pos, CLOSE_RADIUS_M, 28)
+		if close_poly.size() >= 3:
+			draw_colored_polygon(close_poly, clear_color)
+			var close_loop = PackedVector2Array(close_poly)
+			close_loop.append(close_poly[0])
+			draw_polyline(close_loop, rim_color, 2.5, true)
 
-	# 4. Draw team/player-owned reveal zones & flares
+		# Forward cone (24.0m normal or 70.0m Poke Ult)
+		var is_poke_ult_buff = (tm.get("poke_ult_buff_timer") != null and tm.poke_ult_buff_timer > 0.0)
+		var cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
+		var see_through = is_poke_ult_buff
+
+		var cone_poly = _make_cone_poly_3d(camera, space_state, tm_eye_pos, tm_fwd_3d, deg_to_rad(CONE_HALF_ANGLE_DEG), cone_radius, 28, see_through)
+		if cone_poly.size() >= 3:
+			draw_colored_polygon(cone_poly, clear_color)
+			var cone_loop = PackedVector2Array(cone_poly)
+			cone_loop.append(cone_poly[0])
+			var current_rim_color = Color(1.0, 0.85, 0.2, 0.7) if is_poke_ult_buff else rim_color
+			draw_polyline(cone_loop, current_rim_color, 2.5, true)
+
+		# Teammates are always visible to each other
+		if tm.has_method("set_opponent_visible"):
+			tm.set_opponent_visible(true)
+
+	# 3. Draw team-owned reveal zones & flares
 	var vision_zones_container = main_node.get_node_or_null("VisionZones")
 	if vision_zones_container:
 		for zone in vision_zones_container.get_children():
 			if zone.is_inside_tree():
-				if zone.get("owner_id") != null and zone.owner_id != 0 and zone.owner_id != focus_id:
+				var z_team = zone.get("owner_team") if zone.get("owner_team") != null else 0
+				var z_owner = zone.get("owner_id") if zone.get("owner_id") != null else 0
+				if z_team != 0 and z_team != focus_team:
+					continue
+				if z_team == 0 and z_owner != 0 and z_owner != focus_id:
 					continue
 				
 				var z_pos_3d = zone.global_position
@@ -108,7 +136,11 @@ func _draw() -> void:
 	if proj_container:
 		for proj in proj_container.get_children():
 			if proj.get("vision_radius") != null and proj.is_inside_tree():
-				if proj.get("shooter_id") != null and proj.shooter_id != 0 and proj.shooter_id != focus_id:
+				var p_team = proj.get("shooter_team") if proj.get("shooter_team") != null else 0
+				var p_shooter = proj.get("shooter_id") if proj.get("shooter_id") != null else 0
+				if p_team != 0 and p_team != focus_team:
+					continue
+				if p_team == 0 and p_shooter != 0 and p_shooter != focus_id:
 					continue
 
 				var f_pos_3d = proj.global_position
@@ -122,12 +154,8 @@ func _draw() -> void:
 					draw_polyline(f_loop, rim_color, 2.5, true)
 				active_reveal_sources.append({"pos": f_pos_3d, "radius": f_rad_m})
 
-	# Spectated player is always visible to spectator
-	if focus_player != local_player:
-		focus_player.set_opponent_visible(true)
-
-	# Update opponent visibility with 3D Line-of-Sight & terrain occlusion from focus player perspective
-	_update_enemies_visibility(main_node, focus_player, eye_pos, space_state, active_reveal_sources)
+	# 4. Update enemies visibility across all teammates and active reveal sources
+	_update_team_enemies_visibility(main_node, teammates, space_state, active_reveal_sources)
 
 func _make_circle_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, radius: float, num_rays: int) -> PackedVector2Array:
 	var pts_2d = PackedVector2Array()
@@ -138,7 +166,7 @@ func _make_circle_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState
 		pts_2d.append(camera.unproject_position(ray_endpoint))
 	return pts_2d
 
-func _make_cone_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, fwd_3d: Vector3, half_angle_rad: float, max_radius: float, num_rays: int) -> PackedVector2Array:
+func _make_cone_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, fwd_3d: Vector3, half_angle_rad: float, max_radius: float, num_rays: int, see_through_terrain: bool = false) -> PackedVector2Array:
 	var pts_2d = PackedVector2Array()
 	pts_2d.append(camera.unproject_position(origin_3d))
 	
@@ -148,7 +176,11 @@ func _make_cone_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D
 		var t = float(i) / float(num_rays)
 		var alpha = lerp(-half_angle_rad, half_angle_rad, t)
 		var dir_3d = (fwd_3d * cos(alpha) + right_3d * sin(alpha)).normalized()
-		var ray_endpoint = _cast_ray_3d(space_state, origin_3d, dir_3d, max_radius)
+		var ray_endpoint: Vector3
+		if see_through_terrain:
+			ray_endpoint = origin_3d + dir_3d * max_radius
+		else:
+			ray_endpoint = _cast_ray_3d(space_state, origin_3d, dir_3d, max_radius)
 		pts_2d.append(camera.unproject_position(ray_endpoint))
 		
 	return pts_2d
@@ -175,7 +207,7 @@ func _get_local_player(main_node: Node, my_id: int) -> Node:
 	var players_container = main_node.get_node_or_null("Players")
 	if players_container:
 		for p in players_container.get_children():
-			if p.name.to_int() == my_id:
+			if p.name != "TrainingDummy" and (p.name.to_int() == my_id or p.name == "1" or p.is_multiplayer_authority()):
 				return p
 	return null
 
@@ -186,18 +218,15 @@ func _reveal_all_players(main_node: Node) -> void:
 			if p.has_method("set_opponent_visible"):
 				p.set_opponent_visible(true)
 
-func _update_enemies_visibility(main_node: Node, local_player: Node, my_eye_pos: Vector3, space_state: PhysicsDirectSpaceState3D, active_reveals: Array) -> void:
+func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_state: PhysicsDirectSpaceState3D, active_reveals: Array) -> void:
 	var players_container = main_node.get_node_or_null("Players")
 	if not players_container:
 		return
 
-	var my_pos = local_player.global_position
-	var fwd_3d = -local_player.global_transform.basis.z.normalized()
-	fwd_3d.y = 0.0
-	var fwd_2d = Vector2(fwd_3d.x, fwd_3d.z).normalized()
-
 	for player in players_container.get_children():
-		if player == local_player:
+		if player in teammates:
+			if player.has_method("set_opponent_visible"):
+				player.set_opponent_visible(true)
 			continue
 		
 		if not player.has_method("set_opponent_visible") or player.get("is_dead"):
@@ -205,42 +234,49 @@ func _update_enemies_visibility(main_node: Node, local_player: Node, my_eye_pos:
 
 		var target_pos = player.global_position
 		var target_eye_pos = target_pos + Vector3(0, 1.25, 0)
-		var diff = target_pos - my_pos
-		var diff_2d = Vector2(diff.x, diff.z)
-		var dist = diff_2d.length()
-
-		var in_vision_shape: bool = false
-
-		# 1. Check close proximity circle (5.5m)
-		if dist <= CLOSE_RADIUS_M:
-			in_vision_shape = true
-		
-		# 2. Check acute forward cone (24.0m, 45 degrees)
-		elif dist <= CONE_RADIUS_M and fwd_2d.length_squared() > 0.001:
-			var to_target_2d = diff_2d.normalized()
-			var angle_deg = rad_to_deg(fwd_2d.angle_to(to_target_2d))
-			if abs(angle_deg) <= CONE_HALF_ANGLE_DEG:
-				in_vision_shape = true
-
 		var is_visible: bool = false
 
-		if in_vision_shape:
-			# Check 3D line-of-sight against terrain (layer 1)
-			var query = PhysicsRayQueryParameters3D.create(my_eye_pos, target_eye_pos, 1)
-			query.collide_with_areas = false
-			query.collide_with_bodies = true
-			var result = space_state.intersect_ray(query)
-			
-			if result.is_empty():
-				is_visible = true
-			else:
-				var hit_pos: Vector3 = result.position
-				if my_eye_pos.y >= hit_pos.y + 0.3:
-					is_visible = true
-				else:
-					is_visible = false
+		# Check line of sight from ANY living teammate
+		for tm in teammates:
+			var tm_pos = tm.global_position
+			var tm_eye_pos = tm_pos + Vector3(0, 1.25, 0)
+			var tm_fwd_3d = -tm.global_transform.basis.z.normalized()
+			tm_fwd_3d.y = 0.0
+			var tm_fwd_2d = Vector2(tm_fwd_3d.x, tm_fwd_3d.z).normalized()
 
-		# 3. Check active reveal sources (flares & reveal zones)
+			var diff = target_pos - tm_pos
+			var diff_2d = Vector2(diff.x, diff.z)
+			var dist = diff_2d.length()
+
+			var is_poke_ult_buff = (tm.get("poke_ult_buff_timer") != null and tm.poke_ult_buff_timer > 0.0)
+			var cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
+
+			var in_vision_shape: bool = false
+
+			# 1. Close proximity circle (5.5m)
+			if dist <= CLOSE_RADIUS_M:
+				in_vision_shape = true
+			# 2. Acute forward cone (24.0m normal or 70.0m Poke Ult)
+			elif dist <= cone_radius and tm_fwd_2d.length_squared() > 0.001:
+				var to_target_2d = diff_2d.normalized()
+				var angle_deg = rad_to_deg(tm_fwd_2d.angle_to(to_target_2d))
+				if abs(angle_deg) <= CONE_HALF_ANGLE_DEG:
+					in_vision_shape = true
+					if is_poke_ult_buff:
+						# Pierces terrain on Poke's empowered cone!
+						is_visible = true
+						break
+
+			if in_vision_shape:
+				var query = PhysicsRayQueryParameters3D.create(tm_eye_pos, target_eye_pos, 1)
+				query.collide_with_areas = false
+				query.collide_with_bodies = true
+				var result = space_state.intersect_ray(query)
+				if result.is_empty() or tm_eye_pos.y >= result.position.y + 0.3:
+					is_visible = true
+					break
+
+		# Check active reveal sources (flares & reveal zones)
 		if not is_visible:
 			for r in active_reveals:
 				var r_diff = target_pos - r["pos"]

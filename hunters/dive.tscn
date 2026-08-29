@@ -219,6 +219,11 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Three [E]: READY"
 
+[node name="AbilityFourCD" type="Label" parent="PlayerHUD/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Ult [R]: READY"
+
 [node name="DashCD" type="Label" parent="PlayerHUD/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14

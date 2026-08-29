@@ -3,6 +3,7 @@ extends Node3D
 @export var radius: float = 12.0
 @export var lifetime: float = 5.5
 var owner_id: int = 0
+var owner_team: int = 0
 
 var current_time: float = 0.0
 
