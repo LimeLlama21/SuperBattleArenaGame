@@ -3,9 +3,10 @@ extends Node3D
 const PORT: int = 7000
 
 const CHARACTERS: Dictionary = {
-	"poke": preload("res://hunters/poke.tscn"),
-	"crush": preload("res://hunters/crush.tscn"),
-	"dive": preload("res://hunters/dive.tscn")
+	"poke": preload("res://characters/poke.tscn"),
+	"crush": preload("res://characters/crush.tscn"),
+	"dive": preload("res://characters/dive.tscn"),
+	"reaper": preload("res://characters/reaper.tscn")
 }
 
 @export var projectile_scene: PackedScene = preload("res://projectile.tscn")
@@ -37,29 +38,37 @@ const CHARACTERS: Dictionary = {
 @onready var winner_label: Label = $UI/MatchOverPanel/VBox/WinnerLabel
 
 @onready var host_button: Button = $UI/MainMenu/VBox/HostButton
-@onready var room_code_input: LineEdit = $UI/MainMenu/VBox/RoomCodeInput
 @onready var join_button: Button = $UI/MainMenu/VBox/JoinButton
 @onready var training_button: Button = $UI/MainMenu/VBox/TrainingButton
 @onready var main_settings_button: Button = $UI/MainMenu/VBox/SettingsButton
 
-@onready var lobby_code_label: Label = $UI/LobbyRoom/VBox/RoomCodeDisplay
+@onready var join_dialog: PanelContainer = $UI/JoinDialog
+@onready var host_ip_input: LineEdit = $UI/JoinDialog/VBox/HostIPInput
+@onready var cancel_join_button: Button = $UI/JoinDialog/VBox/HBox/CancelButton
+@onready var confirm_join_button: Button = $UI/JoinDialog/VBox/HBox/ConfirmJoinButton
+
+@onready var lobby_ip_label: Label = $UI/LobbyRoom/VBox/HostIPDisplay
 @onready var select_poke_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectPoke
 @onready var select_crush_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectCrush
 @onready var select_dive_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectDive
+@onready var select_reaper_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectReaper")
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
-@onready var start_match_button: Button = $UI/LobbyRoom/VBox/StartMatchButton
+@onready var lobby_back_button: Button = $UI/LobbyRoom/VBox/HBoxLobbyActions/LobbyBackButton
+@onready var start_match_button: Button = $UI/LobbyRoom/VBox/HBoxLobbyActions/StartMatchButton
 
 @onready var escape_panel: PanelContainer = $UI/EscapeMenu
 @onready var escape_tab_container: TabContainer = $UI/EscapeMenu/VBox/EscapeTabContainer
 @onready var escape_title_label: Label = $UI/EscapeMenu/VBox/EscapeTabContainer/Menu/Title
 @onready var resume_button: Button = $UI/EscapeMenu/VBox/EscapeTabContainer/Menu/ResumeButton
 @onready var escape_settings_button: Button = $UI/EscapeMenu/VBox/EscapeTabContainer/Menu/SettingsButton
+@onready var exit_match_button: Button = $UI/EscapeMenu/VBox/EscapeTabContainer/Menu/ExitMatchButton
 @onready var leave_match_button: Button = $UI/EscapeMenu/VBox/EscapeTabContainer/Menu/LeaveMatchButton
 
-@onready var switch_poke_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter/SwitchPoke"
-@onready var switch_crush_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter/SwitchCrush"
-@onready var switch_dive_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter/SwitchDive"
+@onready var switch_poke_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchPoke"
+@onready var switch_crush_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchCrush"
+@onready var switch_dive_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDive"
+@onready var switch_reaper_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchReaper")
 
 @onready var settings_panel: PanelContainer = $UI/SettingsMenu
 
@@ -80,23 +89,35 @@ var connected_players: Dictionary = {}
 var match_in_progress: bool = false
 var is_training_mode: bool = false
 
+var active_upnp: UPNP = null
+var upnp_thread: Thread = null
+
 func _ready() -> void:
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
+	cancel_join_button.pressed.connect(func(): join_dialog.hide())
+	confirm_join_button.pressed.connect(_on_confirm_join_pressed)
+	host_ip_input.text_submitted.connect(func(_t): _on_confirm_join_pressed())
 	training_button.pressed.connect(_on_training_pressed)
 	main_settings_button.pressed.connect(_open_settings_menu)
 	select_poke_button.pressed.connect(func(): _select_character("poke"))
 	select_crush_button.pressed.connect(func(): _select_character("crush"))
 	select_dive_button.pressed.connect(func(): _select_character("dive"))
+	if select_reaper_button:
+		select_reaper_button.pressed.connect(func(): _select_character("reaper"))
+	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
 	resume_button.pressed.connect(func(): escape_panel.hide())
 	escape_settings_button.pressed.connect(_open_settings_menu)
+	exit_match_button.pressed.connect(_on_exit_match_pressed)
 	leave_match_button.pressed.connect(_on_leave_match_pressed)
 	
 	switch_poke_btn.pressed.connect(func(): _switch_training_character("poke"))
 	switch_crush_btn.pressed.connect(func(): _switch_training_character("crush"))
 	switch_dive_btn.pressed.connect(func(): _switch_training_character("dive"))
+	if switch_reaper_btn:
+		switch_reaper_btn.pressed.connect(func(): _switch_training_character("reaper"))
 	
 	if settings_panel and settings_panel.has_signal("settings_closed"):
 		settings_panel.settings_closed.connect(_on_settings_closed)
@@ -125,6 +146,8 @@ func _select_character(char_key: String) -> void:
 	select_poke_button.text = "Poke (Select)"
 	select_crush_button.text = "Crush (Select)"
 	select_dive_button.text = "Dive (Select)"
+	if select_reaper_button:
+		select_reaper_button.text = "Reaper (Select)"
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Poke (Selected)"
@@ -135,6 +158,10 @@ func _select_character(char_key: String) -> void:
 	elif char_key == "dive":
 		select_dive_button.text = "★ Dive (Selected)"
 		char_desc_label.text = "DIVE: Striker (100 HP). Passive [Rupture Marks]: Stacking burst marks. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
+	elif char_key == "reaper":
+		if select_reaper_button:
+			select_reaper_button.text = "★ Reaper (Selected)"
+		char_desc_label.text = "REAPER: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (grounds + ramping slow, roots after 1.75s). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
 	
 	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		if multiplayer.is_server():
@@ -195,7 +222,7 @@ func _on_training_pressed() -> void:
 	
 	menu_panel.hide()
 	lobby_panel.show()
-	lobby_code_label.text = "🎯 SOLO TRAINING SESSION"
+	lobby_ip_label.text = "🎯 SOLO TRAINING SESSION"
 	start_match_button.visible = true
 
 	connected_players.clear()
@@ -218,9 +245,12 @@ func _on_host_pressed() -> void:
 	multiplayer.multiplayer_peer = peer
 	
 	menu_panel.hide()
+	join_dialog.hide()
 	lobby_panel.show()
-	lobby_code_label.text = "ROOM CODE: LOCAL-01\n(Port: %d)" % PORT
 	start_match_button.visible = true
+
+	var local_ip = NetworkUtils.get_local_ipv4()
+	lobby_ip_label.text = "HOST IP: %s" % local_ip
 
 	connected_players.clear()
 	var slot_info = _find_first_available_slot()
@@ -231,13 +261,20 @@ func _on_host_pressed() -> void:
 		"slot": slot_info["slot"]
 	}
 	_refresh_lobby_ui()
+	_start_upnp_discovery(PORT, local_ip)
 
 func _on_join_pressed() -> void:
+	join_dialog.show()
+	host_ip_input.text = ""
+	host_ip_input.grab_focus()
+
+func _on_confirm_join_pressed() -> void:
+	var raw_ip = host_ip_input.text.strip_edges()
+	if raw_ip.is_empty():
+		raw_ip = "127.0.0.1"
+
 	is_training_mode = false
-	var raw_code = room_code_input.text.strip_edges()
-	var target_ip = NetworkUtils.room_code_to_ip(raw_code)
-	if target_ip.is_empty():
-		target_ip = "127.0.0.1"
+	var target_ip = NetworkUtils.clean_host_ip(raw_ip)
 
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(target_ip, PORT)
@@ -246,17 +283,21 @@ func _on_join_pressed() -> void:
 		return
 
 	multiplayer.multiplayer_peer = peer
+	join_dialog.hide()
 	menu_panel.hide()
 	lobby_panel.show()
-	lobby_code_label.text = "Connecting to %s..." % target_ip
+	lobby_ip_label.text = "HOST IP: %s (Connecting...)" % target_ip
 	start_match_button.visible = false
 
 func _on_connected_to_server() -> void:
-	lobby_code_label.text = "Connected to Lobby!"
+	var raw_ip = host_ip_input.text.strip_edges()
+	var target_ip = NetworkUtils.clean_host_ip(raw_ip)
+	lobby_ip_label.text = "HOST IP: %s" % target_ip
 	register_player_to_server.rpc_id(1, selected_character)
 
 func _on_connection_failed() -> void:
 	lobby_panel.hide()
+	join_dialog.hide()
 	menu_panel.show()
 	multiplayer.multiplayer_peer = null
 
@@ -270,8 +311,25 @@ func _on_peer_disconnected(id: int) -> void:
 		var player_node = players_container.get_node_or_null(str(id))
 		if player_node:
 			player_node.queue_free()
+		cleanup_player_entities(id)
 		if match_in_progress:
 			_check_match_status()
+
+func cleanup_player_entities(peer_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	for proj in projectiles_container.get_children():
+		if proj.get("shooter_id") == peer_id:
+			proj.queue_free()
+	for terr in terrain_container.get_children():
+		if terr.get("owner_id") == peer_id:
+			terr.queue_free()
+	for v in vision_container.get_children():
+		if v.get("owner_id") == peer_id or v.get("shooter_id") == peer_id:
+			v.queue_free()
+	for h in hazard_container.get_children():
+		if h.get("shooter_id") == peer_id:
+			h.queue_free()
 
 @rpc("any_peer", "call_remote", "reliable")
 func register_player_to_server(char_key: String) -> void:
@@ -612,14 +670,15 @@ func _custom_spawn_projectile(data: Variant) -> Node:
 	proj.position = data["pos"]
 	return proj
 
-func spawn_temporary_terrain(pos: Vector3, lifetime: float = 5.0) -> void:
+func spawn_temporary_terrain(pos: Vector3, lifetime: float = 5.0, owner_id: int = 0) -> void:
 	if not multiplayer.is_server():
 		return
 	var terr_pos = pos
 	terr_pos.y = 0.0
 	var data = {
 		"pos": terr_pos,
-		"lifetime": lifetime
+		"lifetime": lifetime,
+		"owner_id": owner_id
 	}
 	terrain_spawner.spawn(data)
 
@@ -627,6 +686,7 @@ func _custom_spawn_terrain(data: Variant) -> Node:
 	var terrain = terrain_scene.instantiate()
 	terrain.position = data["pos"]
 	terrain.lifetime = data.get("lifetime", 5.0)
+	terrain.owner_id = data.get("owner_id", 0)
 	return terrain
 
 func spawn_vision_flare(pos: Vector3, dir: Vector3, target_dist: float, shooter_id: int = 0, shooter_team: int = 0) -> void:
@@ -665,7 +725,7 @@ func _custom_spawn_vision_zone(data: Variant) -> Node:
 	zone.owner_team = data.get("owner_team", 0)
 	return zone
 
-func spawn_slowing_dot_zone(pos: Vector3, rad: float = 4.5, dur: float = 4.0, dmg_ps: float = 24.0, slow_pct: float = 0.5, shooter_id: int = 0, shooter_team: int = 0) -> void:
+func spawn_slowing_dot_zone(pos: Vector3, rad: float = 2.2, dur: float = 4.5, dmg_ps: float = 0.0, slow_pct: float = 0.35, shooter_id: int = 0, shooter_team: int = 0) -> void:
 	if not multiplayer.is_server():
 		return
 	if shooter_team == 0 and shooter_id > 0:
@@ -684,10 +744,10 @@ func spawn_slowing_dot_zone(pos: Vector3, rad: float = 4.5, dur: float = 4.0, dm
 func _custom_spawn_hazard_zone(data: Variant) -> Node:
 	var zone = slowing_dot_zone_scene.instantiate()
 	zone.position = data["pos"]
-	zone.radius = data.get("rad", 4.5)
-	zone.duration = data.get("dur", 4.0)
-	zone.damage_per_second = data.get("dmg_ps", 24.0)
-	zone.slow_percent = data.get("slow_pct", 0.5)
+	zone.radius = data.get("rad", 2.2)
+	zone.duration = data.get("dur", 4.5)
+	zone.damage_per_second = data.get("dmg_ps", 0.0)
+	zone.slow_percent = data.get("slow_pct", 0.35)
 	zone.shooter_id = data.get("shooter_id", 0)
 	zone.shooter_team = data.get("shooter_team", 0)
 	return zone
@@ -703,6 +763,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		elif match_in_progress:
 			_open_escape_menu()
+			get_viewport().set_input_as_handled()
+		elif lobby_panel.visible:
+			_on_lobby_back_pressed()
 			get_viewport().set_input_as_handled()
 
 func _open_escape_menu() -> void:
@@ -741,6 +804,8 @@ func _switch_training_character(new_char_key: String) -> void:
 	player_instance.rotation.y = current_rot_y
 	players_container.add_child(player_instance)
 	
+	cleanup_player_entities(1)
+	
 	escape_panel.hide()
 	display_damage_number(0, current_pos + Vector3(0, 0.5, 0), 1)
 
@@ -760,8 +825,60 @@ func _on_settings_closed() -> void:
 	else:
 		menu_panel.show()
 
-func _on_leave_match_pressed() -> void:
+func _on_lobby_back_pressed() -> void:
+	_leave_to_main_menu()
+
+func _on_exit_match_pressed() -> void:
+	if is_training_mode:
+		return_to_lobby()
+	else:
+		if multiplayer.is_server():
+			return_to_lobby.rpc()
+		else:
+			request_return_to_lobby.rpc_id(1)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_return_to_lobby() -> void:
+	if not multiplayer.is_server():
+		return
+	return_to_lobby.rpc()
+
+@rpc("any_peer", "call_local", "reliable")
+func return_to_lobby() -> void:
+	match_in_progress = false
 	escape_panel.hide()
+	settings_panel.hide()
+	match_over_panel.hide()
+	lobby_panel.show()
+	_refresh_lobby_ui()
+	
+	if multiplayer.is_server():
+		for c in players_container.get_children():
+			c.queue_free()
+		for proj in projectiles_container.get_children():
+			proj.queue_free()
+		for terr in terrain_container.get_children():
+			terr.queue_free()
+		for v in vision_container.get_children():
+			v.queue_free()
+		for h in hazard_container.get_children():
+			h.queue_free()
+	
+	if default_map:
+		default_map.visible = not is_training_mode
+		default_map.process_mode = Node.PROCESS_MODE_INHERIT if not is_training_mode else Node.PROCESS_MODE_DISABLED
+	if training_map:
+		training_map.visible = is_training_mode
+		training_map.process_mode = Node.PROCESS_MODE_INHERIT if is_training_mode else Node.PROCESS_MODE_DISABLED
+
+func _on_leave_match_pressed() -> void:
+	_leave_to_main_menu()
+
+func _leave_to_main_menu() -> void:
+	_cleanup_upnp()
+	
+	escape_panel.hide()
+	join_dialog.hide()
 	settings_panel.hide()
 	match_over_panel.hide()
 	lobby_panel.hide()
@@ -770,6 +887,7 @@ func _on_leave_match_pressed() -> void:
 	match_in_progress = false
 	is_training_mode = false
 	multiplayer.multiplayer_peer = null
+	connected_players.clear()
 	
 	for c in players_container.get_children():
 		c.queue_free()
@@ -788,3 +906,47 @@ func _on_leave_match_pressed() -> void:
 	if training_map:
 		training_map.visible = false
 		training_map.process_mode = Node.PROCESS_MODE_DISABLED
+
+func _start_upnp_discovery(port: int, local_ip: String) -> void:
+	_cleanup_upnp()
+	upnp_thread = Thread.new()
+	upnp_thread.start(_thread_setup_upnp.bind(port, local_ip))
+
+func _thread_setup_upnp(port: int, local_ip: String) -> void:
+	var upnp = UPNP.new()
+	var discover_result = upnp.discover(2000, 2, "InternetGatewayDevice")
+	
+	if discover_result == UPNP.UPNP_RESULT_SUCCESS and upnp.get_gateway() and upnp.get_gateway().is_valid_gateway():
+		var map_udp = upnp.add_port_mapping(port, port, "SuperBattleArena_UDP", "UDP")
+		var map_tcp = upnp.add_port_mapping(port, port, "SuperBattleArena_TCP", "TCP")
+		var ext_ip = upnp.query_external_address()
+		
+		if map_udp == UPNP.UPNP_RESULT_SUCCESS and not ext_ip.is_empty() and ext_ip != "0.0.0.0":
+			active_upnp = upnp
+			_update_host_lobby_info.call_deferred(ext_ip, local_ip, port, true)
+			return
+	
+	_update_host_lobby_info.call_deferred(local_ip, local_ip, port, false)
+
+func _update_host_lobby_info(ip_str: String, _local_ip: String, _port: int, _upnp_success: bool) -> void:
+	if not lobby_panel.visible or is_training_mode:
+		return
+	lobby_ip_label.text = "HOST IP: %s" % ip_str
+
+func _cleanup_upnp() -> void:
+	if upnp_thread:
+		if upnp_thread.is_alive():
+			upnp_thread.wait_to_finish()
+		upnp_thread = null
+	
+	if active_upnp:
+		var u = active_upnp
+		active_upnp = null
+		WorkerThreadPool.add_task(func():
+			u.delete_port_mapping(PORT, "UDP")
+			u.delete_port_mapping(PORT, "TCP")
+		)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_cleanup_upnp()

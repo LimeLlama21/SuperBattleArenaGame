@@ -1,6 +1,24 @@
 class_name NetworkUtils
 extends RefCounted
 
+static func get_local_ipv4() -> String:
+	var addresses = IP.get_local_addresses()
+	for addr in addresses:
+		if addr.count(".") == 3 and not addr.begins_with("127.") and not addr.begins_with("169.254."):
+			return addr
+	return "127.0.0.1"
+
+static func clean_host_ip(input: String) -> String:
+	var text = input.strip_edges()
+	if text.is_empty() or text.to_lower() == "localhost" or text == "127.0.0.1":
+		return "127.0.0.1"
+	
+	# Fallback if a hexadecimal room code was entered
+	if text.length() == 8 and text.is_valid_hex_number(false):
+		return room_code_to_ip(text)
+		
+	return text
+
 static func ip_to_room_code(ip: String) -> String:
 	if ip == "127.0.0.1" or ip == "localhost":
 		return "LOCAL-01"
@@ -28,3 +46,4 @@ static func room_code_to_ip(code: String) -> String:
 		return ".".join(octets)
 	
 	return code.replace("-", ".")
+

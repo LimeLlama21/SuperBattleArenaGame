@@ -2,7 +2,7 @@ extends Control
 
 const CLOSE_RADIUS_M: float = 5.5
 const CONE_RADIUS_M: float = 24.0
-const CONE_HALF_ANGLE_DEG: float = 22.5 # 45 degrees total cone
+const CONE_HALF_ANGLE_DEG: float = 30.0 # 60 degrees total cone
 
 @onready var texture_rect: TextureRect = get_node_or_null("../../FogOfWarTexture")
 

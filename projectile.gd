@@ -1,10 +1,17 @@
 extends Area3D
 
+enum ProjectileClassification {
+	TRAJECTORY,     # Generic damage/effects: Always follows its entire trajectory (full max_range/lifetime)
+	TARGET_LOCATION # Targeted: Travels to mouse/target distance when cast, then triggers payload/burst
+}
+
+@export var classification: ProjectileClassification = ProjectileClassification.TRAJECTORY
 @export var speed: float = 34.0
 @export var damage: float = 22.0
 @export var size: float = 1.0
 @export var lifetime: float = 2.5
 @export var max_range: float = 0.0
+@export var target_distance: float = 0.0
 @export var effect_type: String = ""
 @export var effect_duration: float = 0.0
 @export var effect_intensity: float = 0.0
@@ -40,9 +47,15 @@ func _physics_process(delta: float) -> void:
 	global_position += direction * step
 	if multiplayer.is_server():
 		distance_traveled += step
-		if max_range > 0.0 and distance_traveled >= max_range:
-			_trigger_death_effects()
-			queue_free()
+		if classification == ProjectileClassification.TARGET_LOCATION:
+			var effective_target = target_distance if target_distance > 0.0 else max_range
+			if distance_traveled >= effective_target:
+				_trigger_death_effects()
+				queue_free()
+		else: # TRAJECTORY: Generic damage/effect projectiles always follow their entire trajectory
+			if max_range > 0.0 and distance_traveled >= max_range:
+				_trigger_death_effects()
+				queue_free()
 
 func _on_timeout() -> void:
 	_trigger_death_effects()
@@ -55,7 +68,7 @@ func _trigger_death_effects() -> void:
 	if spawn_terrain_on_death:
 		var main_node = get_tree().root.get_node_or_null("Main")
 		if main_node and main_node.has_method("spawn_temporary_terrain"):
-			main_node.spawn_temporary_terrain(global_position, 5.0)
+			main_node.spawn_temporary_terrain(global_position, 5.0, shooter_id)
 
 func _on_body_entered(body: Node) -> void:
 	if not multiplayer.is_server():
@@ -87,10 +100,13 @@ func _on_body_entered(body: Node) -> void:
 				body.apply_slow(effect_duration, effect_intensity)
 			elif effect_type == "knockback_stun":
 				if body.has_method("apply_knockback"):
-					var kb_dir = Vector3(direction.x, 0.35, direction.z).normalized()
+					var kb_dir = Vector3(direction.x, 0.0, direction.z).normalized()
 					body.apply_knockback(kb_dir * effect_intensity)
 				if body.has_method("apply_stun"):
 					body.apply_stun(effect_duration)
+			elif effect_type == "reaper_tether":
+				if shooter and shooter.has_method("start_reaper_tether_server"):
+					shooter.start_reaper_tether_server(body)
 			
 			if not pierces:
 				_trigger_death_effects()

@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cyulrhfo6xm6a"]
 
 [ext_resource type="Script" path="res://player_base.gd" id="1_base"]
+[ext_resource type="Script" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.38
@@ -184,50 +185,67 @@ double_sided = false
 no_depth_test = true
 
 [node name="PlayerHUD" type="CanvasLayer" parent="."]
+layer = 10
 
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD"]
-anchors_preset = 2
+[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD"]
+anchors_preset = 7
+anchor_left = 0.5
 anchor_top = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -165.0
-offset_right = 260.0
-offset_bottom = -15.0
+offset_left = -170.0
+offset_top = -105.0
+offset_right = 170.0
+offset_bottom = -25.0
+grow_horizontal = 2
 grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 1
 
-[node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox"]
+[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
 
-[node name="AttackCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Attack [LMB]: READY"
+theme_override_constants/separation = 8
+alignment = 1
 
-[node name="AbilityOneCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "One [RMB]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "RMB"
+slot_name = "Ability 1"
 
-[node name="AbilityTwoCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Two [Q]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "Q"
+slot_name = "Ability 2"
 
-[node name="AbilityThreeCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Three [E]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "E"
+slot_name = "Ability 3"
 
-[node name="AbilityFourCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Ult [R]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "R"
+slot_name = "Ultimate"
 
-[node name="DashCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Dash [Shift]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "SHIFT"
+slot_name = "Dash"
 
 [node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
 visible = false

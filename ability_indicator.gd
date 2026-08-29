@@ -215,3 +215,70 @@ static func create_ring_indicator(radius: float, border_color: Color) -> MeshIns
 	line_mesh_inst.mesh = st_line.commit()
 	line_mesh_inst.material_override = line_mat
 	return line_mesh_inst
+
+static func create_donut_indicator(inner_radius: float, outer_radius: float, outer_fill_color: Color, outer_border_color: Color, inner_fill_color: Color = Color(0, 0, 0, 0), inner_border_color: Color = Color.WHITE) -> Node3D:
+	var root = Node3D.new()
+	root.name = "DonutIndicator"
+	
+	var mesh_inst = MeshInstance3D.new()
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	
+	var segments = 64
+	for i in range(segments):
+		var t0 = (float(i) / segments) * TAU
+		var t1 = (float(i + 1) / segments) * TAU
+		
+		var p0_in = Vector3(cos(t0) * inner_radius, 0.06, sin(t0) * inner_radius)
+		var p1_in = Vector3(cos(t1) * inner_radius, 0.06, sin(t1) * inner_radius)
+		var p0_out = Vector3(cos(t0) * outer_radius, 0.06, sin(t0) * outer_radius)
+		var p1_out = Vector3(cos(t1) * outer_radius, 0.06, sin(t1) * outer_radius)
+		
+		st.set_color(outer_fill_color)
+		st.add_vertex(p0_in)
+		st.set_color(outer_fill_color)
+		st.add_vertex(p0_out)
+		st.set_color(outer_fill_color)
+		st.add_vertex(p1_out)
+		
+		st.set_color(outer_fill_color)
+		st.add_vertex(p0_in)
+		st.set_color(outer_fill_color)
+		st.add_vertex(p1_out)
+		st.set_color(outer_fill_color)
+		st.add_vertex(p1_in)
+
+	if inner_fill_color.a > 0.0:
+		var center = Vector3(0, 0.05, 0)
+		for i in range(segments):
+			var t0 = (float(i) / segments) * TAU
+			var t1 = (float(i + 1) / segments) * TAU
+			var p1 = Vector3(cos(t0) * inner_radius, 0.05, sin(t0) * inner_radius)
+			var p2 = Vector3(cos(t1) * inner_radius, 0.05, sin(t1) * inner_radius)
+			st.set_color(inner_fill_color)
+			st.add_vertex(center)
+			st.set_color(inner_fill_color)
+			st.add_vertex(p1)
+			st.set_color(inner_fill_color)
+			st.add_vertex(p2)
+
+	var fill_mat = StandardMaterial3D.new()
+	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fill_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	fill_mat.vertex_color_use_as_albedo = true
+	fill_mat.no_depth_test = true
+	
+	mesh_inst.mesh = st.commit()
+	mesh_inst.material_override = fill_mat
+	root.add_child(mesh_inst)
+	
+	var outer_ring = create_ring_indicator(outer_radius, outer_border_color)
+	outer_ring.position.y = 0.02
+	root.add_child(outer_ring)
+	
+	var inner_ring = create_ring_indicator(inner_radius, inner_border_color)
+	inner_ring.position.y = 0.02
+	root.add_child(inner_ring)
+	
+	return root

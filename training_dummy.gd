@@ -11,6 +11,9 @@ var stun_timer: float = 0.0
 var slow_timer: float = 0.0
 var slow_percent: float = 0.0
 var silence_timer: float = 0.0
+var root_timer: float = 0.0
+var grounded_timer: float = 0.0
+var cripple_timer: float = 0.0
 
 var total_damage: float = 0.0
 var last_hit_damage: float = 0.0
@@ -47,6 +50,21 @@ func _physics_process(delta: float) -> void:
 		if silence_timer < 0.0:
 			silence_timer = 0.0
 
+	if root_timer > 0.0:
+		root_timer -= delta
+		if root_timer < 0.0:
+			root_timer = 0.0
+
+	if grounded_timer > 0.0:
+		grounded_timer -= delta
+		if grounded_timer < 0.0:
+			grounded_timer = 0.0
+
+	if cripple_timer > 0.0:
+		cripple_timer -= delta
+		if cripple_timer < 0.0:
+			cripple_timer = 0.0
+
 	if combat_timer > 0.0:
 		combat_timer += delta
 		dps = total_damage / max(1.0, combat_timer)
@@ -56,11 +74,19 @@ func _physics_process(delta: float) -> void:
 			total_damage = 0.0
 			dps = 0.0
 
+	if not is_on_floor():
+		velocity.y -= 32.0 * delta
+	elif velocity.y < 0.0:
+		velocity.y = 0.0
+
 	# Smoothly return to home center position if knocked back
-	if global_position.distance_to(home_position) > 0.1 and stun_timer <= 0.0:
-		velocity = (home_position - global_position) * 4.0
+	if global_position.distance_to(home_position) > 0.1 and stun_timer <= 0.0 and is_on_floor():
+		var return_vel = (home_position - global_position) * 4.0
+		velocity.x = return_vel.x
+		velocity.z = return_vel.z
 	else:
-		velocity = velocity.move_toward(Vector3.ZERO, 15.0 * delta)
+		velocity.x = move_toward(velocity.x, 0.0, 15.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 15.0 * delta)
 
 	move_and_slide()
 	_update_label()
@@ -120,6 +146,9 @@ func respawn() -> void:
 	stun_timer = 0.0
 	slow_timer = 0.0
 	silence_timer = 0.0
+	root_timer = 0.0
+	grounded_timer = 0.0
+	cripple_timer = 0.0
 	is_dead = false
 	
 	# Pop in animation
@@ -138,14 +167,29 @@ func apply_slow(duration: float, percent: float) -> void:
 		slow_percent = max(slow_percent, percent)
 
 func apply_silence(duration: float) -> void:
-	if not respawn and not is_dead:
+	if not is_dead:
 		silence_timer = max(silence_timer, duration)
+
+func apply_root(duration: float) -> void:
+	if not is_dead:
+		root_timer = max(root_timer, duration)
+
+func apply_grounded(duration: float) -> void:
+	if not is_dead:
+		grounded_timer = max(grounded_timer, duration)
+
+func apply_cripple(duration: float, _intensity: float = 0.35) -> void:
+	if not is_dead:
+		cripple_timer = max(cripple_timer, duration)
 
 func apply_knockback(impulse: Vector3) -> void:
 	if not is_dead:
 		velocity.x += impulse.x * 0.5
 		velocity.z += impulse.z * 0.5
-		velocity.y = max(velocity.y + impulse.y * 0.4, impulse.y * 0.4)
+		if impulse.y < 0.0:
+			velocity.y = impulse.y
+		else:
+			velocity.y = max(velocity.y + impulse.y * 0.7, impulse.y * 0.7)
 
 func set_opponent_visible(_vis: bool) -> void:
 	pass
@@ -157,6 +201,12 @@ func _update_label() -> void:
 	var status_str = ""
 	if stun_timer > 0.0:
 		status_str += " [STUNNED: %.1fs]" % stun_timer
+	if root_timer > 0.0:
+		status_str += " [ROOTED: %.1fs]" % root_timer
+	if grounded_timer > 0.0:
+		status_str += " [GROUNDED: %.1fs]" % grounded_timer
+	if cripple_timer > 0.0:
+		status_str += " [CRIPPLED: %.1fs]" % cripple_timer
 	if slow_timer > 0.0:
 		status_str += " [SLOWED: %.0f%%]" % (slow_percent * 100.0)
 	if silence_timer > 0.0:
@@ -171,4 +221,3 @@ func _update_label() -> void:
 		info_label.text = "🎯 TRAINING DUMMY\n%s %.0f/%.0f HP (%.0f%%)%s\nLast: %.0f | DPS: %.1f | Total: %.0f" % [bar_str, current_health, max_health, hp_pct * 100.0, status_str, last_hit_damage, dps, total_damage]
 	else:
 		info_label.text = "🎯 TRAINING DUMMY\n%s %.0f/%.0f HP (%.0f%%)%s\nAttack to test damage & combos" % [bar_str, current_health, max_health, hp_pct * 100.0, status_str]
-

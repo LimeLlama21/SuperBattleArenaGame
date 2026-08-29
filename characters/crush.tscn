@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dx60vi13ahgks"]
 
-[ext_resource type="Script" path="res://player_base.gd" id="1_base"]
+[ext_resource type="Script" uid="uid://dx03yi1xres3g" path="res://player_base.gd" id="1_base"]
+[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.75
@@ -55,15 +56,16 @@ top_radius = 6.5
 bottom_radius = 6.5
 height = 0.3
 
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 0.8)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
-bg_color = Color(0.95, 0.35, 0.2, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -78,17 +80,15 @@ corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_1"]
 
-[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
-properties/0/path = NodePath(".:position")
-properties/0/spawn = true
-properties/0/replication_mode = 1
-properties/1/path = NodePath(".:rotation")
-properties/1/spawn = true
-properties/1/replication_mode = 1
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
+bg_color = Color(0.95, 0.35, 0.2, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
-[node name="Crush" type="CharacterBody3D"]
+[node name="Crush" type="CharacterBody3D" unique_id=2132967885]
 collision_layer = 2
-collision_mask = 1
 script = ExtResource("1_base")
 character_name = "Crush"
 max_health = 160.0
@@ -107,125 +107,140 @@ melee_damage = 55.0
 melee_size = 4.2
 melee_angle_deg = 120.0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=968471939]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 shape = SubResource("CapsuleShape3D_1")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=369689457]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 mesh = SubResource("CapsuleMesh_1")
 
-[node name="FacingIndicator" type="MeshInstance3D" parent="."]
+[node name="FacingIndicator" type="MeshInstance3D" parent="." unique_id=110849898]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.6)
 mesh = SubResource("BoxMesh_nose")
 
-[node name="MeleeVisual" type="Node3D" parent="."]
+[node name="MeleeVisual" type="Node3D" parent="." unique_id=1229199922]
 visible = false
 
-[node name="SlamIndicator" type="MeshInstance3D" parent="MeleeVisual"]
+[node name="SlamIndicator" type="MeshInstance3D" parent="MeleeVisual" unique_id=411580673]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -2.1)
 mesh = SubResource("BoxMesh_slam")
 
-[node name="AbilityOneVisual" type="Node3D" parent="."]
+[node name="AbilityOneVisual" type="Node3D" parent="." unique_id=1226774828]
 visible = false
 
-[node name="FanIndicator" type="MeshInstance3D" parent="AbilityOneVisual"]
+[node name="FanIndicator" type="MeshInstance3D" parent="AbilityOneVisual" unique_id=1288755714]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -2.4)
 mesh = SubResource("BoxMesh_fan_stun")
 
-[node name="AbilityTwoVisual" type="Node3D" parent="."]
+[node name="AbilityTwoVisual" type="Node3D" parent="." unique_id=276184120]
 visible = false
 
-[node name="ShockwaveIndicator" type="MeshInstance3D" parent="AbilityTwoVisual"]
+[node name="ShockwaveIndicator" type="MeshInstance3D" parent="AbilityTwoVisual" unique_id=762983308]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 mesh = SubResource("CylinderMesh_aoe_shock")
 
-[node name="Camera3D" type="Camera3D" parent="."]
+[node name="Camera3D" type="Camera3D" parent="." unique_id=797351308]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
-current = false
 
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=2113005550]
 replication_config = SubResource("SceneReplicationConfig_1")
 
-[node name="HealthBarViewport" type="SubViewport" parent="."]
+[node name="HealthBarViewport" type="SubViewport" parent="." unique_id=1863956795]
 disable_3d = true
 transparent_bg = true
 size = Vector2i(150, 20)
 render_target_update_mode = 4
 
-[node name="GrayProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+[node name="GrayProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=367100041]
 custom_minimum_size = Vector2(150, 20)
 offset_right = 150.0
 offset_bottom = 20.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_gray_fg")
-value = 160.0
 max_value = 160.0
+value = 100.0
 show_percentage = false
 
-[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=515215799]
 custom_minimum_size = Vector2(150, 20)
 offset_right = 150.0
 offset_bottom = 20.0
 theme_override_styles/background = SubResource("StyleBoxEmpty_1")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
-value = 160.0
 max_value = 160.0
+value = 100.0
 show_percentage = false
 
-[node name="HealthBarSprite" type="Sprite3D" parent="."]
+[node name="HealthBarSprite" type="Sprite3D" parent="." unique_id=950786465]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 0)
 billboard = 1
 double_sided = false
 no_depth_test = true
 
-[node name="PlayerHUD" type="CanvasLayer" parent="."]
+[node name="PlayerHUD" type="CanvasLayer" parent="." unique_id=1084054393]
+layer = 10
 
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD"]
-anchors_preset = 2
+[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD" unique_id=1129185341]
+anchors_preset = 7
+anchor_left = 0.5
 anchor_top = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -165.0
-offset_right = 260.0
-offset_bottom = -15.0
+offset_left = -170.0
+offset_top = -105.0
+offset_right = 170.0
+offset_bottom = -25.0
+grow_horizontal = 2
 grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 1
 
-[node name="StatusCCLabel" type="Label" parent="PlayerHUD/VBox"]
+[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer" unique_id=1300463082]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
 
-[node name="AttackCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer" unique_id=1366763971]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Attack [LMB]: READY"
+theme_override_constants/separation = 8
+alignment = 1
 
-[node name="AbilityOneCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1556288266]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "One [RMB]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "RMB"
+slot_name = "Ability 1"
 
-[node name="AbilityTwoCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=856882538]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Two [Q]: READY"
+script = ExtResource("2_ability_slot")
+slot_name = "Ability 2"
 
-[node name="AbilityThreeCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=357095895]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Three [E]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "E"
+slot_name = "Ability 3"
 
-[node name="AbilityFourCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1408933718]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Ult [R]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "R"
+slot_name = "Ultimate"
 
-[node name="DashCD" type="Label" parent="PlayerHUD/VBox"]
+[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=624899186]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Dash [Shift]: READY"
+script = ExtResource("2_ability_slot")
+key_bind_text = "SHIFT"
+slot_name = "Dash"
 
-[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
+[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD" unique_id=1803958714]
 visible = false
 anchors_preset = 5
 anchor_left = 0.5
@@ -236,10 +251,10 @@ offset_right = 175.0
 offset_bottom = 76.0
 grow_horizontal = 2
 
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel"]
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel" unique_id=1131584043]
 layout_mode = 2
 
-[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox"]
+[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox" unique_id=252677423]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "SPECTATING: Player

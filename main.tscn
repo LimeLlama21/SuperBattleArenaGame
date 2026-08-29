@@ -334,13 +334,6 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Create Lobby (Host)"
 
-[node name="RoomCodeInput" type="LineEdit" parent="UI/MainMenu/VBox"]
-custom_minimum_size = Vector2(0, 32)
-layout_mode = 2
-text = "LOCAL-01"
-placeholder_text = "Enter Room Code or IP"
-alignment = 1
-
 [node name="JoinButton" type="Button" parent="UI/MainMenu/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
@@ -355,6 +348,59 @@ text = "🎯 Solo Training Session"
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "⚙ Settings"
+
+[node name="JoinDialog" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -170.0
+offset_top = -100.0
+offset_right = 170.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="UI/JoinDialog"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="UI/JoinDialog/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "JOIN LOBBY"
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="UI/JoinDialog/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "Enter the Host's IP address to join:"
+horizontal_alignment = 1
+
+[node name="HostIPInput" type="LineEdit" parent="UI/JoinDialog/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+placeholder_text = "e.g. 192.168.1.50 or 127.0.0.1"
+alignment = 1
+
+[node name="HBox" type="HBoxContainer" parent="UI/JoinDialog/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CancelButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Cancel"
+
+[node name="ConfirmJoinButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Join"
 
 [node name="LobbyRoom" type="PanelContainer" parent="UI"]
 visible = false
@@ -374,16 +420,16 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="RoomCodeDisplay" type="Label" parent="UI/LobbyRoom/VBox"]
+[node name="HostIPDisplay" type="Label" parent="UI/LobbyRoom/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "ROOM CODE: LOCAL-01"
+text = "HOST IP: 127.0.0.1"
 horizontal_alignment = 1
 
 [node name="SelectHeader" type="Label" parent="UI/LobbyRoom/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "1. Choose Your Hunter:"
+text = "1. Choose Your Character:"
 horizontal_alignment = 1
 
 [node name="HBoxSelect" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
@@ -407,6 +453,12 @@ custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Dive (Select)"
+
+[node name="SelectReaper" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Reaper (Select)"
 
 [node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox"]
 custom_minimum_size = Vector2(0, 34)
@@ -484,9 +536,20 @@ custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
-[node name="StartMatchButton" type="Button" parent="UI/LobbyRoom/VBox"]
+[node name="HBoxLobbyActions" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LobbyBackButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxLobbyActions"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
+size_flags_horizontal = 3
+text = "← Back to Menu"
+
+[node name="StartMatchButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxLobbyActions"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
 text = "START MATCH"
 
 [node name="MatchOverPanel" type="PanelContainer" parent="UI"]
@@ -527,10 +590,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -150.0
-offset_right = 200.0
-offset_bottom = 150.0
+offset_left = -210.0
+offset_top = -165.0
+offset_right = 210.0
+offset_bottom = 165.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -562,38 +625,48 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "⚙ Settings"
 
+[node name="ExitMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Exit Match (Return to Lobby)"
+
 [node name="LeaveMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-text = "Leave Match / Main Menu"
+text = "Leave Game / Main Menu"
 
-[node name="Switch Hunter" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+[node name="Switch Character" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SwitchHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+[node name="SwitchHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "Select Hunter to Swap Instantly:"
+text = "Select Character to Swap Instantly:"
 horizontal_alignment = 1
 
-[node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+[node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🏹 Poke (Sniper - 80 HP)"
 
-[node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+[node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🛡 Crush (Juggernaut - 160 HP)"
 
-[node name="SwitchDive" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+[node name="SwitchDive" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "💥 Dive (Brawler - 120 HP)"
 
-[node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Hunter"]
+[node name="SwitchReaper" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "💀 Reaper (Assassin - 90 HP)"
+
+[node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 11

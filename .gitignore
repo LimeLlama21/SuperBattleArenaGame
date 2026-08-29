@@ -1,16 +1,36 @@
 # Godot 4+ specific ignores
 .godot/
+*.cache
+*.metal.cache
 .nomedia
 
 # Godot-specific ignores
 .import/
 export.cfg
 export_credentials.cfg
+*.credentials.cfg
 
 # Imported translations (automatically generated from CSV files)
 *.translation
 
-# Mono-specific ignores
+# Mono / C#-specific ignores
 .mono/
 data_*/
 mono_crash.*.json
+
+# macOS metadata & resource forks
+.DS_Store
+.DS_Store?
+._*
+__MACOSX/
+.Spotlight-V100
+.Trashes
+
+# Archives & Temporary files
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.swp
+*~
+
