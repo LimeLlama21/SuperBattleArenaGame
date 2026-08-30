@@ -98,12 +98,10 @@ func _on_body_entered(body: Node) -> void:
 			body.take_damage(final_damage, shooter_id, action_type)
 			if effect_type == "slow" and body.has_method("apply_slow"):
 				body.apply_slow(effect_duration, effect_intensity)
-			elif effect_type == "knockback_stun":
+			elif effect_type == "knockback_stun" or effect_type == "poke_repulsor":
 				if body.has_method("apply_knockback"):
 					var kb_dir = Vector3(direction.x, 0.0, direction.z).normalized()
-					body.apply_knockback(kb_dir * effect_intensity)
-				if body.has_method("apply_stun"):
-					body.apply_stun(effect_duration)
+					body.apply_knockback(kb_dir * effect_intensity, true)
 			elif effect_type == "reaper_tether":
 				if shooter and shooter.has_method("start_reaper_tether_server"):
 					shooter.start_reaper_tether_server(body)

@@ -1,88 +1,90 @@
-[gd_scene format=3 uid="uid://cyulrhfo6xm6a"]
+[gd_scene format=3 uid="uid://cyureap6xm6a"]
 
-[ext_resource type="Script" path="res://player_base.gd" id="1_base"]
-[ext_resource type="Script" path="res://ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="Script" path="res://characters/reaper/reaper.gd" id="1_reaper"]
+[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.38
 height = 1.8
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dive"]
-albedo_color = Color(0.65, 0.15, 0.95, 1)
-metallic = 0.4
-roughness = 0.25
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_reaper"]
+albedo_color = Color(0.12, 0.08, 0.18, 1)
+metallic = 0.6
+roughness = 0.3
+emission_enabled = true
+emission = Color(0.35, 0.1, 0.55, 1)
+emission_energy_multiplier = 1.2
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
-material = SubResource("StandardMaterial3D_dive")
+material = SubResource("StandardMaterial3D_reaper")
 radius = 0.38
 height = 1.8
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nose"]
-albedo_color = Color(0.2, 1, 0.9, 1)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eyes"]
+albedo_color = Color(0.2, 1.0, 0.85, 1)
 emission_enabled = true
-emission = Color(0.2, 1, 0.9, 1)
-emission_energy_multiplier = 2.0
+emission = Color(0.1, 1.0, 0.8, 1)
+emission_energy_multiplier = 4.0
 
-[sub_resource type="BoxMesh" id="BoxMesh_nose"]
-material = SubResource("StandardMaterial3D_nose")
-size = Vector3(0.2, 0.18, 0.5)
+[sub_resource type="BoxMesh" id="BoxMesh_eyes"]
+material = SubResource("StandardMaterial3D_eyes")
+size = Vector3(0.25, 0.12, 0.45)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_slash"]
-albedo_color = Color(1, 0.2, 0.85, 0.85)
+albedo_color = Color(0.65, 0.15, 0.9, 0.85)
 emission_enabled = true
-emission = Color(1, 0.2, 0.9, 1)
-emission_energy_multiplier = 4.0
+emission = Color(0.7, 0.2, 1.0, 1)
+emission_energy_multiplier = 5.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_slash"]
 material = SubResource("StandardMaterial3D_slash")
-size = Vector3(3.6, 0.2, 1.6)
+size = Vector3(3.8, 0.2, 1.8)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_heavy_slash"]
-albedo_color = Color(0.2, 0.9, 1.0, 0.9)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tether"]
+albedo_color = Color(0.2, 1.0, 0.8, 0.85)
 emission_enabled = true
-emission = Color(0.2, 0.95, 1.0, 1)
-emission_energy_multiplier = 5.0
-
-[sub_resource type="BoxMesh" id="BoxMesh_heavy_slash"]
-material = SubResource("StandardMaterial3D_heavy_slash")
-size = Vector3(4.2, 0.25, 1.8)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crash_aoe"]
-albedo_color = Color(0.7, 0.2, 1.0, 0.55)
-emission_enabled = true
-emission = Color(0.8, 0.2, 1.0, 1)
-emission_energy_multiplier = 4.5
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_crash_aoe"]
-material = SubResource("StandardMaterial3D_crash_aoe")
-top_radius = 6.0
-bottom_radius = 6.0
-height = 0.35
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
-bg_color = Color(0.15, 0.15, 0.15, 0.8)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
-bg_color = Color(0.7, 0.2, 0.95, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_block"]
-transparency = 1
-albedo_color = Color(0.2, 0.75, 1.0, 0.6)
-emission_enabled = true
-emission = Color(0.2, 0.8, 1.0, 1)
+emission = Color(0.2, 1.0, 0.8, 1)
 emission_energy_multiplier = 4.0
 
-[sub_resource type="BoxMesh" id="BoxMesh_block"]
-material = SubResource("StandardMaterial3D_block")
-size = Vector3(2.6, 1.8, 0.25)
+[sub_resource type="BoxMesh" id="BoxMesh_tether"]
+material = SubResource("StandardMaterial3D_tether")
+size = Vector3(0.6, 0.3, 2.0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cull"]
+albedo_color = Color(0.85, 0.15, 0.4, 0.6)
+emission_enabled = true
+emission = Color(0.95, 0.2, 0.3, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_cull"]
+material = SubResource("StandardMaterial3D_cull")
+top_radius = 5.5
+bottom_radius = 5.5
+height = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nightmare"]
+albedo_color = Color(0.08, 0.02, 0.15, 0.75)
+emission_enabled = true
+emission = Color(0.4, 0.05, 0.6, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_nightmare"]
+material = SubResource("StandardMaterial3D_nightmare")
+top_radius = 4.5
+bottom_radius = 4.5
+height = 0.15
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ult"]
+albedo_color = Color(0.4, 0.0, 0.7, 0.45)
+emission_enabled = true
+emission = Color(0.6, 0.1, 1.0, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_ult"]
+material = SubResource("StandardMaterial3D_ult")
+top_radius = 2.2
+bottom_radius = 2.2
+height = 2.2
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
 properties/0/path = NodePath(".:position")
@@ -92,28 +94,28 @@ properties/1/path = NodePath(".:rotation")
 properties/1/spawn = true
 properties/1/replication_mode = 1
 
-[node name="Dive" type="CharacterBody3D"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
+bg_color = Color(0.55, 0.15, 0.85, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Reaper" type="CharacterBody3D"]
 collision_layer = 2
 collision_mask = 1
-script = ExtResource("1_base")
-character_name = "Dive"
+script = ExtResource("1_reaper")
+character_name = "Reaper"
 max_health = 100.0
 current_health = 100.0
-max_move_speed = 12.0
-is_melee_character = true
-dash_impulse = 28.0
-max_dash_charges = 2
-dash_cooldown = 1.0
-dash_recharge_time = 15.0
-attack_cooldown = 0.45
-ability_one_cooldown = 5.0
-ability_two_cooldown = 9.0
-ability_three_cooldown = 8.0
-windup_time = 0.0
-melee_windup_time = 0.0
-melee_damage = 42.0
-melee_size = 2.8
-melee_angle_deg = 135.0
+max_move_speed = 10.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -124,36 +126,43 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("CapsuleMesh_1")
 
 [node name="FacingIndicator" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.4)
-mesh = SubResource("BoxMesh_nose")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.38)
+mesh = SubResource("BoxMesh_eyes")
 
 [node name="MeleeVisual" type="Node3D" parent="."]
 visible = false
 
 [node name="SlashIndicator" type="MeshInstance3D" parent="MeleeVisual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.2)
 mesh = SubResource("BoxMesh_slash")
 
 [node name="AbilityOneVisual" type="Node3D" parent="."]
 visible = false
 
-[node name="HeavySlashIndicator" type="MeshInstance3D" parent="AbilityOneVisual"]
+[node name="TetherIndicator" type="MeshInstance3D" parent="AbilityOneVisual"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.0)
-mesh = SubResource("BoxMesh_heavy_slash")
+mesh = SubResource("BoxMesh_tether")
 
-[node name="BlockVisual" type="Node3D" parent="."]
+[node name="AbilityTwoVisual" type="Node3D" parent="."]
 visible = false
 
-[node name="BlockMesh" type="MeshInstance3D" parent="BlockVisual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, -1.2)
-mesh = SubResource("BoxMesh_block")
-
-[node name="CrashVisual" type="Node3D" parent="."]
-visible = false
-
-[node name="CrashRing" type="MeshInstance3D" parent="CrashVisual"]
+[node name="CullRingIndicator" type="MeshInstance3D" parent="AbilityTwoVisual"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
-mesh = SubResource("CylinderMesh_crash_aoe")
+mesh = SubResource("CylinderMesh_cull")
+
+[node name="NightmareVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="NightmarePool" type="MeshInstance3D" parent="NightmareVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+mesh = SubResource("CylinderMesh_nightmare")
+
+[node name="UltVisual" type="Node3D" parent="."]
+visible = false
+
+[node name="UltAura" type="MeshInstance3D" parent="UltVisual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CylinderMesh_ult")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)

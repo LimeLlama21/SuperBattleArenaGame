@@ -282,3 +282,47 @@ static func create_donut_indicator(inner_radius: float, outer_radius: float, out
 	root.add_child(inner_ring)
 	
 	return root
+
+const WHITE_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.92)
+const EMPTY_FILL: Color = Color(1.0, 1.0, 1.0, 0.0)
+
+static func reset_indicator(target: Node) -> void:
+	if not is_instance_valid(target):
+		return
+	if target is MeshInstance3D:
+		target.material_override = null
+	for child in target.get_children():
+		reset_indicator(child)
+
+static func flash_and_fade(node: Node3D, tree: SceneTree, duration: float = 0.14) -> void:
+	if not is_instance_valid(node) or not tree:
+		return
+	
+	var flash_mat = StandardMaterial3D.new()
+	flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flash_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.95)
+	flash_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	flash_mat.emission_enabled = true
+	flash_mat.emission = Color(1.0, 1.0, 1.0, 1.0)
+	flash_mat.emission_energy_multiplier = 4.0
+	flash_mat.no_depth_test = true
+	
+	_apply_flash_mat_recursive(node, flash_mat)
+	node.show()
+	
+	var tween = tree.create_tween()
+	tween.tween_property(flash_mat, "albedo_color:a", 0.0, duration).set_delay(0.04)
+	tween.tween_callback(func():
+		if is_instance_valid(node):
+			reset_indicator(node)
+			node.hide()
+	)
+
+static func _apply_flash_mat_recursive(target: Node, mat: Material) -> void:
+	if target is MeshInstance3D:
+		target.material_override = mat
+	for child in target.get_children():
+		_apply_flash_mat_recursive(child, mat)
+
+

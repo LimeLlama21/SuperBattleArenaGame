@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://cyuxw5fo6xm6a"]
+[gd_scene format=3 uid="uid://dhqp0hfpijgwi"]
 
-[ext_resource type="Script" uid="uid://dx03yi1xres3g" path="res://player_base.gd" id="1_base"]
+[ext_resource type="Script" path="res://characters/poke/poke.gd" id="1_poke"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
@@ -48,16 +48,11 @@ corner_radius_bottom_left = 4
 
 [node name="Poke" type="CharacterBody3D" unique_id=1504492069]
 collision_layer = 2
-script = ExtResource("1_base")
+script = ExtResource("1_poke")
 character_name = "Poke"
 max_health = 80.0
 current_health = 80.0
 max_move_speed = 11.5
-dash_impulse = 28.0
-attack_cooldown = 0.9
-ability_one_cooldown = 6.5
-ability_two_cooldown = 7.5
-ability_three_cooldown = 11.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1856021603]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
@@ -138,6 +133,7 @@ slot_name = "Ability 1"
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
+key_bind_text = "Q"
 slot_name = "Ability 2"
 
 [node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1216945441]

@@ -67,13 +67,9 @@ class AbilityEffect extends RefCounted:
 	var windup_time: float = 0.0
 	var pierces: bool = false
 	var projectile_size: float = 1.0
+	var count: int = 1
+	var chargeable: bool = false
 	var custom_params: Dictionary = {}
-	#var count: int = 0.0
-	#
-	#func charge_duration():
-		#while (BasePlayer.is_holding_shoot) || (is_holding_ability_one) || (is_holding_ability_two) || (is_holding_ability_three) || (is_holding_ability_four):
-			#Timer.wait_time
-		#return start
 
 class AbilityHitbox extends RefCounted:
 	var shape: HitboxShape = HitboxShape.NONE

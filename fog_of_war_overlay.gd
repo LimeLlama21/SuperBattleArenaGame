@@ -3,6 +3,12 @@ extends Control
 const CLOSE_RADIUS_M: float = 5.5
 const CONE_RADIUS_M: float = 24.0
 const CONE_HALF_ANGLE_DEG: float = 30.0 # 60 degrees total cone
+const HEIGHT_SCALE_FACTOR: float = 0.20 # +20% radius per meter of elevation
+const MAX_HEIGHT_MULT: float = 2.5
+
+static func get_height_vision_multiplier(pos_y: float) -> float:
+	var height = max(0.0, pos_y)
+	return clamp(1.0 + (height * HEIGHT_SCALE_FACTOR), 1.0, MAX_HEIGHT_MULT)
 
 @onready var texture_rect: TextureRect = get_node_or_null("../../FogOfWarTexture")
 
@@ -84,20 +90,25 @@ func _draw() -> void:
 			tm_fwd_3d = Vector3.FORWARD
 		tm_fwd_3d = tm_fwd_3d.normalized()
 
-		# Close circle (5.5m)
-		var close_poly = _make_circle_poly_3d(camera, space_state, tm_eye_pos, CLOSE_RADIUS_M, 28)
+		# Height-scaled vision radii
+		var height_mult = get_height_vision_multiplier(tm_pos_3d.y)
+		var effective_close_radius = CLOSE_RADIUS_M * height_mult
+
+		# Close circle (5.5m base, scaled with elevation)
+		var close_poly = _make_circle_poly_3d(camera, space_state, tm_eye_pos, effective_close_radius, 28)
 		if close_poly.size() >= 3:
 			draw_colored_polygon(close_poly, clear_color)
 			var close_loop = PackedVector2Array(close_poly)
 			close_loop.append(close_poly[0])
 			draw_polyline(close_loop, rim_color, 2.5, true)
 
-		# Forward cone (24.0m normal or 70.0m Poke Ult)
+		# Forward cone (24.0m normal or 70.0m Poke Ult, scaled with elevation)
 		var is_poke_ult_buff = (tm.get("poke_ult_buff_timer") != null and tm.poke_ult_buff_timer > 0.0)
-		var cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
+		var base_cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
+		var effective_cone_radius = base_cone_radius * height_mult
 		var see_through = is_poke_ult_buff
 
-		var cone_poly = _make_cone_poly_3d(camera, space_state, tm_eye_pos, tm_fwd_3d, deg_to_rad(CONE_HALF_ANGLE_DEG), cone_radius, 28, see_through)
+		var cone_poly = _make_cone_poly_3d(camera, space_state, tm_eye_pos, tm_fwd_3d, deg_to_rad(CONE_HALF_ANGLE_DEG), effective_cone_radius, 28, see_through)
 		if cone_poly.size() >= 3:
 			draw_colored_polygon(cone_poly, clear_color)
 			var cone_loop = PackedVector2Array(cone_poly)
@@ -249,15 +260,18 @@ func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_st
 			var dist = diff_2d.length()
 
 			var is_poke_ult_buff = (tm.get("poke_ult_buff_timer") != null and tm.poke_ult_buff_timer > 0.0)
-			var cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
+			var height_mult = get_height_vision_multiplier(tm_pos.y)
+			var effective_close_radius = CLOSE_RADIUS_M * height_mult
+			var base_cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
+			var effective_cone_radius = base_cone_radius * height_mult
 
 			var in_vision_shape: bool = false
 
-			# 1. Close proximity circle (5.5m)
-			if dist <= CLOSE_RADIUS_M:
+			# 1. Close proximity circle (scaled with height)
+			if dist <= effective_close_radius:
 				in_vision_shape = true
-			# 2. Acute forward cone (24.0m normal or 70.0m Poke Ult)
-			elif dist <= cone_radius and tm_fwd_2d.length_squared() > 0.001:
+			# 2. Acute forward cone (scaled with height)
+			elif dist <= effective_cone_radius and tm_fwd_2d.length_squared() > 0.001:
 				var to_target_2d = diff_2d.normalized()
 				var angle_deg = rad_to_deg(tm_fwd_2d.angle_to(to_target_2d))
 				if abs(angle_deg) <= CONE_HALF_ANGLE_DEG:

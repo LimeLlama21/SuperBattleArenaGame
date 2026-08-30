@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dx60vi13ahgks"]
 
-[ext_resource type="Script" uid="uid://dx03yi1xres3g" path="res://player_base.gd" id="1_base"]
+[ext_resource type="Script" path="res://characters/crush/crush.gd" id="1_crush"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
@@ -89,23 +89,11 @@ corner_radius_bottom_left = 4
 
 [node name="Crush" type="CharacterBody3D" unique_id=2132967885]
 collision_layer = 2
-script = ExtResource("1_base")
+script = ExtResource("1_crush")
 character_name = "Crush"
 max_health = 160.0
 current_health = 160.0
 max_move_speed = 8.5
-is_melee_character = true
-dash_impulse = 24.0
-dash_cooldown = 8.0
-dash_recharge_time = 8.0
-attack_cooldown = 0.65
-ability_one_cooldown = 7.5
-ability_two_cooldown = 8.0
-ability_three_cooldown = 10.0
-melee_windup_time = 0.28
-melee_damage = 55.0
-melee_size = 4.2
-melee_angle_deg = 120.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=968471939]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
@@ -217,6 +205,7 @@ slot_name = "Ability 1"
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
+key_bind_text = "Q"
 slot_name = "Ability 2"
 
 [node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=357095895]

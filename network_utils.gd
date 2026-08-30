@@ -46,4 +46,3 @@ static func room_code_to_ip(code: String) -> String:
 		return ".".join(octets)
 	
 	return code.replace("-", ".")
-

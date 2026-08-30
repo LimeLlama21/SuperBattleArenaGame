@@ -175,3 +175,24 @@ func set_cooldown_state(
 	else:
 		add_theme_stylebox_override("panel", normal_style)
 		key_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0, 0.9))
+
+func update_cooldown(
+	current_timer: float,
+	max_cooldown: float,
+	charges: int = -1,
+	max_charges: int = -1,
+	is_disabled: bool = false,
+	custom_text: String = ""
+) -> void:
+	set_cooldown_state(current_timer, max_cooldown, charges, max_charges, is_disabled, false, custom_text)
+
+func set_active_state(active: bool) -> void:
+	if active:
+		add_theme_stylebox_override("panel", active_style)
+		if key_label:
+			key_label.add_theme_color_override("font_color", Color(0.4, 0.95, 1.0, 1.0))
+	else:
+		add_theme_stylebox_override("panel", normal_style)
+		if key_label:
+			key_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0, 0.9))
+

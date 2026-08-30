@@ -3,10 +3,10 @@ extends Node3D
 const PORT: int = 7000
 
 const CHARACTERS: Dictionary = {
-	"poke": preload("res://characters/poke.tscn"),
-	"crush": preload("res://characters/crush.tscn"),
-	"dive": preload("res://characters/dive.tscn"),
-	"reaper": preload("res://characters/reaper.tscn")
+	"poke": preload("res://characters/poke/poke.tscn"),
+	"crush": preload("res://characters/crush/crush.tscn"),
+	"dive": preload("res://characters/dive/dive.tscn"),
+	"reaper": preload("res://characters/reaper/reaper.tscn")
 }
 
 @export var projectile_scene: PackedScene = preload("res://projectile.tscn")
@@ -41,6 +41,7 @@ const CHARACTERS: Dictionary = {
 @onready var join_button: Button = $UI/MainMenu/VBox/JoinButton
 @onready var training_button: Button = $UI/MainMenu/VBox/TrainingButton
 @onready var main_settings_button: Button = $UI/MainMenu/VBox/SettingsButton
+@onready var main_quit_button: Button = get_node_or_null("UI/MainMenu/VBox/QuitButton")
 
 @onready var join_dialog: PanelContainer = $UI/JoinDialog
 @onready var host_ip_input: LineEdit = $UI/JoinDialog/VBox/HostIPInput
@@ -100,6 +101,8 @@ func _ready() -> void:
 	host_ip_input.text_submitted.connect(func(_t): _on_confirm_join_pressed())
 	training_button.pressed.connect(_on_training_pressed)
 	main_settings_button.pressed.connect(_open_settings_menu)
+	if main_quit_button:
+		main_quit_button.pressed.connect(_on_quit_game_pressed)
 	select_poke_button.pressed.connect(func(): _select_character("poke"))
 	select_crush_button.pressed.connect(func(): _select_character("crush"))
 	select_dive_button.pressed.connect(func(): _select_character("dive"))
@@ -161,7 +164,7 @@ func _select_character(char_key: String) -> void:
 	elif char_key == "reaper":
 		if select_reaper_button:
 			select_reaper_button.text = "★ Reaper (Selected)"
-		char_desc_label.text = "REAPER: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (grounds + ramping slow, roots after 1.75s). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
+		char_desc_label.text = "REAPER: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (Charged throw: grounds + progressive slow -> roots & disables all movement). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
 	
 	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		if multiplayer.is_server():
@@ -827,6 +830,9 @@ func _on_settings_closed() -> void:
 
 func _on_lobby_back_pressed() -> void:
 	_leave_to_main_menu()
+
+func _on_quit_game_pressed() -> void:
+	get_tree().quit()
 
 func _on_exit_match_pressed() -> void:
 	if is_training_mode:
