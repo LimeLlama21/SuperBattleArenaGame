@@ -126,7 +126,7 @@ static func create_circle_indicator(radius: float, fill_color: Color, border_col
 	
 	return root
 
-static func create_line_indicator(length: float, width: float, fill_color: Color, border_color: Color, has_end_circle: bool = false, end_circle_radius: float = 1.0) -> Node3D:
+static func create_line_indicator(length: float, width: float, fill_color: Color, border_color: Color, has_end_circle: bool = false, end_circle_radius: float = 1.0, is_horizontal_line: bool = false) -> Node3D:
 	var root = Node3D.new()
 	root.name = "LineIndicator"
 	
@@ -134,11 +134,24 @@ static func create_line_indicator(length: float, width: float, fill_color: Color
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	
-	var half_w = width * 0.5
-	var p0 = Vector3(-half_w, 0.06, 0)
-	var p1 = Vector3(half_w, 0.06, 0)
-	var p2 = Vector3(half_w, 0.06, -length)
-	var p3 = Vector3(-half_w, 0.06, -length)
+	var p0: Vector3
+	var p1: Vector3
+	var p2: Vector3
+	var p3: Vector3
+	
+	if is_horizontal_line:
+		var half_l = length * 0.5
+		var half_w = width * 0.5
+		p0 = Vector3(-half_l, 0.06, -half_w)
+		p1 = Vector3(half_l, 0.06, -half_w)
+		p2 = Vector3(half_l, 0.06, half_w)
+		p3 = Vector3(-half_l, 0.06, half_w)
+	else:
+		var half_w = width * 0.5
+		p0 = Vector3(-half_w, 0.06, 0)
+		p1 = Vector3(half_w, 0.06, 0)
+		p2 = Vector3(half_w, 0.06, -length)
+		p3 = Vector3(-half_w, 0.06, -length)
 	
 	st.set_color(fill_color)
 	st.add_vertex(p0)
@@ -282,6 +295,120 @@ static func create_donut_indicator(inner_radius: float, outer_radius: float, out
 	root.add_child(inner_ring)
 	
 	return root
+
+static func create_box_indicator(width: float, length: float, fill_color: Color, border_color: Color) -> Node3D:
+	var root = Node3D.new()
+	root.name = "BoxIndicator"
+	
+	var mesh_inst = MeshInstance3D.new()
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	
+	var half_w = width * 0.5
+	var half_l = length * 0.5
+	var p0 = Vector3(-half_w, 0.06, -half_l)
+	var p1 = Vector3(half_w, 0.06, -half_l)
+	var p2 = Vector3(half_w, 0.06, half_l)
+	var p3 = Vector3(-half_w, 0.06, half_l)
+	
+	st.set_color(fill_color)
+	st.add_vertex(p0)
+	st.set_color(fill_color)
+	st.add_vertex(p1)
+	st.set_color(fill_color)
+	st.add_vertex(p2)
+	
+	st.set_color(fill_color)
+	st.add_vertex(p0)
+	st.set_color(fill_color)
+	st.add_vertex(p2)
+	st.set_color(fill_color)
+	st.add_vertex(p3)
+	
+	var fill_mat = StandardMaterial3D.new()
+	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fill_mat.albedo_color = fill_color
+	fill_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	fill_mat.vertex_color_use_as_albedo = true
+	fill_mat.no_depth_test = true
+	
+	mesh_inst.mesh = st.commit()
+	mesh_inst.material_override = fill_mat
+	root.add_child(mesh_inst)
+	
+	# Border lines
+	var line_mesh_inst = MeshInstance3D.new()
+	var st_line = SurfaceTool.new()
+	st_line.begin(Mesh.PRIMITIVE_LINE_STRIP)
+	st_line.set_color(border_color)
+	st_line.add_vertex(p0 + Vector3(0, 0.02, 0))
+	st_line.add_vertex(p1 + Vector3(0, 0.02, 0))
+	st_line.add_vertex(p2 + Vector3(0, 0.02, 0))
+	st_line.add_vertex(p3 + Vector3(0, 0.02, 0))
+	st_line.add_vertex(p0 + Vector3(0, 0.02, 0))
+	
+	var line_mat = StandardMaterial3D.new()
+	line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	line_mat.albedo_color = border_color
+	line_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	line_mat.no_depth_test = true
+	
+	line_mesh_inst.mesh = st_line.commit()
+	line_mesh_inst.material_override = line_mat
+	root.add_child(line_mesh_inst)
+	
+	return root
+
+static func create_arc_trajectory_indicator(aoe_radius: float, fill_color: Color, border_color: Color) -> Node3D:
+	var root = Node3D.new()
+	root.name = "ArcTrajectoryIndicator"
+	
+	# Endpoint circle
+	var circle = create_circle_indicator(aoe_radius, fill_color, border_color)
+	circle.name = "EndpointCircle"
+	root.add_child(circle)
+	
+	# Parabolic Arc Line Mesh
+	var line_mesh_inst = MeshInstance3D.new()
+	line_mesh_inst.name = "ArcLineMesh"
+	var line_mat = StandardMaterial3D.new()
+	line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	line_mat.albedo_color = border_color
+	line_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	line_mat.no_depth_test = true
+	line_mesh_inst.material_override = line_mat
+	root.add_child(line_mesh_inst)
+	
+	return root
+
+static func update_arc_trajectory_indicator(indicator: Node3D, start_pos: Vector3, end_pos: Vector3, apex_height: float) -> void:
+	if not is_instance_valid(indicator):
+		return
+	
+	var circle = indicator.get_node_or_null("EndpointCircle")
+	if circle:
+		circle.global_position = Vector3(end_pos.x, 0.06, end_pos.z)
+		circle.rotation = Vector3.ZERO
+		
+	var line_mesh_inst = indicator.get_node_or_null("ArcLineMesh") as MeshInstance3D
+	if line_mesh_inst:
+		var st = SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_LINE_STRIP)
+		var segments = 24
+		# Transform from global space to indicator local space
+		var inv_trans = indicator.global_transform.affine_inverse()
+		for i in range(segments + 1):
+			var t = float(i) / float(segments)
+			var current_xz = start_pos.lerp(end_pos, t)
+			# Parabolic arc curve y = 4 * apex * t * (1 - t)
+			var current_y = lerp(start_pos.y, end_pos.y, t) + 4.0 * apex_height * t * (1.0 - t)
+			var world_pt = Vector3(current_xz.x, current_y, current_xz.z)
+			var local_pt = inv_trans * world_pt
+			st.add_vertex(local_pt)
+		line_mesh_inst.mesh = st.commit()
 
 const WHITE_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.92)
 const EMPTY_FILL: Color = Color(1.0, 1.0, 1.0, 0.0)

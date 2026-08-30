@@ -16,7 +16,7 @@ static func create() -> CharacterData:
 	data.ability_slots = {
 		"LMB": "poke_rail_shot",
 		"RMB": "poke_repulsor_bolt",
-		"Q": "poke_slipstream_field",
+		"Q": "poke_ion_fence",
 		"E": "poke_recon_flare",
 		"R": "poke_overcharge",
 		"SHIFT": "poke_dash"

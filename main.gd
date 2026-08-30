@@ -6,7 +6,8 @@ const CHARACTERS: Dictionary = {
 	"poke": preload("res://characters/poke/poke.tscn"),
 	"crush": preload("res://characters/crush/crush.tscn"),
 	"dive": preload("res://characters/dive/dive.tscn"),
-	"reaper": preload("res://characters/reaper/reaper.tscn")
+	"reaper": preload("res://characters/reaper/reaper.tscn"),
+	"morrigan": preload("res://characters/morrigan/morrigan.tscn")
 }
 
 @export var projectile_scene: PackedScene = preload("res://projectile.tscn")
@@ -14,6 +15,7 @@ const CHARACTERS: Dictionary = {
 @export var vision_flare_scene: PackedScene = preload("res://vision_flare.tscn")
 @export var vision_reveal_zone_scene: PackedScene = preload("res://vision_reveal_zone.tscn")
 @export var slowing_dot_zone_scene: PackedScene = preload("res://slowing_dot_zone.tscn")
+@export var fence_zone_scene: PackedScene = preload("res://fence_zone.tscn")
 
 @export var training_dummy_scene: PackedScene = preload("res://training_dummy.tscn")
 
@@ -53,6 +55,7 @@ const CHARACTERS: Dictionary = {
 @onready var select_crush_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectCrush
 @onready var select_dive_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectDive
 @onready var select_reaper_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectReaper")
+@onready var select_morrigan_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMorrigan")
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
 @onready var lobby_back_button: Button = $UI/LobbyRoom/VBox/HBoxLobbyActions/LobbyBackButton
@@ -70,6 +73,7 @@ const CHARACTERS: Dictionary = {
 @onready var switch_crush_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchCrush"
 @onready var switch_dive_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDive"
 @onready var switch_reaper_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchReaper")
+@onready var switch_morrigan_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMorrigan")
 
 @onready var settings_panel: PanelContainer = $UI/SettingsMenu
 
@@ -108,6 +112,8 @@ func _ready() -> void:
 	select_dive_button.pressed.connect(func(): _select_character("dive"))
 	if select_reaper_button:
 		select_reaper_button.pressed.connect(func(): _select_character("reaper"))
+	if select_morrigan_button:
+		select_morrigan_button.pressed.connect(func(): _select_character("morrigan"))
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
@@ -121,6 +127,8 @@ func _ready() -> void:
 	switch_dive_btn.pressed.connect(func(): _switch_training_character("dive"))
 	if switch_reaper_btn:
 		switch_reaper_btn.pressed.connect(func(): _switch_training_character("reaper"))
+	if switch_morrigan_btn:
+		switch_morrigan_btn.pressed.connect(func(): _switch_training_character("morrigan"))
 	
 	if settings_panel and settings_panel.has_signal("settings_closed"):
 		settings_panel.settings_closed.connect(_on_settings_closed)
@@ -151,10 +159,12 @@ func _select_character(char_key: String) -> void:
 	select_dive_button.text = "Dive (Select)"
 	if select_reaper_button:
 		select_reaper_button.text = "Reaper (Select)"
+	if select_morrigan_button:
+		select_morrigan_button.text = "Morrigan (Select)"
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Poke (Selected)"
-		char_desc_label.text = "POKE: Sniper (80 HP). Passive [Fleet Foot]: +15% MS on hit. [LMB]: Rail shot. [RMB]: Repulsor. [Q]: Corrosive Zone (DoT + 50% slow). [E]: Recon Flare."
+		char_desc_label.text = "POKE: Sniper (80 HP). Passive [Fleet Foot]: +15% MS on hit. [LMB]: Rail shot. [RMB]: Repulsor. [Q]: Ion Fence (thin line + 2.5s ground). [E]: Recon Flare."
 	elif char_key == "crush":
 		select_crush_button.text = "★ Crush (Selected)"
 		char_desc_label.text = "CRUSH: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
@@ -165,6 +175,10 @@ func _select_character(char_key: String) -> void:
 		if select_reaper_button:
 			select_reaper_button.text = "★ Reaper (Selected)"
 		char_desc_label.text = "REAPER: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (Charged throw: grounds + progressive slow -> roots & disables all movement). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
+	elif char_key == "morrigan":
+		if select_morrigan_button:
+			select_morrigan_button.text = "★ Morrigan (Selected)"
+		char_desc_label.text = "MORRIGAN: Mage (90 HP). Passive [Harbinger of Doom]: Ability hits spawn orbiting crows that seek nearby enemies (20 dmg + 35% slow). [LMB]: Black Plumage (Chargeable up to 5 rapid burst feathers). [RMB]: Omen of Death (Parabolic mortar shell). [Q]: Inescapable Ends (Dual-cast magnetic tether). [E]: Cry of the Banshee (Large cone shriek + 1.4s silence). [R]: Born of Blood (1s channel -> massive 45m piercing wave + stun). [Shift]: Crowstorm (Steered flight + 60% MS + 50% DR)."
 	
 	if multiplayer.multiplayer_peer and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 		if multiplayer.is_server():
@@ -734,6 +748,7 @@ func spawn_slowing_dot_zone(pos: Vector3, rad: float = 2.2, dur: float = 4.5, dm
 	if shooter_team == 0 and shooter_id > 0:
 		shooter_team = get_player_team(shooter_id)
 	var data = {
+		"type": "slowing_dot",
 		"pos": pos,
 		"rad": rad,
 		"dur": dur,
@@ -744,7 +759,40 @@ func spawn_slowing_dot_zone(pos: Vector3, rad: float = 2.2, dur: float = 4.5, dm
 	}
 	hazard_spawner.spawn(data)
 
+func spawn_fence_zone(pos: Vector3, rot_y: float, width: float = 8.0, height: float = 2.6, depth: float = 0.25, dur: float = 6.0, grounded_dur: float = 2.5, shooter_id: int = 0, shooter_team: int = 0) -> void:
+	if not multiplayer.is_server():
+		return
+	if shooter_team == 0 and shooter_id > 0:
+		shooter_team = get_player_team(shooter_id)
+	var data = {
+		"type": "fence",
+		"pos": pos,
+		"rot_y": rot_y,
+		"width": width,
+		"height": height,
+		"depth": depth,
+		"dur": dur,
+		"grounded_dur": grounded_dur,
+		"shooter_id": shooter_id,
+		"shooter_team": shooter_team
+	}
+	hazard_spawner.spawn(data)
+
 func _custom_spawn_hazard_zone(data: Variant) -> Node:
+	if data.get("type") == "fence":
+		var fence = fence_zone_scene.instantiate()
+		fence.position = data["pos"]
+		if data.has("rot_y"):
+			fence.rotation.y = data["rot_y"]
+		fence.fence_width = data.get("width", 8.0)
+		fence.fence_height = data.get("height", 2.6)
+		fence.fence_depth = data.get("depth", 0.25)
+		fence.duration = data.get("dur", 6.0)
+		fence.grounded_duration = data.get("grounded_dur", 2.5)
+		fence.shooter_id = data.get("shooter_id", 0)
+		fence.shooter_team = data.get("shooter_team", 0)
+		return fence
+
 	var zone = slowing_dot_zone_scene.instantiate()
 	zone.position = data["pos"]
 	zone.radius = data.get("rad", 2.2)

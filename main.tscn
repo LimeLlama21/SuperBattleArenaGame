@@ -465,6 +465,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Reaper (Select)"
 
+[node name="SelectMorrigan" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Morrigan (Select)"
+
 [node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
@@ -670,6 +676,11 @@ text = "💥 Dive (Brawler - 120 HP)"
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "💀 Reaper (Assassin - 90 HP)"
+
+[node name="SwitchMorrigan" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "🔮 Morrigan (Mage - 90 HP)"
 
 [node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 layout_mode = 2

@@ -105,6 +105,9 @@ func _on_body_entered(body: Node) -> void:
 			elif effect_type == "reaper_tether":
 				if shooter and shooter.has_method("start_reaper_tether_server"):
 					shooter.start_reaper_tether_server(body)
+			elif effect_type == "morrigan_tether_first" or effect_type == "morrigan_tether_recast":
+				if shooter and shooter.has_method("on_tether_impact_server"):
+					shooter.on_tether_impact_server(body, global_position, effect_type == "morrigan_tether_recast")
 			
 			if not pierces:
 				_trigger_death_effects()
@@ -113,5 +116,9 @@ func _on_body_entered(body: Node) -> void:
 		var body_name = body.name.to_lower()
 		if body_name.contains("floor") or pierces:
 			return
+		if effect_type == "morrigan_tether_first" or effect_type == "morrigan_tether_recast":
+			var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
+			if shooter and shooter.has_method("on_tether_impact_server"):
+				shooter.on_tether_impact_server(body, global_position, effect_type == "morrigan_tether_recast")
 		_trigger_death_effects()
 		queue_free()

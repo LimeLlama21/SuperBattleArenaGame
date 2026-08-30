@@ -1,0 +1,233 @@
+[gd_scene format=3 uid="uid://dm6r8y2v4w9k1"]
+
+[ext_resource type="Script" path="res://characters/morrigan/morrigan.gd" id="1_morrigan"]
+[ext_resource type="Script" path="res://ability_slot.gd" id="2_ability_slot"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.5
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_morrigan"]
+albedo_color = Color(0.18, 0.08, 0.28, 1)
+metallic = 0.3
+roughness = 0.6
+emission_enabled = true
+emission = Color(0.45, 0.1, 0.6, 1)
+emission_energy_multiplier = 1.2
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+material = SubResource("StandardMaterial3D_morrigan")
+radius = 0.5
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_eyes"]
+albedo_color = Color(0.9, 0.2, 0.95, 1)
+emission_enabled = true
+emission = Color(0.9, 0.2, 0.95, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_eyes"]
+material = SubResource("StandardMaterial3D_eyes")
+size = Vector3(0.4, 0.15, 0.3)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crow"]
+albedo_color = Color(0.06, 0.02, 0.12, 1)
+emission_enabled = true
+emission = Color(0.65, 0.15, 0.85, 1)
+emission_energy_multiplier = 2.5
+
+[sub_resource type="SphereMesh" id="SphereMesh_crow"]
+material = SubResource("StandardMaterial3D_crow")
+radius = 0.2
+height = 0.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crowstorm"]
+transparency = 1
+albedo_color = Color(0.1, 0.02, 0.18, 0.75)
+emission_enabled = true
+emission = Color(0.5, 0.05, 0.7, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="SphereMesh" id="SphereMesh_crowstorm"]
+material = SubResource("StandardMaterial3D_crowstorm")
+radius = 0.8
+height = 1.6
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
+bg_color = Color(0.6, 0.15, 0.8, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Morrigan" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_morrigan")
+character_name = "Morrigan"
+max_health = 90.0
+current_health = 90.0
+max_move_speed = 9.5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_1")
+
+[node name="FacingIndicator" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.38)
+mesh = SubResource("BoxMesh_eyes")
+
+[node name="CrowContainer" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+
+[node name="Crow0" type="MeshInstance3D" parent="CrowContainer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 0, 0)
+visible = false
+mesh = SubResource("SphereMesh_crow")
+
+[node name="Crow1" type="MeshInstance3D" parent="CrowContainer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0, 1.38)
+visible = false
+mesh = SubResource("SphereMesh_crow")
+
+[node name="Crow2" type="MeshInstance3D" parent="CrowContainer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0, -1.38)
+visible = false
+mesh = SubResource("SphereMesh_crow")
+
+[node name="CrowstormMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+visible = false
+mesh = SubResource("SphereMesh_crowstorm")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
+current = false
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_1")
+
+[node name="HealthBarViewport" type="SubViewport" parent="."]
+disable_3d = true
+transparent_bg = true
+size = Vector2i(130, 18)
+render_target_update_mode = 4
+
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+custom_minimum_size = Vector2(130, 18)
+offset_right = 130.0
+offset_bottom = 18.0
+theme_override_styles/background = SubResource("StyleBoxFlat_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
+value = 90.0
+max_value = 90.0
+show_percentage = false
+
+[node name="HealthBarSprite" type="Sprite3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.35, 0)
+billboard = 1
+double_sided = false
+no_depth_test = true
+
+[node name="PlayerHUD" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -170.0
+offset_top = -105.0
+offset_right = 170.0
+offset_bottom = -25.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+script = ExtResource("2_ability_slot")
+key_bind_text = "RMB"
+slot_name = "Ability 1"
+
+[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+script = ExtResource("2_ability_slot")
+key_bind_text = "Q"
+slot_name = "Ability 2"
+
+[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+script = ExtResource("2_ability_slot")
+key_bind_text = "E"
+slot_name = "Ability 3"
+
+[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+script = ExtResource("2_ability_slot")
+key_bind_text = "R"
+slot_name = "Ultimate"
+
+[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+script = ExtResource("2_ability_slot")
+key_bind_text = "SHIFT"
+slot_name = "Dash"
+
+[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -175.0
+offset_top = 20.0
+offset_right = 175.0
+offset_bottom = 76.0
+grow_horizontal = 2
+
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel"]
+layout_mode = 2
+
+[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "SPECTATING: Player
+[LMB / RMB to Cycle]"
+horizontal_alignment = 1

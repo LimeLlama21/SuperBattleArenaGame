@@ -65,7 +65,7 @@ func _setup_local_indicators() -> void:
 	add_child(ind_rmb)
 	ind_rmb.hide()
 
-	ind_q = AbilityIndicator.create_circle_indicator(2.2, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+	ind_q = AbilityIndicator.create_line_indicator(8.0, 0.25, Color(0.15, 0.85, 1.0, 0.35), Color(0.2, 0.95, 1.0, 0.95), false, 1.0, true)
 	ind_q.top_level = true
 	add_child(ind_q)
 	ind_q.hide()
@@ -128,13 +128,14 @@ func _handle_character_input(_delta: float) -> void:
 	if hit_pos != null:
 		var target_pos = Vector3(hit_pos.x, 0.06, hit_pos.z)
 		if is_holding_q and ind_q:
-			var max_cast_dist = 18.0
+			var max_cast_dist = 6.5
 			var dist = global_position.distance_to(target_pos)
 			if dist > max_cast_dist:
 				var dir = (target_pos - global_position).normalized()
 				target_pos = global_position + dir * max_cast_dist
 				target_pos.y = 0.06
 			ind_q.global_position = target_pos
+			ind_q.rotation.y = rotation.y
 
 		if is_holding_e and ind_e:
 			var max_cast_dist = 30.0
@@ -179,7 +180,7 @@ func _handle_character_input(_delta: float) -> void:
 		if rmb_timer <= 0.0 and not is_silenced():
 			_perform_repulsor_bolt()
 
-	# --- Ability 2 (Q): Slipstream Field ---
+	# --- Ability 2 (Q): Ion Fence ---
 	if Input.is_action_just_pressed("ability_two") and not is_silenced():
 		is_holding_q = true
 		if ind_q:
@@ -189,7 +190,7 @@ func _handle_character_input(_delta: float) -> void:
 		is_holding_q = false
 		if ind_q: ind_q.hide()
 		if q_timer <= 0.0 and not is_silenced():
-			_perform_slipstream_field()
+			_perform_ion_fence()
 
 	# --- Ability 3 (E): Recon Flare ---
 	if Input.is_action_just_pressed("ability_three") and not is_silenced():
@@ -310,36 +311,37 @@ func request_repulsor_bolt(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
 	var sender_id = multiplayer.get_remote_sender_id()
 	_spawn_repulsor_bolt(spawn_pos, shoot_dir, sender_id)
 
-func _perform_slipstream_field() -> void:
+func _perform_ion_fence() -> void:
 	var def = abilities.get("Q")
-	q_timer = def.cooldown if def else 7.5
+	q_timer = def.cooldown if def else 8.0
 	var hit_pos = get_mouse_ground_intersection()
-	var target_pos = global_position - global_transform.basis.z * 6.0
+	var target_pos = global_position - global_transform.basis.z * 3.5
+	var max_cast_dist = 6.5
 	if hit_pos != null:
 		var raw_pos = Vector3(hit_pos.x, 0.0, hit_pos.z)
-		var max_cast_dist = 18.0
 		if global_position.distance_to(raw_pos) > max_cast_dist:
 			target_pos = global_position + (raw_pos - global_position).normalized() * max_cast_dist
 		else:
 			target_pos = raw_pos
 	target_pos.y = 0.05
-	ability_cast.emit("Slipstream Field", "Q")
+	var fence_rot_y = rotation.y
+	ability_cast.emit("Ion Fence", "Q")
 	if multiplayer.is_server():
-		_spawn_slipstream(target_pos, 1)
+		_spawn_ion_fence(target_pos, fence_rot_y, 1)
 	else:
-		request_slipstream.rpc_id(1, target_pos)
+		request_ion_fence.rpc_id(1, target_pos, fence_rot_y)
 
-func _spawn_slipstream(target_pos: Vector3, sender_id: int) -> void:
+func _spawn_ion_fence(target_pos: Vector3, fence_rot_y: float, sender_id: int) -> void:
 	var main_node = get_tree().root.get_node_or_null("Main")
-	if main_node and main_node.has_method("spawn_slowing_dot_zone"):
-		main_node.spawn_slowing_dot_zone(target_pos, 4.5, sender_id, 0.0, 0.35, 2.2, 0.30)
+	if main_node and main_node.has_method("spawn_fence_zone"):
+		main_node.spawn_fence_zone(target_pos, fence_rot_y, 8.0, 2.6, 0.25, 6.0, 2.5, sender_id)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_slipstream(target_pos: Vector3) -> void:
+func request_ion_fence(target_pos: Vector3, fence_rot_y: float) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
-	_spawn_slipstream(target_pos, sender_id)
+	_spawn_ion_fence(target_pos, fence_rot_y, sender_id)
 
 func _perform_recon_flare() -> void:
 	var def = abilities.get("E")

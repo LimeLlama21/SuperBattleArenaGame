@@ -61,29 +61,25 @@ static func get_abilities() -> Dictionary:
 	dict["RMB"] = rmb
 	dict[rmb.id] = rmb
 
-	# Ability 2 (Q): Slipstream Field
+	# Ability 2 (Q): Ion Fence
 	var q = AbilityPipeline.AbilityDefinition.new()
-	q.id = "poke_slipstream_field"
-	q.name = "Slipstream Field"
+	q.id = "poke_ion_fence"
+	q.name = "Ion Fence"
 	q.slot_key = "Q"
-	q.cooldown = 7.5
+	q.cooldown = 8.0
 	q.effect = AbilityPipeline.AbilityEffect.new()
 	q.effect.effect_type = AbilityPipeline.EffectType.AREA_ZONE
-	q.effect.max_range = 6.0
-	q.effect.duration = 4.5
+	q.effect.max_range = 6.5
+	q.effect.duration = 6.0
 	q.hitbox = AbilityPipeline.AbilityHitbox.new()
-	q.hitbox.shape = AbilityPipeline.HitboxShape.CIRCLE
-	q.hitbox.radius = 2.2
-	var q_ms = AbilityPipeline.AbilityRider.new()
-	q_ms.rider_type = AbilityPipeline.RiderType.SPEED_BOOST
-	q_ms.duration = 2.0
-	q_ms.intensity = 0.30
-	q.riders.append(q_ms)
-	var q_slow = AbilityPipeline.AbilityRider.new()
-	q_slow.rider_type = AbilityPipeline.RiderType.SLOW
-	q_slow.duration = 1.5
-	q_slow.intensity = 0.35
-	q.riders.append(q_slow)
+	q.hitbox.shape = AbilityPipeline.HitboxShape.LINE
+	q.hitbox.length = 8.0
+	q.hitbox.width = 0.25
+	q.hitbox.height = 2.6
+	var q_ground = AbilityPipeline.AbilityRider.new()
+	q_ground.rider_type = AbilityPipeline.RiderType.GROUND
+	q_ground.duration = 2.5
+	q.riders.append(q_ground)
 	dict["Q"] = q
 	dict[q.id] = q
 

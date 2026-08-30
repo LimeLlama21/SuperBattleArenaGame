@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://b8y2x5nav1w7k"]
+
+[ext_resource type="Script" path="res://blood_wave.gd" id="1_wave"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(12, 3.2, 1.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wave"]
+transparency = 1
+cull_mode = 0
+albedo_color = Color(0.75, 0.05, 0.1, 0.7)
+emission_enabled = true
+emission = Color(0.9, 0.08, 0.12, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_wave"]
+material = SubResource("StandardMaterial3D_wave")
+size = Vector3(12, 3.2, 0.8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crest"]
+transparency = 1
+albedo_color = Color(1, 0.25, 0.3, 0.85)
+emission_enabled = true
+emission = Color(1, 0.2, 0.25, 1)
+emission_energy_multiplier = 5.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_crest"]
+material = SubResource("StandardMaterial3D_crest")
+size = Vector3(12.6, 0.4, 1.2)
+
+[node name="BloodWave" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_wave")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+shape = SubResource("BoxShape3D_1")
+
+[node name="WaveMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+mesh = SubResource("BoxMesh_wave")
+
+[node name="CrestMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 0)
+mesh = SubResource("BoxMesh_crest")
