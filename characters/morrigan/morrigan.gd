@@ -329,6 +329,7 @@ func _check_passive_crow_seek() -> void:
 	if nearest_enemy:
 		crow_seek_cooldown = 1.0
 		passive_crows_count = max(0, passive_crows_count - 1)
+		_update_crow_orbit_visuals()
 		sync_passive_crows.rpc(passive_crows_count)
 		_spawn_seeking_crow(global_position + Vector3(0, 1.2, 0), nearest_enemy)
 
@@ -350,7 +351,7 @@ func _spawn_seeking_crow(spawn_pos: Vector3, target_enemy: Node3D) -> void:
 			false,
 			false,
 			0,
-			ActionType.ABILITY,
+			BasePlayer.ActionType.ENVIRONMENT,
 			CROW_DETECT_RADIUS * 1.5
 		)
 
@@ -361,9 +362,10 @@ func sync_passive_crows(count: int) -> void:
 
 func _on_character_damage_dealt(_target: Node, _amount: float, _action_type: int) -> void:
 	if multiplayer.is_server():
-		if passive_crows_count < MAX_PASSIVE_CROWS:
-			passive_crows_count += 1
-			sync_passive_crows.rpc(passive_crows_count)
+		if _action_type == BasePlayer.ActionType.ABILITY:
+			if passive_crows_count < MAX_PASSIVE_CROWS:
+				passive_crows_count += 1
+				sync_passive_crows.rpc(passive_crows_count)
 
 # --- Primary Fire: Black Plumage ---
 func _calculate_lmb_feather_count() -> int:

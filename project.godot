@@ -23,10 +23,6 @@ config/icon="res://icon.svg"
 
 SettingsManager="*res://settings_manager.gd"
 
-[filesystem]
-
-import/blender/enabled=false
-
 [input]
 
 move_left={
