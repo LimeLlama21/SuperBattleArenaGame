@@ -68,6 +68,8 @@ func _setup_character_kit() -> void:
 	max_move_speed = data.max_move_speed
 	ground_acceleration = data.ground_acceleration
 	ground_friction = data.ground_friction
+	if "intentional_movement_friction" in data:
+		intentional_movement_friction = data.intentional_movement_friction
 	air_acceleration = data.air_acceleration
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
@@ -78,25 +80,38 @@ func _setup_character_kit() -> void:
 	abilities = ReaperAbilities.get_abilities()
 	_setup_local_indicators()
 
+	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
+	if sync and sync.replication_config:
+		_add_sync_property(sync.replication_config, NodePath(".:is_in_nightmare"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:reaper_ult_buff_timer"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:reaper_tether_active"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:reaper_tether_target_id"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+
 func _setup_local_indicators() -> void:
-	if name.to_int() != multiplayer.get_unique_id():
+	if not is_local_player():
 		return
 
-	ind_attack = AbilityIndicator.create_sector_indicator(3.6, 110.0, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_attack)
-	ind_attack.hide()
+	var lmb_def = abilities.get("LMB")
+	if lmb_def and lmb_def.hitbox:
+		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_attack)
+		ind_attack.hide()
 
 	ind_rmb = AbilityIndicator.create_line_indicator(REAPER_RMB_MIN_RANGE, 0.8, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
 	add_child(ind_rmb)
 	ind_rmb.hide()
 
-	ind_q = AbilityIndicator.create_donut_indicator(3.2, 5.5, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_q)
-	ind_q.hide()
+	var q_def = abilities.get("Q")
+	if q_def and q_def.hitbox:
+		ind_q = AbilityIndicator.create_emanating_indicator(q_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_q)
+		ind_q.hide()
 
-	ind_e = AbilityIndicator.create_circle_indicator(NIGHTMARE_RADIUS, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_e)
-	ind_e.hide()
+	var e_def = abilities.get("E")
+	if e_def and e_def.hitbox:
+		ind_e = AbilityIndicator.create_emanating_indicator(e_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_e)
+		ind_e.hide()
 
 func _process_character_kit(delta: float) -> void:
 	if reaper_ms_steal_timer > 0.0:
@@ -115,11 +130,12 @@ func _process_character_kit(delta: float) -> void:
 	# Reaper Nightmare countdown
 	if is_in_nightmare:
 		reaper_nightmare_timer -= delta
-		if reaper_nightmare_timer <= 0.0:
+		var is_srv = multiplayer.is_server() if (multiplayer and multiplayer.has_multiplayer_peer()) else true
+		if reaper_nightmare_timer <= 0.0 and (is_local_player() or is_srv or name == "1"):
 			end_reaper_nightmare()
 
 	# Reaper Spectral Tether tick (Server-authoritative)
-	if multiplayer.is_server() and not is_dead and reaper_tether_active:
+	if (not is_multiplayer_match() or multiplayer.is_server()) and not is_dead and reaper_tether_active:
 		reaper_tether_timer -= delta
 		var players_container = get_tree().root.get_node_or_null("Main/Players")
 		var target = players_container.get_node_or_null(str(reaper_tether_target_id)) if players_container else null
@@ -135,14 +151,13 @@ func _process_character_kit(delta: float) -> void:
 			if reaper_tether_timer <= 0.0:
 				end_reaper_tether_server(true, target)
 
-	if name.to_int() == multiplayer.get_unique_id():
-		var cd_delta = delta * 2.0 if reaper_ult_buff_timer > 0.0 else delta
-		if attack_timer > 0.0: attack_timer -= cd_delta
-		if rmb_timer > 0.0: rmb_timer -= cd_delta
-		if q_timer > 0.0: q_timer -= cd_delta
-		if e_timer > 0.0: e_timer -= cd_delta
+	if is_local_player():
+		if attack_timer > 0.0: attack_timer -= delta
+		if rmb_timer > 0.0: rmb_timer -= delta
+		if q_timer > 0.0: q_timer -= delta
+		if e_timer > 0.0: e_timer -= delta
 		if r_timer > 0.0: r_timer -= delta
-		if dash_timer > 0.0: dash_timer -= cd_delta
+		if dash_timer > 0.0: dash_timer -= delta
 
 		# Cull the Weak windup timer
 		if reaper_q_windup_timer > 0.0:
@@ -169,7 +184,7 @@ func get_status_text() -> String:
 	if is_in_nightmare:
 		return "✦ NIGHTMARE FORM (INVULNERABLE) ✦"
 	elif reaper_ult_buff_timer > 0.0:
-		return "✦ ONE WITH DEATH (+45%% MS, +50%% CDR, +30%% DMG) (%.1fs) ✦" % reaper_ult_buff_timer
+		return "✦ ONE WITH DEATH (+45%% MS, +30%% DMG) (%.1fs) ✦" % reaper_ult_buff_timer
 	elif reaper_ms_steal_timer > 0.0:
 		return "✦ SOUL HARVEST (+15%% MS) (%.1fs) ✦" % reaper_ms_steal_timer
 	return ""
@@ -229,11 +244,9 @@ func _handle_character_input(_delta: float) -> void:
 			ind_q.show()
 	if Input.is_action_just_released("ability_two") and is_holding_q:
 		is_holding_q = false
+		if ind_q: ind_q.hide()
 		if q_timer <= 0.0 and not is_silenced():
 			_perform_cull_the_weak()
-		else:
-			if ind_q and reaper_q_windup_timer <= 0.0:
-				ind_q.hide()
 
 	# --- Ability 3 (E): Nightmare ---
 	if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced():
@@ -249,18 +262,17 @@ func _execute_ethereal_dash() -> void:
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
 	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
-	velocity.x = dash_dir.x * dash_impulse
-	velocity.z = dash_dir.z * dash_impulse
+	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
 
 func _perform_scythe_slash() -> void:
 	var def = abilities.get("LMB")
 	attack_timer = def.cooldown if def else 0.45
 	var facing_dir = -global_transform.basis.z.normalized()
 	var dmg_mult = REAPER_ULT_DMG_MULT if reaper_ult_buff_timer > 0.0 else 1.0
-	var dmg = 36.0 * dmg_mult
+	var dmg = 36.0
 	attack_performed.emit("Reaper's Scythe")
-	_show_melee_visual()
-	if multiplayer.is_server():
+	trigger_ability_hitbox("LMB", global_position, facing_dir)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_scythe_strike(global_position, facing_dir, 1, dmg)
 	else:
 		request_scythe_strike.rpc_id(1, global_position, facing_dir, dmg)
@@ -269,14 +281,21 @@ func _execute_scythe_strike(origin_pos: Vector3, forward_dir: Vector3, attacker_
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if not players_container:
 		return
-	var half_angle_rad = deg_to_rad(55.0)
+	var def = abilities.get("LMB")
+	var rad = def.hitbox.radius if (def and def.hitbox) else 3.6
+	var angle_deg = def.hitbox.angle_deg if (def and def.hitbox) else 110.0
+	var height = def.hitbox.height if (def and def.hitbox and def.hitbox.height > 0.0) else 2.0
+	var half_angle_rad = deg_to_rad(angle_deg * 0.5)
 	var hit_enemy = false
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			var to_body = body.global_position - origin_pos
+			var dy = to_body.y
+			if dy < -2.0 or dy > height:
+				continue
 			to_body.y = 0.0
 			var dist = to_body.length()
-			if dist <= 3.6 and dist > 0.001:
+			if dist <= rad and dist > 0.001:
 				if forward_dir.angle_to(to_body.normalized()) <= half_angle_rad:
 					hit_enemy = true
 					if body.has_method("take_damage"):
@@ -303,18 +322,20 @@ func _perform_spectral_tether(charged_range: float) -> void:
 	var def = abilities.get("RMB")
 	rmb_timer = def.cooldown if def else 7.0
 	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
+	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	var dmg_mult = REAPER_ULT_DMG_MULT if reaper_ult_buff_timer > 0.0 else 1.0
 	var dmg = 25.0 * dmg_mult
 	var spd = 52.0
 	var p_size = 0.6
 	var lifetime = charged_range / spd
 	ability_cast.emit("Spectral Tether", "RMB")
-	_show_tether_visual()
-	if multiplayer.is_server():
-		_spawn_tether_projectile(spawn_pos, facing_dir, 1, dmg, spd, p_size, lifetime, charged_range)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_spawn_tether_projectile(spawn_pos, shoot_dir, 1, dmg, spd, p_size, lifetime, charged_range)
 	else:
-		request_tether_fire.rpc_id(1, spawn_pos, facing_dir, dmg, spd, p_size, lifetime, charged_range)
+		request_tether_fire.rpc_id(1, spawn_pos, shoot_dir, dmg, spd, p_size, lifetime, charged_range)
 
 func _spawn_tether_projectile(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int, dmg: float, spd: float, p_size: float, lifetime: float, max_rng: float) -> void:
 	var main_node = get_tree().root.get_node_or_null("Main")
@@ -345,30 +366,34 @@ func request_tether_fire(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd
 	_spawn_tether_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size, lifetime, max_rng)
 
 func start_reaper_tether_server(target_node: Node) -> void:
-	if not multiplayer.is_server() or not target_node or is_dead:
+	if (is_multiplayer_match() and not multiplayer.is_server()) or not target_node or is_dead:
 		return
 	reaper_tether_target_id = target_node.name.to_int()
 	reaper_tether_timer = 1.75
 	reaper_tether_active = true
-	sync_reaper_tether_state.rpc(true, reaper_tether_target_id)
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_reaper_tether_state.rpc(true, reaper_tether_target_id)
 
 func end_reaper_tether_server(completed: bool, target_node: Node = null) -> void:
-	if not multiplayer.is_server():
+	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 	reaper_tether_active = false
 	reaper_tether_timer = 0.0
-	sync_reaper_tether_state.rpc(false, 0)
-	if completed and target_node and is_instance_valid(target_node) and not target_node.get("is_dead"):
-		if target_node.has_method("apply_root"):
-			target_node.apply_root(1.50)
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_reaper_tether_state.rpc(false, 0)
+	if completed and target_node and is_instance_valid(target_node):
+		if target_node.has_method("apply_stun"):
+			target_node.apply_stun(1.5)
 		if target_node.has_method("take_damage"):
 			var dmg_mult = REAPER_ULT_DMG_MULT if reaper_ult_buff_timer > 0.0 else 1.0
-			target_node.take_damage(40.0 * dmg_mult, name.to_int(), ActionType.ABILITY)
+			target_node.take_damage(60.0 * dmg_mult, name.to_int(), ActionType.ABILITY)
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func sync_reaper_tether_state(active: bool, target_id: int) -> void:
 	reaper_tether_active = active
 	reaper_tether_target_id = target_id
+	if not active:
+		reaper_tether_timer = 0.0
 
 func _perform_cull_the_weak() -> void:
 	var def = abilities.get("Q")
@@ -378,19 +403,21 @@ func _perform_cull_the_weak() -> void:
 		is_holding_rmb = false
 		if ind_rmb: ind_rmb.hide()
 	if ind_q:
-		AbilityIndicator.reset_indicator(ind_q)
-		ind_q.show()
-	var delay = def.effect.windup_time if (def and def.effect and def.effect.windup_time > 0.0) else 1.0
+		ind_q.hide()
+	
+	var delay = def.effect.windup_time if (def and def.effect and def.effect.windup_time > 0.0) else 0.75
 	reaper_q_windup_timer = delay
+	
+	# Systemic delayed telegraph through multiplayer synchronizer
+	start_ability_windup("reaper_cull_the_weak")
 
 func _on_cull_channel_finished() -> void:
 	if ind_q:
-		AbilityIndicator.flash_and_fade(ind_q, get_tree(), 0.14)
+		ind_q.hide()
 	var dmg_mult = REAPER_ULT_DMG_MULT if reaper_ult_buff_timer > 0.0 else 1.0
 	var in_dmg = 30.0 * dmg_mult
 	var out_dmg = 65.0 * dmg_mult
-	_show_cull_visual()
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_cull_hit(global_position, 1, in_dmg, out_dmg)
 	else:
 		request_cull_hit.rpc_id(1, global_position, in_dmg, out_dmg)
@@ -400,7 +427,7 @@ func _execute_cull_hit(origin_pos: Vector3, attacker_id: int, in_dmg: float, out
 	if not players_container:
 		return
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			var dist = body.global_position.distance_to(origin_pos)
 			if dist <= 5.5:
 				if dist >= 3.2: # Sweet spot
@@ -427,8 +454,9 @@ func _perform_nightmare() -> void:
 	reaper_nightmare_timer = NIGHTMARE_DURATION
 	apply_ethereal(NIGHTMARE_DURATION)
 	ability_cast.emit("Nightmare", "E")
-	sync_nightmare_state.rpc(true)
-	if multiplayer.is_server():
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_nightmare_state.rpc(true)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_nightmare_aoe(global_position, 1, 35.0)
 	else:
 		request_nightmare_aoe.rpc_id(1, global_position, 35.0)
@@ -436,8 +464,9 @@ func _perform_nightmare() -> void:
 func end_reaper_nightmare() -> void:
 	is_in_nightmare = false
 	reaper_nightmare_timer = 0.0
-	sync_nightmare_state.rpc(false)
-	if multiplayer.is_server():
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_nightmare_state.rpc(false)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_nightmare_aoe(global_position, 1, 45.0)
 	else:
 		request_nightmare_aoe.rpc_id(1, global_position, 45.0)
@@ -445,6 +474,10 @@ func end_reaper_nightmare() -> void:
 @rpc("any_peer", "call_local", "reliable")
 func sync_nightmare_state(in_nightmare: bool) -> void:
 	is_in_nightmare = in_nightmare
+	if in_nightmare:
+		reaper_nightmare_timer = NIGHTMARE_DURATION
+	else:
+		reaper_nightmare_timer = 0.0
 	if nightmare_visual:
 		nightmare_visual.visible = in_nightmare
 
@@ -455,7 +488,7 @@ func _execute_nightmare_aoe(origin_pos: Vector3, attacker_id: int, dmg: float) -
 	var dmg_mult = REAPER_ULT_DMG_MULT if reaper_ult_buff_timer > 0.0 else 1.0
 	var final_dmg = dmg * dmg_mult
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			if body.global_position.distance_to(origin_pos) <= NIGHTMARE_RADIUS:
 				if body.has_method("take_damage"):
 					body.take_damage(final_dmg, attacker_id, ActionType.ABILITY)
@@ -482,21 +515,6 @@ func sync_reaper_ult(duration: float) -> void:
 	reaper_ult_buff_timer = duration
 	if ult_visual:
 		ult_visual.visible = duration > 0.0
-
-func _show_melee_visual() -> void:
-	if melee_visual:
-		melee_visual.visible = true
-		get_tree().create_timer(0.12).timeout.connect(func(): if melee_visual: melee_visual.visible = false)
-
-func _show_tether_visual() -> void:
-	if ability_one_visual:
-		ability_one_visual.visible = true
-		get_tree().create_timer(0.15).timeout.connect(func(): if ability_one_visual: ability_one_visual.visible = false)
-
-func _show_cull_visual() -> void:
-	if ability_two_visual:
-		ability_two_visual.visible = true
-		get_tree().create_timer(0.18).timeout.connect(func(): if ability_two_visual: ability_two_visual.visible = false)
 
 func _update_character_hud() -> void:
 	var def_rmb = abilities.get("RMB")

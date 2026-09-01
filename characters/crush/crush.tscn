@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dx60vi13ahgks"]
 
-[ext_resource type="Script" path="res://characters/crush/crush.gd" id="1_crush"]
+[ext_resource type="Script" uid="uid://dbjdgi1k8s2pk" path="res://characters/crush/crush.gd" id="1_crush"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
@@ -72,7 +72,7 @@ corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gray_fg"]
-bg_color = Color(0.7, 0.72, 0.76, 0.95)
+bg_color = Color(0.35, 0.37, 0.4, 0.95)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -137,13 +137,13 @@ replication_config = SubResource("SceneReplicationConfig_1")
 [node name="HealthBarViewport" type="SubViewport" parent="." unique_id=1863956795]
 disable_3d = true
 transparent_bg = true
-size = Vector2i(150, 20)
+size = Vector2i(240, 30)
 render_target_update_mode = 4
 
 [node name="GrayProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=367100041]
-custom_minimum_size = Vector2(150, 20)
-offset_right = 150.0
-offset_bottom = 20.0
+custom_minimum_size = Vector2(240, 30)
+offset_right = 240.0
+offset_bottom = 30.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_gray_fg")
 max_value = 160.0
@@ -151,9 +151,9 @@ value = 100.0
 show_percentage = false
 
 [node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=515215799]
-custom_minimum_size = Vector2(150, 20)
-offset_right = 150.0
-offset_bottom = 20.0
+custom_minimum_size = Vector2(240, 30)
+offset_right = 240.0
+offset_bottom = 30.0
 theme_override_styles/background = SubResource("StyleBoxEmpty_1")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
 max_value = 160.0
@@ -161,7 +161,7 @@ value = 100.0
 show_percentage = false
 
 [node name="HealthBarSprite" type="Sprite3D" parent="." unique_id=950786465]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 0)
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, 3, 0)
 billboard = 1
 double_sided = false
 no_depth_test = true
@@ -205,7 +205,6 @@ slot_name = "Ability 1"
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
-key_bind_text = "Q"
 slot_name = "Ability 2"
 
 [node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=357095895]

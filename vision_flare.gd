@@ -3,6 +3,7 @@ extends Area3D
 @export var speed: float = 55.0
 @export var vision_radius: float = 8.0
 @export var max_lifetime: float = 2.0
+@export var max_range: float = 65.0
 
 var shooter_id: int = 0
 var shooter_team: int = 0
@@ -16,20 +17,27 @@ func _ready() -> void:
 		var up_vec = Vector3.UP if abs(direction.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
 		look_at(global_position + direction, up_vec)
 
-	if multiplayer.is_server():
+	if is_server_authority():
 		body_entered.connect(_on_body_entered)
 		get_tree().create_timer(max_lifetime).timeout.connect(_burst_and_free)
+
+func is_server_authority() -> bool:
+	if not multiplayer or not multiplayer.has_multiplayer_peer():
+		return true
+	return multiplayer.is_server()
 
 func _physics_process(delta: float) -> void:
 	var move_step = speed * delta
 	global_position += direction * move_step
-	distance_traveled += move_step
 
-	if distance_traveled >= target_distance:
-		_burst_and_free()
+	if is_server_authority():
+		distance_traveled += move_step
+		var effective_range = min(target_distance, max_range) if target_distance > 0.0 else max_range
+		if distance_traveled >= effective_range:
+			_burst_and_free()
 
 func _on_body_entered(body: Node) -> void:
-	if not multiplayer.is_server():
+	if not is_server_authority():
 		return
 	if body is StaticBody3D:
 		_burst_and_free()
@@ -39,7 +47,7 @@ func _burst_and_free() -> void:
 		return
 	has_burst = true
 	
-	if multiplayer.is_server():
+	if is_server_authority():
 		var main_node = get_tree().root.get_node_or_null("Main")
 		if main_node and main_node.has_method("spawn_vision_reveal_zone"):
 			main_node.spawn_vision_reveal_zone(global_position, 12.0, 5.5, shooter_id, shooter_team)

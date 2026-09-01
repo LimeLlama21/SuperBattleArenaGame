@@ -9,8 +9,8 @@ var e_timer: float = 0.0
 var r_timer: float = 0.0
 
 # Dash Charges & Lockout
-var current_dash_charges: int = 2
-var max_dash_charges: int = 2
+var current_dash_charges: int = 1
+var max_dash_charges: int = 1
 var dash_lockout_timer: float = 0.0
 var dash_recharge_timer: float = 0.0
 var dash_impulse: float = 26.0
@@ -18,9 +18,15 @@ var dash_lockout: float = 0.85
 var dash_recharge_time: float = 5.0
 var dash_wall_bounce_timer: float = 0.0
 var dive_dash_dir: Vector3 = Vector3.FORWARD
+var is_wall_launched: bool = false
+var wall_launch_air_time: float = 0.0
 
 # Deflecting Guard (Block Stance)
-var is_blocking: bool = false
+var is_blocking: bool = false:
+	set(value):
+		is_blocking = value
+		if block_visual:
+			block_visual.visible = value
 var block_timer: float = 0.0
 const BLOCK_DURATION: float = 3.0
 const BLOCK_MAX_TURN_SPEED: float = 2.2
@@ -41,10 +47,14 @@ const DIVE_ULT_SPEED_MULT: float = 0.35
 const DIVE_ULT_ATTACK_SPEED_MULT: float = 0.40
 
 # Aerial Crash Down
-var is_crashing_down: bool = false
+var is_crashing_down: bool = false:
+	set(value):
+		is_crashing_down = value
+		if crash_visual:
+			crash_visual.visible = value
 var crash_target_pos: Vector3 = Vector3.ZERO
 const CRASH_SPEED: float = 52.0
-const CRASH_DAMAGE: float = 12.0
+const CRASH_DAMAGE: float = 36.0
 const CRASH_RADIUS: float = 6.0
 
 # Hold-to-aim Indicators
@@ -73,12 +83,14 @@ func _setup_character_kit() -> void:
 	max_move_speed = data.max_move_speed
 	ground_acceleration = data.ground_acceleration
 	ground_friction = data.ground_friction
+	if "intentional_movement_friction" in data:
+		intentional_movement_friction = data.intentional_movement_friction
 	air_acceleration = data.air_acceleration
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
 
 	dash_impulse = data.passive_data.get("dash_impulse", 26.0)
-	max_dash_charges = data.passive_data.get("max_dash_charges", 2)
+	max_dash_charges = data.passive_data.get("max_dash_charges", 1)
 	current_dash_charges = max_dash_charges
 	dash_lockout = data.passive_data.get("dash_lockout", 0.85)
 	dash_recharge_time = data.passive_data.get("dash_recharge_time", 5.0)
@@ -86,24 +98,39 @@ func _setup_character_kit() -> void:
 	abilities = DiveAbilities.get_abilities()
 	_setup_local_indicators()
 
+	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
+	if sync and sync.replication_config:
+		_add_sync_property(sync.replication_config, NodePath(".:is_blocking"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:is_crashing_down"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:dive_ult_buff_timer"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+
 func _setup_local_indicators() -> void:
-	if name.to_int() != multiplayer.get_unique_id():
+	if not is_local_player():
 		return
 
-	ind_attack = AbilityIndicator.create_sector_indicator(3.4, 100.0, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_attack)
-	ind_attack.hide()
+	var lmb_def = abilities.get("LMB")
+	if lmb_def and lmb_def.hitbox:
+		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_attack)
+		ind_attack.hide()
 
-	ind_rmb = AbilityIndicator.create_sector_indicator(3.0, 135.0, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_rmb)
-	ind_rmb.hide()
+	var rmb_def = abilities.get("RMB")
+	if rmb_def and rmb_def.hitbox:
+		ind_rmb = AbilityIndicator.create_emanating_indicator(rmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_rmb)
+		ind_rmb.hide()
 
-	ind_q = AbilityIndicator.create_line_indicator(14.0, 1.5, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_q)
-	ind_q.hide()
+	var q_def = abilities.get("Q")
+	if q_def and q_def.hitbox:
+		ind_q = AbilityIndicator.create_emanating_indicator(q_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_q)
+		ind_q.hide()
 
-	ind_crash_circle = AbilityIndicator.create_circle_indicator(CRASH_RADIUS, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	ind_crash_circle.top_level = true
+	# Discrete location indicator for Aerial Crash Down
+	var crash_hitbox = AbilityPipeline.AbilityHitbox.new()
+	crash_hitbox.shape = AbilityPipeline.HitboxShape.CIRCLE
+	crash_hitbox.radius = CRASH_RADIUS
+	ind_crash_circle = AbilityIndicator.create_discrete_location_indicator(crash_hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
 	add_child(ind_crash_circle)
 	ind_crash_circle.hide()
 
@@ -113,7 +140,7 @@ func _exit_tree() -> void:
 
 func _process_character_kit(delta: float) -> void:
 	# Dive Rupture Marks tick (Server-authoritative)
-	if multiplayer.is_server() and not is_dead and dive_marks_count > 0:
+	if (not is_multiplayer_match() or multiplayer.is_server()) and not is_dead and dive_marks_count > 0:
 		dive_mark_timer -= delta
 		if dive_mark_timer <= 0.0:
 			detonate_dive_marks()
@@ -129,7 +156,7 @@ func _process_character_kit(delta: float) -> void:
 		if dive_ult_buff_timer <= 0.0:
 			dive_ult_buff_timer = 0.0
 
-	if name.to_int() == multiplayer.get_unique_id():
+	if is_local_player():
 		if dash_lockout_timer > 0.0:
 			dash_lockout_timer -= delta
 
@@ -169,6 +196,12 @@ func _process_character_kit(delta: float) -> void:
 
 			if is_on_floor():
 				_execute_crash_impact()
+		elif is_wall_launched:
+			wall_launch_air_time += delta
+			if wall_launch_air_time > 0.30 and is_on_floor() and velocity.y <= 0.0 and not is_crashing_down:
+				is_wall_launched = false
+				wall_launch_air_time = 0.0
+				end_float_state()
 
 func get_effective_max_speed(current_speed: float) -> float:
 	if dive_ult_buff_timer > 0.0:
@@ -183,7 +216,7 @@ func get_status_text() -> String:
 	return ""
 
 func can_crash_down() -> bool:
-	return (not is_on_floor() or is_floating) and not is_crashing_down
+	return is_wall_launched and not is_crashing_down
 
 func _handle_character_input(_delta: float) -> void:
 	if is_crashing_down or is_channeling:
@@ -195,18 +228,22 @@ func _handle_character_input(_delta: float) -> void:
 		if can_crash and not is_stunned() and not is_silenced():
 			var hit_pos = get_mouse_ground_intersection()
 			if hit_pos != null:
-				ind_crash_circle.global_position = Vector3(hit_pos.x, 0.06, hit_pos.z)
+				AbilityIndicator.update_discrete_location(ind_crash_circle, hit_pos)
 				ind_crash_circle.show()
 			else:
 				ind_crash_circle.hide()
 		else:
 			ind_crash_circle.hide()
 
-	# --- Dash & Crash (SHIFT) ---
-	if Input.is_action_just_pressed("dash") and not is_rooted() and not is_grounded():
-		if can_crash:
+	# --- Aerial Crash Down (LMB or SHIFT while wall-launched) ---
+	if can_crash:
+		if (Input.is_action_just_pressed("dash") or Input.is_action_just_pressed("shoot")) and not is_rooted() and not is_grounded():
 			_perform_crash_down()
-		elif current_dash_charges > 0 and dash_lockout_timer <= 0.0:
+			return
+
+	# --- Normal Dash (SHIFT) ---
+	if Input.is_action_just_pressed("dash") and not is_rooted() and not is_grounded():
+		if current_dash_charges > 0 and dash_lockout_timer <= 0.0:
 			_execute_dive_dash()
 
 	# --- Primary Fire (LMB): Slash ---
@@ -266,45 +303,64 @@ func _execute_dive_dash() -> void:
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
 	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
+	dash_dir.y = 0.0
+	dash_dir = dash_dir.normalized()
 	dive_dash_dir = dash_dir
-	dash_wall_bounce_timer = 0.55
-	velocity.x = dash_dir.x * dash_impulse
-	velocity.z = dash_dir.z * dash_impulse
-
-	# Check if already directly against a wall when pressing dash
-	if is_on_wall():
-		_trigger_wall_bounce()
+	dash_wall_bounce_timer = 0.65
+	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
+	_check_dive_wall_bounce()
 
 func _check_dive_wall_bounce() -> void:
 	if dash_wall_bounce_timer <= 0.0:
 		return
-	if is_on_wall():
+	var hit_wall = is_on_wall()
+	if not hit_wall:
+		for i in range(get_slide_collision_count()):
+			var col = get_slide_collision(i)
+			var norm = col.get_normal()
+			if abs(norm.y) < 0.70: # Vertical surface / wall
+				hit_wall = true
+				break
+	if not hit_wall:
+		var space_state = get_world_3d().direct_space_state
+		if space_state:
+			for y_off in [0.4, 1.1]:
+				var start_p = global_position + Vector3(0, y_off, 0)
+				var end_p = start_p + dive_dash_dir * 2.2
+				var query = PhysicsRayQueryParameters3D.create(start_p, end_p, 1)
+				query.collide_with_areas = false
+				query.collide_with_bodies = true
+				query.exclude = [self.get_rid()]
+				var res = space_state.intersect_ray(query)
+				if not res.is_empty():
+					var norm = res.normal
+					if abs(norm.y) < 0.70:
+						hit_wall = true
+						break
+
+	if hit_wall:
 		_trigger_wall_bounce()
-		return
-	for i in range(get_slide_collision_count()):
-		var col = get_slide_collision(i)
-		var norm = col.get_normal()
-		if abs(norm.y) < 0.65: # Vertical surface / wall
-			var dot = norm.dot(dive_dash_dir)
-			if dot < -0.2: # Dashing towards or against the wall
-				_trigger_wall_bounce()
-				return
 
 func _trigger_wall_bounce() -> void:
 	dash_wall_bounce_timer = 0.0
-	dash_lockout_timer = 0.15 # Allow immediate mid-air Aerial Crash
-	velocity.y = 17.5 # Launch vertically up the wall
-	velocity.x = dive_dash_dir.x * 6.0
-	velocity.z = dive_dash_dir.z * 6.0
+	dash_lockout_timer = 0.0
+	is_wall_launched = true
+	wall_launch_air_time = 0.0
+	# Convert all horizontal velocity into vertical velocity!
+	velocity.x = 0.0
+	velocity.z = 0.0
+	velocity.y = 22.0
+	start_float_state()
 
 func _perform_crash_down() -> void:
 	var hit_pos = get_mouse_ground_intersection()
 	var target = Vector3(hit_pos.x, 0.0, hit_pos.z) if hit_pos != null else (global_position - global_transform.basis.z * 5.0)
-	var max_range = 16.0
+	var max_range = 18.0
 	var horizontal_offset = target - Vector3(global_position.x, 0.0, global_position.z)
 	if horizontal_offset.length() > max_range:
 		target = Vector3(global_position.x, 0.0, global_position.z) + horizontal_offset.normalized() * max_range
 
+	end_float_state()
 	is_crashing_down = true
 	crash_target_pos = target
 	velocity.x = 0.0
@@ -316,16 +372,19 @@ func _perform_crash_down() -> void:
 @rpc("any_peer", "call_local", "reliable")
 func sync_crash_state(crashing: bool) -> void:
 	is_crashing_down = crashing
+	if not crashing:
+		is_wall_launched = false
 	if crash_visual:
 		crash_visual.visible = crashing
 
 func _execute_crash_impact() -> void:
 	is_crashing_down = false
+	is_wall_launched = false
 	sync_crash_state.rpc(false)
 	if ind_crash_circle and is_instance_valid(ind_crash_circle):
 		AbilityIndicator.flash_and_fade(ind_crash_circle, get_tree(), 0.15)
 	var impact_pos = global_position
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_crash_damage(impact_pos, 1)
 	else:
 		request_crash_impact.rpc_id(1, impact_pos)
@@ -334,14 +393,14 @@ func _execute_crash_damage(impact_pos: Vector3, attacker_id: int) -> void:
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if players_container:
 		for player in players_container.get_children():
-			if player is Node3D and player.name != str(attacker_id) and not player.get("is_dead"):
+			if player is Node3D and player.name != str(attacker_id) and not player.get("is_dead") and is_enemy(player):
 				if player.global_position.distance_to(impact_pos) <= CRASH_RADIUS:
 					if player.has_method("take_damage"):
 						player.take_damage(CRASH_DAMAGE, attacker_id, ActionType.ABILITY)
 					if player.has_method("apply_knockback"):
 						var kb_dir = (player.global_position - impact_pos).normalized()
-						kb_dir.y = 0.05
-						player.apply_knockback(kb_dir * 14.0, true)
+						kb_dir.y = 0.0
+						player.apply_knockback(Vector3.UP * 4.5 + kb_dir * 7.5, true)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_crash_impact(impact_pos: Vector3) -> void:
@@ -353,33 +412,44 @@ func request_crash_impact(impact_pos: Vector3) -> void:
 func _perform_slash() -> void:
 	var def = abilities.get("LMB")
 	attack_timer = def.cooldown if def else 0.45
+	var dmg = def.riders[0].amount if (def and not def.riders.is_empty()) else 32.0
+	var rad = def.hitbox.radius if (def and def.hitbox) else 3.4
+	var angle_deg = def.hitbox.angle_deg if (def and def.hitbox) else 100.0
+	var height = def.hitbox.height if (def and def.hitbox and def.hitbox.height > 0.0) else 2.4
 	var facing_dir = -global_transform.basis.z.normalized()
 	attack_performed.emit("Slash")
-	_show_melee_visual()
-	if multiplayer.is_server():
-		_execute_melee_strike(global_position, facing_dir, 1, 32.0, 3.4, 100.0, true)
+	trigger_ability_hitbox("LMB", global_position, facing_dir)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_execute_melee_strike(global_position, facing_dir, 1, dmg, rad, angle_deg, true, height)
 	else:
-		request_melee_strike.rpc_id(1, global_position, facing_dir, 32.0, 3.4, 100.0, true)
+		request_melee_strike.rpc_id(1, global_position, facing_dir, dmg, rad, angle_deg, true, height)
 
 func _perform_heavy_cleave() -> void:
 	var def = abilities.get("RMB")
 	rmb_timer = def.cooldown if def else 6.0
+	var dmg = def.riders[0].amount if (def and not def.riders.is_empty()) else 65.0
+	var rad = def.hitbox.radius if (def and def.hitbox) else 3.0
+	var angle_deg = def.hitbox.angle_deg if (def and def.hitbox) else 135.0
+	var height = def.hitbox.height if (def and def.hitbox and def.hitbox.height > 0.0) else 2.4
 	var facing_dir = -global_transform.basis.z.normalized()
 	ability_cast.emit("Heavy Cleave", "RMB")
-	_show_heavy_cleave_visual()
-	if multiplayer.is_server():
-		_execute_melee_strike(global_position, facing_dir, 1, 65.0, 3.0, 135.0, true)
+	trigger_ability_hitbox("RMB", global_position, facing_dir)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_execute_melee_strike(global_position, facing_dir, 1, dmg, rad, angle_deg, true, height)
 	else:
-		request_melee_strike.rpc_id(1, global_position, facing_dir, 65.0, 3.0, 135.0, true)
+		request_melee_strike.rpc_id(1, global_position, facing_dir, dmg, rad, angle_deg, true, height)
 
-func _execute_melee_strike(origin_pos: Vector3, forward_dir: Vector3, attacker_id: int, dmg: float, radius: float, angle_deg: float, apply_mark: bool) -> void:
+func _execute_melee_strike(origin_pos: Vector3, forward_dir: Vector3, attacker_id: int, dmg: float, radius: float, angle_deg: float, apply_mark: bool, height: float = 2.4) -> void:
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if not players_container:
 		return
 	var half_angle_rad = deg_to_rad(angle_deg * 0.5)
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			var to_body = body.global_position - origin_pos
+			var dy = to_body.y
+			if dy < -2.0 or dy > height:
+				continue
 			to_body.y = 0.0
 			var dist = to_body.length()
 			if dist <= radius and dist > 0.001:
@@ -391,14 +461,14 @@ func _execute_melee_strike(origin_pos: Vector3, forward_dir: Vector3, attacker_i
 						body.apply_rupture_mark(attacker_id)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_melee_strike(origin_pos: Vector3, forward_dir: Vector3, dmg: float, radius: float, angle_deg: float, apply_mark: bool) -> void:
+func request_melee_strike(origin_pos: Vector3, forward_dir: Vector3, dmg: float, radius: float, angle_deg: float, apply_mark: bool, height: float = 2.4) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
-	_execute_melee_strike(origin_pos, forward_dir, sender_id, dmg, radius, angle_deg, apply_mark)
+	_execute_melee_strike(origin_pos, forward_dir, sender_id, dmg, radius, angle_deg, apply_mark, height)
 
 func apply_rupture_mark(attacker_id: int) -> void:
-	if not multiplayer.is_server() or is_dead:
+	if (is_multiplayer_match() and not multiplayer.is_server()) or is_dead:
 		return
 	dive_mark_attacker_id = attacker_id
 	dive_marks_count = min(DIVE_MARK_MAX, dive_marks_count + 1)
@@ -429,7 +499,7 @@ func _on_q_channel_finished() -> void:
 		AbilityIndicator.flash_and_fade(ind_q, get_tree(), 0.14)
 	var facing_dir = -global_transform.basis.z.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.4, 0) + facing_dir * 1.5
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_spawn_earth_tremor(spawn_pos, facing_dir, 1)
 	else:
 		request_earth_tremor.rpc_id(1, spawn_pos, facing_dir)
@@ -506,16 +576,6 @@ func _perform_tectonic_uprising() -> void:
 @rpc("any_peer", "call_local", "reliable")
 func sync_dive_ult(duration: float) -> void:
 	dive_ult_buff_timer = duration
-
-func _show_melee_visual() -> void:
-	if melee_visual:
-		melee_visual.visible = true
-		get_tree().create_timer(0.12).timeout.connect(func(): if melee_visual: melee_visual.visible = false)
-
-func _show_heavy_cleave_visual() -> void:
-	if ability_one_visual:
-		ability_one_visual.visible = true
-		get_tree().create_timer(0.16).timeout.connect(func(): if ability_one_visual: ability_one_visual.visible = false)
 
 func _update_character_hud() -> void:
 	var def_rmb = abilities.get("RMB")

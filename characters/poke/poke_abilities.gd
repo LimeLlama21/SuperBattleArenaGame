@@ -9,7 +9,7 @@ static func get_abilities() -> Dictionary:
 	lmb.id = "poke_rail_shot"
 	lmb.name = "Rail Shot"
 	lmb.slot_key = "LMB"
-	lmb.cooldown = 0.9
+	lmb.cooldown = 0.6
 	lmb.effect = AbilityPipeline.AbilityEffect.new()
 	lmb.effect.effect_type = AbilityPipeline.EffectType.PROJECTILE
 	lmb.effect.speed = 90.0
@@ -19,10 +19,10 @@ static func get_abilities() -> Dictionary:
 	lmb.hitbox.shape = AbilityPipeline.HitboxShape.LINE
 	lmb.hitbox.length = 50.0
 	lmb.hitbox.width = 0.35
-	var r_dmg = AbilityPipeline.AbilityRider.new()
-	r_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
-	r_dmg.amount = 18.0
-	lmb.riders.append(r_dmg)
+	var lmb_dmg = AbilityPipeline.AbilityRider.new()
+	lmb_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
+	lmb_dmg.amount = 20.0
+	lmb.riders.append(lmb_dmg)
 	var r_fleet = AbilityPipeline.AbilityRider.new()
 	r_fleet.rider_type = AbilityPipeline.RiderType.SPEED_BOOST
 	r_fleet.duration = 2.5
@@ -80,6 +80,11 @@ static func get_abilities() -> Dictionary:
 	q_ground.rider_type = AbilityPipeline.RiderType.GROUND
 	q_ground.duration = 2.5
 	q.riders.append(q_ground)
+	var q_slow = AbilityPipeline.AbilityRider.new()
+	q_slow.rider_type = AbilityPipeline.RiderType.SLOW
+	q_slow.duration = 1.5
+	q_slow.intensity = 0.70
+	q.riders.append(q_slow)
 	dict["Q"] = q
 	dict[q.id] = q
 
@@ -112,8 +117,18 @@ static func get_abilities() -> Dictionary:
 	r.slot_key = "R"
 	r.cooldown = 24.0
 	r.effect = AbilityPipeline.AbilityEffect.new()
-	r.effect.effect_type = AbilityPipeline.EffectType.BUFF
-	r.effect.duration = 12.0
+	r.effect.effect_type = AbilityPipeline.EffectType.PROJECTILE
+	r.effect.speed = 110.0
+	r.effect.max_range = 95.0
+	r.effect.projectile_size = 1.3
+	r.hitbox = AbilityPipeline.AbilityHitbox.new()
+	r.hitbox.shape = AbilityPipeline.HitboxShape.LINE
+	r.hitbox.length = 95.0
+	r.hitbox.width = 1.3
+	var ult_dmg = AbilityPipeline.AbilityRider.new()
+	ult_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
+	ult_dmg.amount = 50.0
+	r.riders.append(ult_dmg)
 	dict["R"] = r
 	dict[r.id] = r
 

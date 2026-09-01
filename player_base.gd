@@ -1,5 +1,5 @@
 class_name BasePlayer
-extends CharacterBody3D
+extends PlayerVision
 
 enum ActionType {
 	ATTACK = 0,      # Primary / Basic Attack
@@ -14,7 +14,10 @@ signal damage_taken(attacker_id: int, amount: float, action_type: int)
 
 # Character Identification & Team
 @export var character_name: String = "Character"
-@export var team_id: int = 1
+@export var team_id: int = 1:
+	set(value):
+		team_id = value
+		_update_team_visuals()
 
 # Core Vitals & Defense
 @export var max_health: float = 100.0
@@ -30,46 +33,6 @@ var current_shield: float = 0.0:
 		update_health_bar()
 var shield_timer: float = 0.0
 var is_dead: bool = false
-
-# Universal Movement Mechanics
-@export var max_move_speed: float = 10.0
-@export var ground_acceleration: float = 65.0
-@export var ground_friction: float = 40.0
-@export var air_acceleration: float = 25.0
-@export var air_drag: float = 3.5
-@export var jump_velocity: float = 9.5
-
-var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 24.0)
-
-# External Knockback & Wall Impact
-var knockback_velocity: Vector3 = Vector3.ZERO
-var wall_impact_cooldown_timer: float = 0.0
-const WALL_IMPACT_MIN_SPEED: float = 6.0
-const WALL_IMPACT_DAMAGE_FACTOR: float = 1.8
-
-# Universal Status Effects & CC
-var stun_timer: float = 0.0
-var slow_timer: float = 0.0
-var slow_initial_duration: float = 0.0
-var slow_initial_percent: float = 0.0
-var slow_percent: float = 0.0
-var silence_timer: float = 0.0
-var root_timer: float = 0.0
-var grounded_timer: float = 0.0
-var cripple_timer: float = 0.0
-var cripple_intensity: float = 0.35
-var ethereal_timer: float = 0.0
-var speed_boost_timer: float = 0.0
-var speed_boost_percent: float = 0.0
-var is_cc_immune: bool = false
-
-# Universal Levitation / Float State
-var is_floating: bool = false
-var float_timer: float = 0.0
-var current_gravity_mult: float = 1.0
-const FLOAT_TOTAL_DURATION: float = 2.2
-const FLOAT_SLOWDOWN_TIME: float = 0.7
-const FLOAT_HOVER_TIME: float = 1.4
 
 # Universal Channeling
 var is_channeling: bool = false
@@ -87,6 +50,7 @@ var spectate_index: int = 0
 @onready var sprite_3d: Sprite3D = get_node_or_null("HealthBarSprite")
 @onready var health_bar: ProgressBar = get_node_or_null("HealthBarViewport/ProgressBar")
 @onready var gray_health_bar: ProgressBar = get_node_or_null("HealthBarViewport/GrayProgressBar")
+@onready var shield_bar: ProgressBar = get_node_or_null("HealthBarViewport/ShieldProgressBar")
 
 @onready var hud: CanvasLayer = get_node_or_null("PlayerHUD")
 @onready var hud_container: Control = get_node_or_null("PlayerHUD/HUDContainer")
@@ -102,21 +66,21 @@ var spectate_index: int = 0
 @onready var spectator_label: Label = get_node_or_null("PlayerHUD/SpectatorPanel/VBox/SpectatorLabel")
 
 
+var active_windup_id: String = "":
+	set(value):
+		active_windup_id = value
+		if active_windup_id != "":
+			_on_windup_id_changed(active_windup_id)
+
+var active_windup_facing: Vector3 = Vector3.FORWARD
+
 func _enter_tree() -> void:
-	var peer_id = name.to_int()
-	if peer_id > 0:
-		set_multiplayer_authority(peer_id)
-		if has_node("MultiplayerSynchronizer"):
-			$MultiplayerSynchronizer.set_multiplayer_authority(peer_id)
+	_setup_synchronizer()
 
 func _ready() -> void:
-	var peer_id = name.to_int()
-	if peer_id > 0:
-		set_multiplayer_authority(peer_id)
-		if has_node("MultiplayerSynchronizer"):
-			$MultiplayerSynchronizer.set_multiplayer_authority(peer_id)
+	_setup_synchronizer()
 
-	var is_local = (name.to_int() == multiplayer.get_unique_id())
+	var is_local = is_local_player()
 	if camera:
 		camera.current = is_local
 		if is_local:
@@ -129,35 +93,137 @@ func _ready() -> void:
 	if spectator_panel:
 		spectator_panel.visible = false
 
+	_setup_health_bars()
 	if sprite_3d and has_node("HealthBarViewport"):
 		sprite_3d.texture = $HealthBarViewport.get_texture()
 	update_health_bar()
 	_update_team_visuals()
+	call_deferred("_update_team_visuals")
 
 	# Call character-specific kit setup
 	_setup_character_kit()
 
+func _setup_synchronizer() -> void:
+	if not is_multiplayer_match():
+		return
+	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
+	if not sync:
+		sync = MultiplayerSynchronizer.new()
+		sync.name = "MultiplayerSynchronizer"
+		add_child(sync)
+
+	var peer_id = name.to_int()
+	if peer_id > 0:
+		set_multiplayer_authority(peer_id)
+		sync.set_multiplayer_authority(peer_id)
+
+	var config = sync.replication_config
+	if not config:
+		config = SceneReplicationConfig.new()
+		sync.replication_config = config
+
+	_add_sync_property(config, NodePath(".:position"), SceneReplicationConfig.REPLICATION_MODE_ALWAYS)
+	_add_sync_property(config, NodePath(".:rotation"), SceneReplicationConfig.REPLICATION_MODE_ALWAYS)
+	_add_sync_property(config, NodePath(".:team_id"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+	_add_sync_property(config, NodePath(".:current_health"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+	_add_sync_property(config, NodePath(".:current_shield"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+	_add_sync_property(config, NodePath(".:is_dead"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+	_add_sync_property(config, NodePath(".:active_windup_id"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+	_add_sync_property(config, NodePath(".:active_windup_facing"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+
+func _add_sync_property(config: SceneReplicationConfig, prop_path: NodePath, mode: int) -> void:
+	if not config.has_property(prop_path):
+		config.add_property(prop_path)
+		config.property_set_replication_mode(prop_path, mode)
+
 func set_team_id(new_team: int) -> void:
 	team_id = new_team
-	_update_team_visuals()
+	_refresh_all_team_visuals()
 
 func is_enemy(other: Node) -> bool:
 	if not other or other == self:
+		return false
+	if other.name == name:
 		return false
 	if other.get("team_id") != null:
 		return other.team_id != team_id
 	return true
 
+func set_opponent_visible(is_vis: bool) -> void:
+	if is_local_player():
+		visible = not is_dead
+		return
+	if is_dead:
+		visible = false
+		return
+	visible = is_vis
+	if sprite_3d:
+		sprite_3d.visible = is_vis
+
+func get_local_player_team() -> int:
+	var local_id = get_my_player_id()
+	var main_node = get_tree().root.get_node_or_null("Main") if get_tree() else null
+	if main_node and main_node.has_method("get_player_team"):
+		return main_node.get_player_team(local_id)
+	
+	var local_player = get_tree().root.get_node_or_null("Main/Players/" + str(local_id)) if get_tree() else null
+	if local_player and local_player.get("team_id") != null:
+		return local_player.team_id
+	
+	if name == str(local_id):
+		return team_id
+		
+	return 1
+
+func _refresh_all_team_visuals() -> void:
+	_update_team_visuals()
+	var players_cont = get_tree().root.get_node_or_null("Main/Players") if get_tree() else null
+	if players_cont:
+		for p in players_cont.get_children():
+			if p.has_method("_update_team_visuals"):
+				p._update_team_visuals()
+
 func _update_team_visuals() -> void:
 	var mesh_inst: MeshInstance3D = get_node_or_null("MeshInstance3D")
-	if mesh_inst and mesh_inst.material_override:
-		var mat = mesh_inst.material_override.duplicate() as StandardMaterial3D
-		if mat:
-			if team_id == 1:
-				mat.albedo_color = Color(0.2, 0.6, 1.0)
-			elif team_id == 2:
-				mat.albedo_color = Color(1.0, 0.3, 0.2)
-			mesh_inst.material_override = mat
+	
+	# Determine if this player is on the same team as the local player
+	var local_id = get_my_player_id()
+	var local_team = get_local_player_team()
+	var is_same_team = (team_id == local_team) or (name == str(local_id))
+	
+	# Same team is always blue, enemy team is always red
+	var model_color = Color(0.18, 0.58, 1.0, 1.0) if is_same_team else Color(0.95, 0.20, 0.20, 1.0)
+	var emissive_color = Color(0.08, 0.25, 0.5, 1.0) if is_same_team else Color(0.45, 0.08, 0.08, 1.0)
+
+	if mesh_inst:
+		var mat = mesh_inst.material_override as StandardMaterial3D
+		if not mat:
+			mat = StandardMaterial3D.new()
+		else:
+			mat = mat.duplicate() as StandardMaterial3D
+		mat.albedo_color = model_color
+		mat.roughness = 0.35
+		mat.metallic = 0.2
+		mat.emission_enabled = true
+		mat.emission = emissive_color
+		mat.emission_energy_multiplier = 0.3
+		mesh_inst.material_override = mat
+
+	# Update Health Bar fill color: Blue for same team, Red for enemy team
+	if health_bar:
+		var fill_sb = health_bar.get_theme_stylebox("fill")
+		if fill_sb:
+			fill_sb = fill_sb.duplicate()
+		else:
+			fill_sb = StyleBoxFlat.new()
+			fill_sb.corner_radius_top_left = 4
+			fill_sb.corner_radius_top_right = 4
+			fill_sb.corner_radius_bottom_right = 4
+			fill_sb.corner_radius_bottom_left = 4
+		
+		if fill_sb is StyleBoxFlat:
+			fill_sb.bg_color = Color(0.18, 0.65, 1.0, 1.0) if is_same_team else Color(1.0, 0.25, 0.25, 1.0)
+			health_bar.add_theme_stylebox_override("fill", fill_sb)
 
 # --- Status Effects & CC Queries ---
 func is_stunned() -> bool:
@@ -175,17 +241,6 @@ func is_rooted() -> bool:
 func is_grounded() -> bool:
 	return grounded_timer > 0.0
 
-func is_crippled() -> bool:
-	return cripple_timer > 0.0
-
-func is_ethereal_active() -> bool:
-	return ethereal_timer > 0.0
-
-func get_slow_multiplier() -> float:
-	if is_slowed():
-		return clamp(1.0 - slow_percent, 0.1, 1.0)
-	return 1.0
-
 func start_channel(duration: float, on_complete: Callable) -> void:
 	is_channeling = true
 	channel_timer = duration
@@ -197,70 +252,29 @@ func cancel_channel() -> void:
 	channel_complete_callback = Callable()
 
 func apply_shield(amount: float, duration: float = 5.0) -> void:
-	if not multiplayer.is_server():
+	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 	current_shield = min(max_shield, current_shield + amount)
 	shield_timer = max(shield_timer, duration)
-	sync_shield.rpc(current_shield)
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_shield.rpc(current_shield)
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func sync_shield(new_shield: float) -> void:
 	current_shield = new_shield
 
 func _physics_process(delta: float) -> void:
 	# Deadzone / Void Check
-	if multiplayer.is_server() and not is_dead and global_position.y < VOID_DEATH_Y:
+	if is_server_authoritative() and not is_dead and global_position.y < VOID_DEATH_Y:
 		die()
 
-	# Status effect timers decrement
-	if stun_timer > 0.0:
-		stun_timer = max(0.0, stun_timer - delta)
-
-	if slow_timer > 0.0:
-		slow_timer -= delta
-		if slow_initial_duration > 0.0:
-			slow_percent = slow_initial_percent * (slow_timer / slow_initial_duration)
-		if slow_timer <= 0.0:
-			slow_timer = 0.0
-			slow_percent = 0.0
-			slow_initial_duration = 0.0
-			slow_initial_percent = 0.0
-
+	# Shield timer decrement
 	if shield_timer > 0.0:
 		shield_timer -= delta
 		if shield_timer <= 0.0:
 			current_shield = 0.0
-
-	if speed_boost_timer > 0.0:
-		speed_boost_timer -= delta
-		if speed_boost_timer <= 0.0:
-			speed_boost_timer = 0.0
-			speed_boost_percent = 0.0
-
-	if silence_timer > 0.0:
-		silence_timer = max(0.0, silence_timer - delta)
-
-	if root_timer > 0.0:
-		root_timer = max(0.0, root_timer - delta)
-
-	if grounded_timer > 0.0:
-		grounded_timer = max(0.0, grounded_timer - delta)
-
-	if cripple_timer > 0.0:
-		cripple_timer = max(0.0, cripple_timer - delta)
-
-	if ethereal_timer > 0.0:
-		ethereal_timer = max(0.0, ethereal_timer - delta)
-
-	if wall_impact_cooldown_timer > 0.0:
-		wall_impact_cooldown_timer = max(0.0, wall_impact_cooldown_timer - delta)
-
-	# Knockback velocity decay
-	if knockback_velocity != Vector3.ZERO:
-		if is_on_floor():
-			knockback_velocity = knockback_velocity.move_toward(Vector3.ZERO, ground_friction * delta)
-		else:
-			knockback_velocity = knockback_velocity.move_toward(Vector3.ZERO, air_drag * delta)
+			if is_multiplayer_match() and is_server_authoritative():
+				sync_shield.rpc(0.0)
 
 	# Channeling process
 	if is_channeling:
@@ -272,24 +286,21 @@ func _physics_process(delta: float) -> void:
 				channel_complete_callback = Callable()
 				cb.call()
 
+	# Base physics timers decrement (CC, float, wall impact cooldown)
+	_process_physics_timers(delta)
+
 	# Process Character-specific kit logic (both server and clients)
 	_process_character_kit(delta)
 
-	var is_local_player = (name.to_int() == multiplayer.get_unique_id())
-	var is_server_dummy = (name.to_int() == 0 and (multiplayer.is_server() or not multiplayer.has_multiplayer_peer()))
+	var is_local = is_local_player()
+	var is_server_or_offline = multiplayer.is_server() if (multiplayer and multiplayer.has_multiplayer_peer()) else true
+	var is_server_dummy = (name.to_int() == 0 and is_server_or_offline)
 
-	if not is_local_player and not is_server_dummy:
+	if not is_local and not is_server_dummy:
 		return
 
 	if is_server_dummy:
-		var on_floor_dummy = is_on_floor()
-		if not on_floor_dummy:
-			velocity.y -= gravity * delta
-		velocity.x += knockback_velocity.x
-		velocity.z += knockback_velocity.z
-		var pre_move_vel_dummy = velocity
-		move_and_slide()
-		_check_wall_impact(pre_move_vel_dummy)
+		_process_dummy_physics(delta)
 		return
 
 	# If dead, process Spectator camera & inputs (skip spectator in training mode)
@@ -309,91 +320,18 @@ func _physics_process(delta: float) -> void:
 	if camera and is_instance_valid(camera) and camera.is_inside_tree():
 		_process_camera(delta)
 
-	# Universal float effect processing
-	if is_floating:
-		float_timer += delta
-		if float_timer < FLOAT_SLOWDOWN_TIME:
-			var t = float_timer / FLOAT_SLOWDOWN_TIME
-			current_gravity_mult = lerp(1.0, 0.05, t)
-		elif float_timer < FLOAT_HOVER_TIME:
-			current_gravity_mult = 0.05
-		elif float_timer < FLOAT_TOTAL_DURATION:
-			var t = (float_timer - FLOAT_HOVER_TIME) / (FLOAT_TOTAL_DURATION - FLOAT_HOVER_TIME)
-			current_gravity_mult = lerp(0.05, 1.0, t)
-		else:
-			end_float_state()
-
 	_update_hud()
 
-	# Gravity
-	var on_floor = is_on_floor()
-	if not on_floor:
-		var effective_gravity = gravity * (current_gravity_mult if is_floating else 1.0)
-		velocity.y -= effective_gravity * delta
-	else:
-		if is_floating and float_timer > 0.4:
-			end_float_state()
-
-	var stunned = is_stunned()
-	var rooted = is_rooted()
-	var grounded = is_grounded()
-	var slow_mult = get_slow_multiplier()
-
-	# Jump
-	if not stunned and not rooted and not grounded and not is_channeling:
-		if Input.is_action_just_pressed("jump") and on_floor:
-			velocity.y = jump_velocity
-
-	# Movement Vector
-	var input_dir := Vector2.ZERO
-	if not stunned and not rooted and not is_channeling:
-		input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var target_dir := Vector3(input_dir.x, 0, input_dir.y).normalized()
-
-	var effective_max_speed = max_move_speed * slow_mult
-	if speed_boost_timer > 0.0:
-		effective_max_speed *= (1.0 + speed_boost_percent)
-	effective_max_speed = get_effective_max_speed(effective_max_speed)
-
-	# Horizontal Velocity Handling
-	var current_horizontal = Vector2(velocity.x, velocity.z)
-	var speed = current_horizontal.length()
-
-	if on_floor:
-		if target_dir != Vector3.ZERO:
-			if speed > effective_max_speed:
-				current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * effective_max_speed, ground_friction * delta)
-			else:
-				current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * effective_max_speed, ground_acceleration * delta)
-		else:
-			current_horizontal = current_horizontal.move_toward(Vector2.ZERO, ground_friction * delta)
-	else:
-		if target_dir != Vector3.ZERO:
-			if speed > effective_max_speed:
-				current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * speed, air_acceleration * 0.5 * delta)
-				current_horizontal = current_horizontal.move_toward(Vector2.ZERO, air_drag * delta)
-			else:
-				current_horizontal = current_horizontal.move_toward(Vector2(target_dir.x, target_dir.z) * effective_max_speed, air_acceleration * delta)
-		else:
-			current_horizontal = current_horizontal.move_toward(Vector2.ZERO, air_drag * delta)
-
-	velocity.x = current_horizontal.x + knockback_velocity.x
-	velocity.z = current_horizontal.y + knockback_velocity.z
-
 	# Aiming
-	if not stunned:
+	if not is_stunned():
 		aim_at_mouse()
 
 	# Delegate Character-specific inputs (LMB, RMB, Q, E, R, SHIFT)
-	if not stunned:
+	if not is_stunned():
 		_handle_character_input(delta)
 
-	# Execute Physics Move
-	var pre_move_vel = velocity
-	move_and_slide()
-
-	# Wall Impact Damage Check
-	_check_wall_impact(pre_move_vel)
+	# Execute Physics Move & Slide via PlayerPhysics
+	_process_player_movement_physics(delta, is_channeling)
 
 func _process_camera(delta: float) -> void:
 	if not camera:
@@ -406,13 +344,18 @@ func _check_wall_impact(pre_move_vel: Vector3) -> void:
 		for i in range(get_slide_collision_count()):
 			var collision = get_slide_collision(i)
 			var normal = collision.get_normal()
+			if normal.y > 0.7:
+				continue
 			var impact_speed = -pre_move_vel.dot(normal)
 			if impact_speed >= WALL_IMPACT_MIN_SPEED:
 				wall_impact_cooldown_timer = 0.5
 				var wall_dmg = impact_speed * WALL_IMPACT_DAMAGE_FACTOR
-				apply_stun(1.0)
+				if knockback_wall_stun > 0.0:
+					apply_stun(knockback_wall_stun)
 				knockback_velocity = Vector3.ZERO
-				if multiplayer.is_server() or not multiplayer.has_multiplayer_peer():
+				knockback_wall_stun = 0.0
+				velocity = Vector3.ZERO
+				if is_server_authoritative():
 					take_damage(wall_dmg, 0, ActionType.ENVIRONMENT)
 				else:
 					request_wall_impact_damage.rpc_id(1, wall_dmg)
@@ -445,9 +388,71 @@ func get_mouse_ground_intersection():
 	var ground_plane = Plane(Vector3.UP, global_position.y)
 	return ground_plane.intersects_ray(ray_origin, ray_dir)
 
+func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:
+	var default_fwd = -global_transform.basis.z.normalized()
+	default_fwd.y = 0.0
+	if default_fwd.length_squared() < 0.0001:
+		default_fwd = Vector3.FORWARD
+	default_fwd = default_fwd.normalized()
+	
+	var viewport = get_viewport()
+	if not viewport or not camera:
+		return default_fwd
+	
+	var mouse_pos = viewport.get_mouse_position()
+	var ray_origin = camera.project_ray_origin(mouse_pos)
+	var ray_dir = camera.project_ray_normal(mouse_pos)
+	var space_state = get_world_3d().direct_space_state
+	
+	# 1. Direct Raycast Hit against characters (Collision layer 2: players / dummies)
+	var player_query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 300.0, 2)
+	player_query.collide_with_areas = false
+	player_query.collide_with_bodies = true
+	player_query.exclude = [get_rid()]
+	var player_result = space_state.intersect_ray(player_query)
+	
+	if not player_result.is_empty():
+		var hit_collider = player_result.collider
+		if hit_collider != self and hit_collider is CharacterBody3D and not hit_collider.get("is_dead") and is_enemy(hit_collider):
+			var target_pos = hit_collider.global_position + Vector3(0, 0.85, 0)
+			var shoot_dir = target_pos - spawn_pos
+			if shoot_dir.length_squared() > 0.0001:
+				return shoot_dir.normalized()
+	
+	# 2. Forgiving Proximity Check: If cursor is near an enemy character
+	var players_container = get_tree().root.get_node_or_null("Main/Players")
+	var best_target_pos: Vector3 = Vector3.ZERO
+	var min_screen_dist: float = 80.0 # Forgiving pixel radius around mouse cursor
+	var max_ray_dist: float = 2.5     # 3D distance tolerance to ray (meters)
+	
+	if players_container:
+		for p in players_container.get_children():
+			if p != self and p is CharacterBody3D and not p.get("is_dead") and is_enemy(p):
+				var t_pos = p.global_position + Vector3(0, 0.85, 0)
+				if not camera.is_position_behind(t_pos):
+					var screen_pos = camera.unproject_position(t_pos)
+					var screen_dist = mouse_pos.distance_to(screen_pos)
+					var v = t_pos - ray_origin
+					var t = v.dot(ray_dir)
+					if t > 0.0:
+						var closest_pt = ray_origin + ray_dir * t
+						var dist_to_ray = (t_pos - closest_pt).length()
+						if screen_dist <= min_screen_dist and dist_to_ray <= max_ray_dist:
+							min_screen_dist = screen_dist
+							best_target_pos = t_pos
+
+	if best_target_pos != Vector3.ZERO:
+		var shoot_dir = best_target_pos - spawn_pos
+		if shoot_dir.length_squared() > 0.0001:
+			return shoot_dir.normalized()
+	
+	return default_fwd
+
 # --- Damage, Shields & Health Management ---
 func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK) -> void:
-	if not multiplayer.is_server() or is_dead:
+	if is_multiplayer_match() and not multiplayer.is_server():
+		return
+	if is_dead:
 		return
 
 	if is_ethereal_active():
@@ -463,11 +468,13 @@ func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionT
 		var absorbed = min(current_shield, remaining_dmg)
 		current_shield -= absorbed
 		remaining_dmg -= absorbed
-		sync_shield.rpc(current_shield)
+		if is_multiplayer_match() and multiplayer.is_server():
+			sync_shield.rpc(current_shield)
 
 	if remaining_dmg > 0.0:
 		current_health -= remaining_dmg
-		sync_health.rpc(current_health)
+		if is_multiplayer_match() and multiplayer.is_server():
+			sync_health.rpc(current_health)
 
 	_on_damage_taken_hook(final_dmg, attacker_id, action_type)
 	damage_taken.emit(attacker_id, final_dmg, action_type)
@@ -485,21 +492,109 @@ func _on_damage_dealt(target: Node, amount: float, action_type: int) -> void:
 	_on_character_damage_dealt(target, amount, action_type)
 
 func heal(amount: float) -> void:
-	if not multiplayer.is_server() or is_dead:
+	if (is_multiplayer_match() and not multiplayer.is_server()) or is_dead:
 		return
 	current_health = clamp(current_health + amount, 0.0, max_health)
-	sync_health.rpc(current_health)
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_health.rpc(current_health)
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func sync_health(new_health: float) -> void:
 	current_health = new_health
 	if current_health <= 0.0 and not is_dead:
 		is_dead = true
 		_update_death_state(true)
 
+func _setup_health_bars() -> void:
+	var vp = get_node_or_null("HealthBarViewport")
+	if not vp:
+		return
+	
+	var vp_size = vp.size if vp.size != Vector2i.ZERO else Vector2i(220, 28)
+	var sz = Vector2(vp_size.x, vp_size.y)
+	
+	var bg_sb = StyleBoxFlat.new()
+	bg_sb.bg_color = Color(0.12, 0.12, 0.12, 0.85)
+	bg_sb.corner_radius_top_left = 4
+	bg_sb.corner_radius_top_right = 4
+	bg_sb.corner_radius_bottom_right = 4
+	bg_sb.corner_radius_bottom_left = 4
+
+	var gray_fill_sb = StyleBoxFlat.new()
+	gray_fill_sb.bg_color = Color(0.35, 0.37, 0.40, 0.95)
+	gray_fill_sb.corner_radius_top_left = 4
+	gray_fill_sb.corner_radius_top_right = 4
+	gray_fill_sb.corner_radius_bottom_right = 4
+	gray_fill_sb.corner_radius_bottom_left = 4
+
+	var shield_fill_sb = StyleBoxFlat.new()
+	shield_fill_sb.bg_color = Color(1.0, 1.0, 1.0, 1.0)
+	shield_fill_sb.corner_radius_top_left = 4
+	shield_fill_sb.corner_radius_top_right = 4
+	shield_fill_sb.corner_radius_bottom_right = 4
+	shield_fill_sb.corner_radius_bottom_left = 4
+
+	# 1. Gray Health Progress Bar (Layer 0 - Bottom)
+	gray_health_bar = vp.get_node_or_null("GrayProgressBar") as ProgressBar
+	if not gray_health_bar:
+		gray_health_bar = ProgressBar.new()
+		gray_health_bar.name = "GrayProgressBar"
+		vp.add_child(gray_health_bar)
+	
+	gray_health_bar.custom_minimum_size = sz
+	gray_health_bar.size = sz
+	gray_health_bar.position = Vector2.ZERO
+	gray_health_bar.show_percentage = false
+	gray_health_bar.add_theme_stylebox_override("background", bg_sb)
+	gray_health_bar.add_theme_stylebox_override("fill", gray_fill_sb)
+	vp.move_child(gray_health_bar, 0)
+
+	# 2. Shield Progress Bar (Layer 1 - Middle)
+	shield_bar = vp.get_node_or_null("ShieldProgressBar") as ProgressBar
+	if not shield_bar:
+		shield_bar = ProgressBar.new()
+		shield_bar.name = "ShieldProgressBar"
+		vp.add_child(shield_bar)
+	
+	shield_bar.custom_minimum_size = sz
+	shield_bar.size = sz
+	shield_bar.position = Vector2.ZERO
+	shield_bar.show_percentage = false
+	shield_bar.add_theme_stylebox_override("background", StyleBoxEmpty.new())
+	shield_bar.add_theme_stylebox_override("fill", shield_fill_sb)
+	vp.move_child(shield_bar, 1)
+
+	# 3. Main Health Progress Bar (Layer 2 - Top)
+	health_bar = vp.get_node_or_null("ProgressBar") as ProgressBar
+	if not health_bar:
+		health_bar = ProgressBar.new()
+		health_bar.name = "ProgressBar"
+		vp.add_child(health_bar)
+	
+	health_bar.custom_minimum_size = sz
+	health_bar.size = sz
+	health_bar.position = Vector2.ZERO
+	health_bar.show_percentage = false
+	health_bar.add_theme_stylebox_override("background", StyleBoxEmpty.new())
+	vp.move_child(health_bar, 2)
+
 func update_health_bar() -> void:
+	var gh: float = 0.0
+	if "gray_health" in self:
+		gh = self.get("gray_health")
+	
+	var total_display_max = max(max_health, current_health + current_shield + gh)
+	
+	if gray_health_bar:
+		gray_health_bar.max_value = total_display_max
+		gray_health_bar.value = current_health + current_shield + gh
+	
+	if shield_bar:
+		shield_bar.max_value = total_display_max
+		shield_bar.value = current_health + current_shield
+	
 	if health_bar:
-		health_bar.max_value = max_health
+		health_bar.max_value = total_display_max
 		health_bar.value = current_health
 
 func die() -> void:
@@ -509,22 +604,29 @@ func die() -> void:
 	cancel_channel()
 	cleanse_cc()
 
-	var main_node = get_tree().root.get_node_or_null("Main")
-	var in_training = (main_node and main_node.get("is_training_mode") == true)
+	var main_node = get_tree().current_scene if get_tree() else null
+	if not main_node or not main_node.has_method("on_player_died"):
+		main_node = get_tree().root.get_node_or_null("Main")
+
+	var in_training = (main_node and main_node.get("is_training_mode") == true) or not is_multiplayer_match()
 
 	if in_training:
-		sync_death_state.rpc(true)
+		_update_death_state(true)
 		get_tree().create_timer(0.6).timeout.connect(func():
 			if is_instance_valid(self):
 				respawn()
 		)
 		return
 
-	sync_death_state.rpc(true)
+	if is_multiplayer_match():
+		sync_death_state.rpc(true)
+	else:
+		_update_death_state(true)
+
 	if main_node and main_node.has_method("on_player_died"):
 		main_node.on_player_died(name.to_int())
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func sync_death_state(dead: bool) -> void:
 	is_dead = dead
 	_update_death_state(dead)
@@ -533,162 +635,56 @@ func _update_death_state(dead: bool) -> void:
 	visible = not dead
 	set_process_mode(PROCESS_MODE_INHERIT)
 	var main_node = get_tree().root.get_node_or_null("Main")
-	var in_training = (main_node and main_node.get("is_training_mode") == true)
+	var in_training = (main_node and main_node.get("is_training_mode") == true) or not is_multiplayer_match()
 
 	if dead:
 		velocity = Vector3.ZERO
 		knockback_velocity = Vector3.ZERO
-		if name.to_int() == multiplayer.get_unique_id():
+		knockback_wall_stun = 0.0
+		if is_local_player() or name == "1":
 			if spectator_panel and not in_training:
 				spectator_panel.visible = true
 	else:
-		if name.to_int() == multiplayer.get_unique_id():
+		if is_local_player() or name == "1":
 			if spectator_panel:
 				spectator_panel.visible = false
 
 func respawn() -> void:
-	if not multiplayer.is_server() and multiplayer.has_multiplayer_peer():
+	if is_multiplayer_match() and not multiplayer.is_server():
 		return
+
+	var spawn_pos = Vector3(-8.0, 0.1, 0.0)
+	var main_node = get_tree().root.get_node_or_null("Main")
+	var in_training = (main_node and main_node.get("is_training_mode") == true) or not is_multiplayer_match()
+
+	if not in_training:
+		var spawn_points = get_tree().root.get_node_or_null("Main/SpawnPoints")
+		if spawn_points and spawn_points.get_child_count() > 0:
+			var idx = randi() % spawn_points.get_child_count()
+			spawn_pos = spawn_points.get_child(idx).global_position
+
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_respawn.rpc(spawn_pos)
+	else:
+		sync_respawn(spawn_pos)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_respawn(spawn_pos: Vector3) -> void:
 	is_dead = false
 	current_health = max_health
 	current_shield = 0.0
 	cleanse_cc()
-	sync_health.rpc(current_health)
-	sync_shield.rpc(current_shield)
-	sync_death_state.rpc(false)
-
+	global_position = spawn_pos
+	velocity = Vector3.ZERO
+	knockback_velocity = Vector3.ZERO
+	knockback_wall_stun = 0.0
+	_update_death_state(false)
+	
 	var main_node = get_tree().root.get_node_or_null("Main")
-	if main_node and main_node.get("is_training_mode") == true:
-		global_position = Vector3(-8.0, 0.1, 0.0)
-		velocity = Vector3.ZERO
-		knockback_velocity = Vector3.ZERO
+	if main_node and main_node.get("is_training_mode") == true and (is_local_player() or name == "1"):
 		scale = Vector3(0.1, 0.1, 0.1)
 		var tween = create_tween()
 		tween.tween_property(self, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		return
-
-	var spawn_points = get_tree().root.get_node_or_null("Main/SpawnPoints")
-	if spawn_points and spawn_points.get_child_count() > 0:
-		var idx = randi() % spawn_points.get_child_count()
-		global_position = spawn_points.get_child(idx).global_position
-		velocity = Vector3.ZERO
-		knockback_velocity = Vector3.ZERO
-
-# --- Universal Status Effect Appliers ---
-func apply_stun(duration: float) -> void:
-	if is_cc_immune:
-		return
-	stun_timer = max(stun_timer, duration)
-	cancel_channel()
-	sync_status_effect.rpc("stun", duration, 0.0)
-
-func apply_slow(duration: float, percent: float) -> void:
-	if is_cc_immune:
-		return
-	slow_timer = max(slow_timer, duration)
-	slow_initial_duration = slow_timer
-	slow_initial_percent = max(slow_initial_percent, clamp(percent, 0.0, 0.95))
-	slow_percent = slow_initial_percent
-	sync_status_effect.rpc("slow", duration, slow_percent)
-
-func apply_silence(duration: float) -> void:
-	if is_cc_immune:
-		return
-	silence_timer = max(silence_timer, duration)
-	cancel_channel()
-	sync_status_effect.rpc("silence", duration, 0.0)
-
-func apply_root(duration: float) -> void:
-	if is_cc_immune:
-		return
-	root_timer = max(root_timer, duration)
-	sync_status_effect.rpc("root", duration, 0.0)
-
-func apply_grounded(duration: float) -> void:
-	if is_cc_immune:
-		return
-	grounded_timer = max(grounded_timer, duration)
-	sync_status_effect.rpc("grounded", duration, 0.0)
-
-func apply_cripple(duration: float, intensity: float = 0.35) -> void:
-	if is_cc_immune:
-		return
-	cripple_timer = max(cripple_timer, duration)
-	cripple_intensity = intensity
-	sync_status_effect.rpc("cripple", duration, intensity)
-
-func apply_ethereal(duration: float) -> void:
-	ethereal_timer = max(ethereal_timer, duration)
-	sync_status_effect.rpc("ethereal", duration, 0.0)
-
-func apply_speed_boost(duration: float, percent: float) -> void:
-	speed_boost_timer = max(speed_boost_timer, duration)
-	speed_boost_percent = max(speed_boost_percent, percent)
-	sync_status_effect.rpc("speed_boost", duration, percent)
-
-func apply_knockback(impulse_vec: Vector3, is_external: bool = true) -> void:
-	if is_cc_immune:
-		return
-	if is_external:
-		knockback_velocity += impulse_vec
-	else:
-		velocity += impulse_vec
-
-func cleanse_cc() -> void:
-	stun_timer = 0.0
-	slow_timer = 0.0
-	slow_percent = 0.0
-	silence_timer = 0.0
-	root_timer = 0.0
-	grounded_timer = 0.0
-	cripple_timer = 0.0
-
-@rpc("authority", "call_local", "reliable")
-func sync_status_effect(effect_name: String, duration: float, param: float) -> void:
-	match effect_name:
-		"stun":
-			stun_timer = max(stun_timer, duration)
-			cancel_channel()
-		"slow":
-			slow_timer = max(slow_timer, duration)
-			slow_initial_duration = slow_timer
-			slow_initial_percent = max(slow_initial_percent, param)
-			slow_percent = slow_initial_percent
-		"silence":
-			silence_timer = max(silence_timer, duration)
-			cancel_channel()
-		"root":
-			root_timer = max(root_timer, duration)
-		"grounded":
-			grounded_timer = max(grounded_timer, duration)
-		"cripple":
-			cripple_timer = max(cripple_timer, duration)
-			cripple_intensity = param
-		"ethereal":
-			ethereal_timer = max(ethereal_timer, duration)
-		"speed_boost":
-			speed_boost_timer = max(speed_boost_timer, duration)
-			speed_boost_percent = max(speed_boost_percent, param)
-
-# --- Universal Float / Levitation ---
-func start_float_state() -> void:
-	is_floating = true
-	float_timer = 0.0
-	current_gravity_mult = 1.0
-	sync_float_state.rpc(true)
-
-func end_float_state() -> void:
-	is_floating = false
-	float_timer = 0.0
-	current_gravity_mult = 1.0
-	sync_float_state.rpc(false)
-
-@rpc("authority", "call_local", "reliable")
-func sync_float_state(floating: bool) -> void:
-	is_floating = floating
-	if not floating:
-		float_timer = 0.0
-		current_gravity_mult = 1.0
 
 # --- Spectator Processing ---
 func _process_spectator(_delta: float) -> void:
@@ -783,3 +779,113 @@ func _on_damage_taken_hook(_amount: float, _attacker_id: int, _action_type: int)
 
 func _on_character_damage_dealt(_target: Node, _amount: float, _action_type: int) -> void:
 	pass
+
+# --- Systemic Ability Hitbox & Delayed Telegraph Pipeline ---
+func show_ability_telegraph(ability_def: RefCounted, origin: Vector3, facing_dir: Vector3, delay: float) -> Node3D:
+	if not ability_def or not ability_def.has_hitbox():
+		return null
+	var ind = AbilityIndicator.create_from_hitbox(ability_def.hitbox)
+	if not ind:
+		return null
+	
+	var follows_caster = false
+	if ability_def.effect and "follow_caster" in ability_def.effect and ability_def.effect.follow_caster:
+		follows_caster = true
+
+	if follows_caster:
+		ind.top_level = false
+		add_child(ind)
+		ind.position = Vector3.ZERO
+		ind.rotation = Vector3.ZERO
+	else:
+		ind.top_level = true
+		get_tree().root.add_child(ind)
+		ind.global_position = origin
+		if facing_dir.length_squared() > 0.001:
+			var target = origin + facing_dir
+			ind.look_at(Vector3(target.x, origin.y, target.z), Vector3.UP)
+			ind.rotation.x = 0.0
+			ind.rotation.z = 0.0
+	
+	ind.show()
+	
+	if delay > 0.0:
+		get_tree().create_timer(delay).timeout.connect(func():
+			if is_instance_valid(ind):
+				AbilityIndicator.flash_and_fade(ind, get_tree(), 0.15)
+				get_tree().create_timer(0.20).timeout.connect(func():
+					if is_instance_valid(ind):
+						ind.queue_free()
+				)
+		)
+	else:
+		AbilityIndicator.flash_and_fade(ind, get_tree(), 0.15)
+		get_tree().create_timer(0.20).timeout.connect(func():
+			if is_instance_valid(ind):
+				ind.queue_free()
+		)
+	return ind
+
+func start_ability_windup(ability_id: String, facing_dir: Vector3 = Vector3.ZERO) -> void:
+	var ability_def = null
+	if "abilities" in self and self.abilities is Dictionary:
+		ability_def = self.abilities.get(ability_id)
+	if ability_def and ability_def.effect and ability_def.effect.windup_time > 0.0:
+		active_windup_facing = facing_dir if facing_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
+		active_windup_id = ability_id
+		# Also broadcast fallback RPC for peers connecting mid-frame or custom net setups
+		sync_ability_windup.rpc(ability_id, global_position, active_windup_facing, ability_def.effect.windup_time)
+
+func _on_windup_id_changed(ability_id: String) -> void:
+	var ability_def = null
+	if "abilities" in self and self.abilities is Dictionary:
+		ability_def = self.abilities.get(ability_id)
+	if ability_def and ability_def.has_hitbox():
+		var delay = ability_def.effect.windup_time if (ability_def.effect and ability_def.effect.windup_time > 0.0) else 0.0
+		if delay > 0.0:
+			show_ability_telegraph(ability_def, global_position, active_windup_facing, delay)
+			if is_multiplayer_authority():
+				get_tree().create_timer(delay).timeout.connect(func():
+					if active_windup_id == ability_id:
+						active_windup_id = ""
+				)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_ability_windup(ability_id: String, origin: Vector3, facing: Vector3, delay: float) -> void:
+	if delay <= 0.0:
+		return
+	# If synchronizer already created the telegraph, avoid duplicate display
+	if active_windup_id == ability_id and is_multiplayer_authority():
+		return
+	var ability_def = null
+	if "abilities" in self and self.abilities is Dictionary:
+		ability_def = self.abilities.get(ability_id)
+	if ability_def:
+		show_ability_telegraph(ability_def, origin, facing, delay)
+
+func trigger_ability_hitbox(ability_key_or_id: String, origin: Vector3 = Vector3.ZERO, facing_dir: Vector3 = Vector3.ZERO) -> void:
+	var ability_def = null
+	if "abilities" in self and self.abilities is Dictionary:
+		ability_def = self.abilities.get(ability_key_or_id)
+	if not ability_def or not ability_def.has_hitbox():
+		return
+	
+	var cast_origin = origin if origin != Vector3.ZERO else global_position
+	var cast_facing = facing_dir if facing_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
+	cast_facing.y = 0.0
+	if cast_facing.length_squared() > 0.001:
+		cast_facing = cast_facing.normalized()
+	else:
+		cast_facing = -global_transform.basis.z.normalized()
+	
+	show_ability_telegraph(ability_def, cast_origin, cast_facing, 0.0)
+	if is_multiplayer_match() and (is_multiplayer_authority() or multiplayer.is_server()):
+		sync_trigger_hitbox.rpc(ability_key_or_id, cast_origin, cast_facing)
+
+@rpc("any_peer", "call_remote", "reliable")
+func sync_trigger_hitbox(ability_key_or_id: String, origin: Vector3, facing: Vector3) -> void:
+	var ability_def = null
+	if "abilities" in self and self.abilities is Dictionary:
+		ability_def = self.abilities.get(ability_key_or_id)
+	if ability_def and ability_def.has_hitbox():
+		show_ability_telegraph(ability_def, origin, facing, 0.0)

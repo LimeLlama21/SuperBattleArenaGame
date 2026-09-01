@@ -65,6 +65,7 @@ static func get_abilities() -> Dictionary:
 	q.effect = AbilityPipeline.AbilityEffect.new()
 	q.effect.effect_type = AbilityPipeline.EffectType.AREA_ZONE
 	q.effect.windup_time = 0.75
+	q.effect.follow_caster = true
 	q.hitbox = AbilityPipeline.AbilityHitbox.new()
 	q.hitbox.shape = AbilityPipeline.HitboxShape.DONUT
 	q.hitbox.radius = 5.5

@@ -23,7 +23,7 @@ static func create() -> CharacterData:
 	}
 	data.passive_data = {
 		"dash_impulse": 26.0,
-		"max_dash_charges": 2,
+		"max_dash_charges": 1,
 		"dash_lockout": 0.85,
 		"dash_recharge_time": 5.0,
 		"rupture_mark_duration": 3.5,
@@ -35,9 +35,10 @@ static func create() -> CharacterData:
 		"melee_damage": 32.0,
 		"melee_windup_time": 0.18,
 		"heavy_melee_size": 3.0,
+		"heavy_melee_height": 2.4,
 		"heavy_melee_angle_deg": 135.0,
 		"heavy_melee_damage": 65.0,
-		"crash_damage": 12.0,
+		"crash_damage": 36.0,
 		"crash_radius": 6.0
 	}
 	return data

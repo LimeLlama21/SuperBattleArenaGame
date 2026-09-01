@@ -12,10 +12,13 @@ var dash_timer: float = 0.0
 var current_camera_offset: Vector3 = CAMERA_OFFSET
 
 # --- Passive: Harbinger of Doom ---
-var passive_crows_count: int = 0
+var passive_crows_count: int = 0:
+	set(value):
+		passive_crows_count = value
+		_update_crow_orbit_visuals()
 const MAX_PASSIVE_CROWS: int = 3
 const CROW_DETECT_RADIUS: float = 7.0
-const CROW_DAMAGE: float = 20.0
+const CROW_DAMAGE: float = 12.0
 const CROW_SLOW_PCT: float = 0.35
 const CROW_SLOW_DUR: float = 1.8
 var crow_orbit_angle: float = 0.0
@@ -27,7 +30,7 @@ var lmb_charge_timer: float = 0.0
 const LMB_FIRST_CHARGE: float = 0.35
 const LMB_SUBSEQUENT_CHARGE: float = 0.18
 const LMB_MAX_FEATHERS: int = 5
-const LMB_FEATHER_DAMAGE: float = 14.0
+const LMB_FEATHER_DAMAGE: float = 9.0
 var lmb_burst_queue: int = 0
 var lmb_burst_timer: float = 0.0
 var lmb_burst_dir: Vector3 = Vector3.FORWARD
@@ -38,11 +41,12 @@ var mortar_charge_timer: float = 0.0
 const MORTAR_MIN_RANGE: float = 5.0
 const MORTAR_MAX_RANGE: float = 22.0
 const MORTAR_CHARGE_TIME: float = 0.85
-const MORTAR_DAMAGE: float = 45.0
+const MORTAR_DAMAGE: float = 20.0
 const MORTAR_RADIUS: float = 3.2
-const MORTAR_SPEED: float = 24.0
-const MORTAR_RECHARGE_TIME: float = 6.5
-var current_mortar_charges: int = 2
+const MORTAR_SPEED: float = 38.0
+const MORTAR_RECHARGE_TIME: float = 6.0
+var current_mortar_charges: int = 1
+var max_mortar_charges: int = 1
 var mortar_recharge_timer: float = 0.0
 
 # --- Ability 2 (Q): Inescapable Ends (Dual-Cast Tether) ---
@@ -51,29 +55,37 @@ var anchor_one_data: Dictionary = {}
 var anchor_two_data: Dictionary = {}
 var tether_pull_timer: float = 0.0
 const TETHER_DURATION: float = 3.0
-const TETHER_PULL_ACCEL: float = 32.0
+const TETHER_PULL_ACCEL: float = 26.0
 const TETHER_COLLIDE_DIST: float = 1.5
 var tether_visual_line: MeshInstance3D = null
 
 # --- Ability 3 (E): Cry of the Banshee ---
 const BANSHEE_RADIUS: float = 7.5
 const BANSHEE_ANGLE: float = 85.0
-const BANSHEE_DAMAGE: float = 38.0
+const BANSHEE_DAMAGE: float = 24.0
 const BANSHEE_SILENCE_DUR: float = 1.4
 
 # --- Ultimate (R): Born of Blood, Return to Blood ---
 const ULT_CHANNEL_TIME: float = 1.0
-const ULT_WAVE_DAMAGE: float = 80.0
+const ULT_WAVE_DAMAGE: float = 50.0
 const ULT_WAVE_WIDTH: float = 12.0
 const ULT_WAVE_SPEED: float = 22.0
 const ULT_WAVE_RANGE: float = 45.0
 
 # --- Dash (SHIFT): Crowstorm ---
-var is_crowstorm_active: bool = false
+var is_crowstorm_active: bool = false:
+	set(value):
+		is_crowstorm_active = value
+		if crowstorm_mesh: crowstorm_mesh.visible = value
+		if char_mesh: char_mesh.visible = not value
 var crowstorm_timer: float = 0.0
 var crowstorm_dir: Vector3 = Vector3.FORWARD
-const CROWSTORM_DURATION: float = 1.4
-const CROWSTORM_MS_MULT: float = 0.60
+var crowstorm_turn_velocity: float = 0.0
+const CROWSTORM_DURATION: float = 2.0
+const CROWSTORM_FIXED_SPEED: float = 17.5
+const CROWSTORM_TURN_ACCEL: float = 26.0
+const CROWSTORM_MAX_TURN_RATE: float = 6.5
+const CROWSTORM_TURN_DRAG: float = 20.0
 const CROWSTORM_DR_MULT: float = 0.50
 
 # Hold-to-aim Indicators
@@ -103,6 +115,8 @@ func _setup_character_kit() -> void:
 	max_move_speed = data.max_move_speed
 	ground_acceleration = data.ground_acceleration
 	ground_friction = data.ground_friction
+	if "intentional_movement_friction" in data:
+		intentional_movement_friction = data.intentional_movement_friction
 	air_acceleration = data.air_acceleration
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
@@ -111,30 +125,42 @@ func _setup_character_kit() -> void:
 	_setup_local_indicators()
 	_setup_tether_visual()
 
+	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
+	if sync and sync.replication_config:
+		_add_sync_property(sync.replication_config, NodePath(".:passive_crows_count"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:is_crowstorm_active"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+
 func _setup_local_indicators() -> void:
-	if name.to_int() != multiplayer.get_unique_id():
+	if not is_local_player():
 		return
 		
-	ind_attack = AbilityIndicator.create_line_indicator(35.0, 0.4, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_attack)
-	ind_attack.hide()
+	var lmb_def = abilities.get("LMB")
+	if lmb_def and lmb_def.hitbox:
+		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_attack)
+		ind_attack.hide()
 	
-	ind_rmb = AbilityIndicator.create_arc_trajectory_indicator(MORTAR_RADIUS, Color(0.2, 0.05, 0.35, 0.25), Color(0.75, 0.2, 0.95, 0.95))
-	ind_rmb.top_level = true
+	ind_rmb = AbilityIndicator.create_mortar_indicator(MORTAR_RADIUS, Color(0.2, 0.05, 0.35, 0.25), Color(0.75, 0.2, 0.95, 0.95))
 	add_child(ind_rmb)
 	ind_rmb.hide()
 	
-	ind_q = AbilityIndicator.create_line_indicator(15.0, 0.6, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_q)
-	ind_q.hide()
+	var q_def = abilities.get("Q")
+	if q_def and q_def.hitbox:
+		ind_q = AbilityIndicator.create_emanating_indicator(q_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_q)
+		ind_q.hide()
 	
-	ind_e = AbilityIndicator.create_sector_indicator(BANSHEE_RADIUS, BANSHEE_ANGLE, Color(0.2, 0.05, 0.35, 0.25), Color(0.7, 0.15, 0.9, 0.95))
-	add_child(ind_e)
-	ind_e.hide()
+	var e_def = abilities.get("E")
+	if e_def and e_def.hitbox:
+		ind_e = AbilityIndicator.create_emanating_indicator(e_def.hitbox, Color(0.2, 0.05, 0.35, 0.25), Color(0.7, 0.15, 0.9, 0.95))
+		add_child(ind_e)
+		ind_e.hide()
 	
-	ind_r = AbilityIndicator.create_line_indicator(ULT_WAVE_RANGE, ULT_WAVE_WIDTH, Color(0.6, 0.05, 0.1, 0.3), Color(0.9, 0.1, 0.2, 0.95))
-	add_child(ind_r)
-	ind_r.hide()
+	var r_def = abilities.get("R")
+	if r_def and r_def.hitbox:
+		ind_r = AbilityIndicator.create_emanating_indicator(r_def.hitbox, Color(0.6, 0.05, 0.1, 0.3), Color(0.9, 0.1, 0.2, 0.95))
+		add_child(ind_r)
+		ind_r.hide()
 
 func _setup_tether_visual() -> void:
 	tether_visual_line = MeshInstance3D.new()
@@ -175,7 +201,7 @@ func _process_character_kit(delta: float) -> void:
 			_fire_single_feather(lmb_burst_dir)
 
 	# Mortar recharge charges
-	if current_mortar_charges < 2:
+	if current_mortar_charges < max_mortar_charges:
 		mortar_recharge_timer += delta
 		if mortar_recharge_timer >= MORTAR_RECHARGE_TIME:
 			mortar_recharge_timer = 0.0
@@ -204,7 +230,7 @@ func _process_character_kit(delta: float) -> void:
 			_end_crowstorm()
 
 	# Cooldowns tracking
-	if name.to_int() == multiplayer.get_unique_id():
+	if is_local_player():
 		if attack_timer > 0.0: attack_timer -= delta
 		if rmb_timer > 0.0: rmb_timer -= delta
 		if q_timer > 0.0: q_timer -= delta
@@ -225,23 +251,37 @@ func modify_incoming_damage(amount: float, _attacker_id: int, _action_type: int)
 		return amount * CROWSTORM_DR_MULT
 	return amount
 
-func get_effective_max_speed(current_speed: float) -> float:
-	if is_crowstorm_active:
-		return current_speed * (1.0 + CROWSTORM_MS_MULT)
-	return current_speed
+func has_custom_movement_control() -> bool:
+	return is_crowstorm_active
 
 func get_status_text() -> String:
 	if is_crowstorm_active:
-		return "✦ CROWSTORM (+60%% MS / 50%% DR) (%.1fs) ✦" % crowstorm_timer
+		return "✦ CROWSTORM (17.5 m/s / 50%% DR) (%.1fs) ✦" % crowstorm_timer
 	return ""
 
 func _handle_character_input(delta: float) -> void:
 	if is_crowstorm_active:
-		# Player steers direction during crowstorm
+		if Input.is_action_just_pressed("dash"):
+			_end_crowstorm()
+			return
+		# Player steers direction with turning acceleration, not directional acceleration
 		var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 		if input_dir != Vector2.ZERO:
-			var target_d = Vector3(input_dir.x, 0, input_dir.y).normalized()
-			crowstorm_dir = crowstorm_dir.slerp(target_d, 4.5 * delta).normalized()
+			var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
+			var current_angle = atan2(crowstorm_dir.z, crowstorm_dir.x)
+			var target_angle = atan2(target_dir.z, target_dir.x)
+			var angle_diff = wrapf(target_angle - current_angle, -PI, PI)
+			
+			var turn_dir = sign(angle_diff)
+			crowstorm_turn_velocity = move_toward(
+				crowstorm_turn_velocity,
+				turn_dir * CROWSTORM_MAX_TURN_RATE,
+				CROWSTORM_TURN_ACCEL * delta
+			)
+			if abs(angle_diff) < abs(crowstorm_turn_velocity * delta):
+				crowstorm_turn_velocity = angle_diff / delta
+		else:
+			crowstorm_turn_velocity = move_toward(crowstorm_turn_velocity, 0.0, CROWSTORM_TURN_DRAG * delta)
 		return
 		
 	if is_channeling:
@@ -379,11 +419,15 @@ func _release_black_plumage() -> void:
 	var def = abilities.get("LMB")
 	attack_timer = def.cooldown if def else 0.25
 	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
+	var spawn_pos = global_position + Vector3(0, 1.0, 0) + facing_dir * 0.8
+	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	var feather_count = _calculate_lmb_feather_count()
 	
 	attack_performed.emit("Black Plumage (%d)" % feather_count)
 	lmb_burst_queue = feather_count
-	lmb_burst_dir = facing_dir
+	lmb_burst_dir = shoot_dir
 	lmb_burst_timer = 0.0
 
 func _fire_single_feather(dir: Vector3) -> void:
@@ -428,23 +472,22 @@ func _update_mortar_indicator() -> void:
 	var charge_ratio = clamp(mortar_charge_timer / MORTAR_CHARGE_TIME, 0.0, 1.0)
 	var current_range = lerp(MORTAR_MIN_RANGE, MORTAR_MAX_RANGE, charge_ratio)
 	var facing_dir = -global_transform.basis.z.normalized()
+	var aim_angle = atan2(facing_dir.x, -facing_dir.z)
 	
 	var hit_pos = get_mouse_ground_intersection()
-	var target_pos = global_position + facing_dir * current_range
 	if hit_pos != null:
 		var mouse_dir = Vector3(hit_pos.x - global_position.x, 0.0, hit_pos.z - global_position.z)
 		if mouse_dir.length_squared() > 0.001:
-			target_pos = global_position + mouse_dir.normalized() * current_range
+			aim_angle = atan2(mouse_dir.x, -mouse_dir.z)
 	
-	var apex_h = max(3.5, current_range * 0.42)
-	AbilityIndicator.update_arc_trajectory_indicator(ind_rmb, global_position + Vector3(0, 0.8, 0), target_pos, apex_h)
+	AbilityIndicator.update_mortar_distance_and_angle(ind_rmb, global_position, current_range, aim_angle)
 
 func _release_omen_of_death() -> void:
 	if current_mortar_charges <= 0:
 		return
 	current_mortar_charges -= 1
 	var def = abilities.get("RMB")
-	rmb_timer = def.cooldown if def else 0.8
+	rmb_timer = def.cooldown if def else MORTAR_RECHARGE_TIME
 	
 	var charge_ratio = clamp(mortar_charge_timer / MORTAR_CHARGE_TIME, 0.0, 1.0)
 	var current_range = lerp(MORTAR_MIN_RANGE, MORTAR_MAX_RANGE, charge_ratio)
@@ -460,22 +503,15 @@ func _release_omen_of_death() -> void:
 	
 	ability_cast.emit("Omen of Death", "RMB")
 	var start_p = global_position + Vector3(0, 0.8, 0)
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_spawn_mortar_shell(start_p, target_pos, name.to_int())
 	else:
 		request_mortar_shell.rpc_id(1, start_p, target_pos)
 
 func _spawn_mortar_shell(start_p: Vector3, end_p: Vector3, sender_id: int) -> void:
-	var mortar_scene = preload("res://mortar_shell.tscn")
-	var shell = mortar_scene.instantiate()
-	shell.start_pos = start_p
-	shell.end_pos = end_p
-	shell.speed = MORTAR_SPEED
-	shell.aoe_radius = MORTAR_RADIUS
-	shell.damage = MORTAR_DAMAGE
-	shell.shooter_id = sender_id
-	shell.shooter_team = team_id
-	get_tree().root.add_child(shell)
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and main_node.has_method("spawn_mortar_shell"):
+		main_node.spawn_mortar_shell(start_p, end_p, sender_id, team_id, MORTAR_SPEED, MORTAR_RADIUS, MORTAR_DAMAGE)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_mortar_shell(start_p: Vector3, end_p: Vector3) -> void:
@@ -487,14 +523,17 @@ func request_mortar_shell(start_p: Vector3, end_p: Vector3) -> void:
 # --- Ability 2: Inescapable Ends (Dual Tether) ---
 func _perform_tether_cast() -> void:
 	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
+	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	var is_recast = (tether_recast_window > 0.0 and not anchor_one_data.is_empty())
 	
 	ability_cast.emit("Inescapable Ends" + (" (Recast)" if is_recast else ""), "Q")
-	if multiplayer.is_server():
-		_execute_tether_projectile(spawn_pos, facing_dir, name.to_int(), is_recast)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_execute_tether_projectile(spawn_pos, shoot_dir, name.to_int(), is_recast)
 	else:
-		request_tether_cast.rpc_id(1, spawn_pos, facing_dir, is_recast)
+		request_tether_cast.rpc_id(1, spawn_pos, shoot_dir, is_recast)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_tether_cast(spawn_pos: Vector3, shoot_dir: Vector3, is_recast: bool) -> void:
@@ -553,10 +592,10 @@ func sync_tether_recast(has_recast: bool, _hit_p: Vector3) -> void:
 	tether_recast_window = 4.0 if has_recast else 0.0
 
 @rpc("any_peer", "call_local", "reliable")
-func sync_tether_start(p1_pos: Vector3, p2_pos: Vector3, _p1_id: int, _p2_id: int) -> void:
+func sync_tether_start(p1_pos: Vector3, p2_pos: Vector3, p1_id: int, p2_id: int) -> void:
 	tether_pull_timer = TETHER_DURATION
-	anchor_one_data = {"pos": p1_pos}
-	anchor_two_data = {"pos": p2_pos}
+	anchor_one_data = {"pos": p1_pos, "player_id": p1_id, "is_player": (p1_id > 0)}
+	anchor_two_data = {"pos": p2_pos, "player_id": p2_id, "is_player": (p2_id > 0)}
 	if tether_visual_line:
 		tether_visual_line.show()
 
@@ -636,8 +675,9 @@ func _perform_banshee_cry() -> void:
 	e_timer = def.cooldown if def else 14.0
 	var facing_dir = -global_transform.basis.z.normalized()
 	ability_cast.emit("Cry of the Banshee", "E")
+	trigger_ability_hitbox("E", global_position, facing_dir)
 	
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_banshee_cry(global_position, facing_dir, name.to_int())
 	else:
 		request_banshee_cry.rpc_id(1, global_position, facing_dir)
@@ -646,12 +686,17 @@ func _execute_banshee_cry(origin_pos: Vector3, forward_dir: Vector3, sender_id: 
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if not players_container:
 		return
+	var def = abilities.get("E")
+	var height = def.hitbox.height if (def and def.hitbox and def.hitbox.height > 0.0) else 2.6
 	var half_angle_rad = deg_to_rad(BANSHEE_ANGLE * 0.5)
 	for player in players_container.get_children():
 		if player is Node3D and player.name != str(sender_id) and not player.get("is_dead"):
 			var is_enemy = (team_id == 0 or player.get("team_id") != team_id)
 			if is_enemy:
 				var to_player = player.global_position - origin_pos
+				var dy = to_player.y
+				if dy < -2.0 or dy > height:
+					continue
 				to_player.y = 0.0
 				var dist = to_player.length()
 				if dist <= BANSHEE_RADIUS and dist > 0.001:
@@ -681,23 +726,15 @@ func _perform_born_of_blood() -> void:
 func _on_born_of_blood_complete() -> void:
 	var facing_dir = -global_transform.basis.z.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.4, 0) + facing_dir * 1.5
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_spawn_blood_wave(spawn_pos, facing_dir, name.to_int())
 	else:
 		request_blood_wave.rpc_id(1, spawn_pos, facing_dir)
 
 func _spawn_blood_wave(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int) -> void:
-	var wave_scene = preload("res://blood_wave.tscn")
-	var wave = wave_scene.instantiate()
-	wave.position = spawn_pos
-	wave.direction = shoot_dir
-	wave.speed = ULT_WAVE_SPEED
-	wave.max_range = ULT_WAVE_RANGE
-	wave.wave_width = ULT_WAVE_WIDTH
-	wave.damage = ULT_WAVE_DAMAGE
-	wave.shooter_id = sender_id
-	wave.shooter_team = team_id
-	get_tree().root.add_child(wave)
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and main_node.has_method("spawn_blood_wave"):
+		main_node.spawn_blood_wave(spawn_pos, shoot_dir, sender_id, team_id, ULT_WAVE_SPEED, ULT_WAVE_RANGE, ULT_WAVE_WIDTH, ULT_WAVE_DAMAGE)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_blood_wave(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
@@ -708,11 +745,13 @@ func request_blood_wave(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
 
 # --- Dash: Crowstorm ---
 func _execute_crowstorm_dash() -> void:
-	var def = abilities.get("SHIFT")
-	dash_timer = def.cooldown if def else 6.0
-	
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	crowstorm_dir = Vector3(input_dir.x, 0, input_dir.y).normalized() if input_dir != Vector2.ZERO else -global_transform.basis.z.normalized()
+	crowstorm_dir.y = 0.0
+	if crowstorm_dir.length_squared() < 0.001:
+		crowstorm_dir = Vector3.FORWARD
+	crowstorm_dir = crowstorm_dir.normalized()
+	crowstorm_turn_velocity = 0.0
 	
 	is_crowstorm_active = true
 	crowstorm_timer = CROWSTORM_DURATION
@@ -720,16 +759,27 @@ func _execute_crowstorm_dash() -> void:
 	sync_crowstorm.rpc(true)
 
 func _process_crowstorm(delta: float) -> void:
-	velocity.x = crowstorm_dir.x * (max_move_speed * (1.0 + CROWSTORM_MS_MULT))
-	velocity.z = crowstorm_dir.z * (max_move_speed * (1.0 + CROWSTORM_MS_MULT))
+	# Update heading angle via turning velocity
+	if abs(crowstorm_turn_velocity) > 0.001:
+		var current_angle = atan2(crowstorm_dir.z, crowstorm_dir.x)
+		var new_angle = current_angle + crowstorm_turn_velocity * delta
+		crowstorm_dir = Vector3(cos(new_angle), 0, sin(new_angle)).normalized()
+
+	# Fixed speed applied along current heading direction
+	velocity.x = crowstorm_dir.x * CROWSTORM_FIXED_SPEED
+	velocity.z = crowstorm_dir.z * CROWSTORM_FIXED_SPEED
 	if not is_on_floor():
 		velocity.y -= gravity * delta * 0.4
 	else:
 		velocity.y = 0.0
 
 func _end_crowstorm() -> void:
+	if not is_crowstorm_active:
+		return
 	is_crowstorm_active = false
 	crowstorm_timer = 0.0
+	var def = abilities.get("SHIFT")
+	dash_timer = def.cooldown if def else 6.0
 	sync_crowstorm.rpc(false)
 
 @rpc("any_peer", "call_local", "reliable")
@@ -747,7 +797,8 @@ func _update_character_hud() -> void:
 	var def_shift = abilities.get("SHIFT")
 
 	if slot_ability_one and def_rmb:
-		slot_ability_one.update_cooldown(rmb_timer, def_rmb.cooldown, current_mortar_charges, 2, is_silenced())
+		var cd = (MORTAR_RECHARGE_TIME - mortar_recharge_timer) if current_mortar_charges < max_mortar_charges else rmb_timer
+		slot_ability_one.update_cooldown(cd, MORTAR_RECHARGE_TIME, current_mortar_charges, max_mortar_charges, is_silenced())
 	if slot_ability_two and def_q:
 		var q_cd = tether_recast_window if tether_recast_window > 0.0 else q_timer
 		slot_ability_two.update_cooldown(q_cd, def_q.cooldown, 1, 1, is_silenced())

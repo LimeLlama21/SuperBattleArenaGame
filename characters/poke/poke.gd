@@ -12,9 +12,6 @@ var dash_timer: float = 0.0
 # Passive & Buff State
 var poke_speed_boost_timer: float = 0.0
 var poke_speed_boost_percent: float = 0.0
-var poke_ult_buff_timer: float = 0.0
-const POKE_ULT_BUFF_DURATION: float = 12.0
-const CAMERA_ZOOMED_OFFSET: Vector3 = Vector3(0, 30, 16.5)
 var current_camera_offset: Vector3 = CAMERA_OFFSET
 
 # Dash parameters
@@ -27,11 +24,13 @@ const LMB_HOLD_THRESHOLD: float = 0.18
 var is_holding_rmb: bool = false
 var is_holding_q: bool = false
 var is_holding_e: bool = false
+var is_holding_r: bool = false
 
 var ind_attack: Node3D = null
 var ind_rmb: Node3D = null
 var ind_q: Node3D = null
 var ind_e: Node3D = null
+var ind_r: Node3D = null
 
 var abilities: Dictionary = {}
 
@@ -43,6 +42,8 @@ func _setup_character_kit() -> void:
 	max_move_speed = data.max_move_speed
 	ground_acceleration = data.ground_acceleration
 	ground_friction = data.ground_friction
+	if "intentional_movement_friction" in data:
+		intentional_movement_friction = data.intentional_movement_friction
 	air_acceleration = data.air_acceleration
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
@@ -54,30 +55,45 @@ func _setup_character_kit() -> void:
 	_setup_local_indicators()
 
 func _setup_local_indicators() -> void:
-	if name.to_int() != multiplayer.get_unique_id():
+	if not is_local_player():
 		return
 	
-	ind_attack = AbilityIndicator.create_line_indicator(50.0, 0.35, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_attack)
-	ind_attack.hide()
+	var lmb_def = abilities.get("LMB")
+	if lmb_def and lmb_def.hitbox:
+		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_attack)
+		ind_attack.hide()
 
-	ind_rmb = AbilityIndicator.create_line_indicator(60.0, 0.7, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_rmb)
-	ind_rmb.hide()
+	var rmb_def = abilities.get("RMB")
+	if rmb_def and rmb_def.hitbox:
+		ind_rmb = AbilityIndicator.create_emanating_indicator(rmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_rmb)
+		ind_rmb.hide()
 
-	ind_q = AbilityIndicator.create_line_indicator(8.0, 0.25, Color(0.15, 0.85, 1.0, 0.35), Color(0.2, 0.95, 1.0, 0.95), false, 1.0, true)
+	var q_def = abilities.get("Q")
+	var q_len = q_def.hitbox.length if (q_def and q_def.hitbox) else 8.0
+	var q_w = q_def.hitbox.width if (q_def and q_def.hitbox) else 0.25
+	ind_q = AbilityIndicator.create_line_indicator(q_len, q_w, Color(0.15, 0.85, 1.0, 0.35), Color(0.2, 0.95, 1.0, 0.95), false, 1.0, true)
 	ind_q.top_level = true
 	add_child(ind_q)
 	ind_q.hide()
 
-	ind_e = AbilityIndicator.create_circle_indicator(12.0, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	ind_e.top_level = true
-	add_child(ind_e)
-	ind_e.hide()
+	var e_def = abilities.get("E")
+	if e_def and e_def.hitbox:
+		ind_e = AbilityIndicator.create_discrete_location_indicator(e_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_e)
+		ind_e.hide()
+
+	var r_def = abilities.get("R")
+	if r_def and r_def.hitbox:
+		ind_r = AbilityIndicator.create_emanating_indicator(r_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_r)
+		ind_r.hide()
 
 func _exit_tree() -> void:
 	if ind_q and is_instance_valid(ind_q): ind_q.queue_free()
 	if ind_e and is_instance_valid(ind_e): ind_e.queue_free()
+	if ind_r and is_instance_valid(ind_r): ind_r.queue_free()
 
 func _process_character_kit(delta: float) -> void:
 	if poke_speed_boost_timer > 0.0:
@@ -86,12 +102,7 @@ func _process_character_kit(delta: float) -> void:
 			poke_speed_boost_timer = 0.0
 			poke_speed_boost_percent = 0.0
 
-	if poke_ult_buff_timer > 0.0:
-		poke_ult_buff_timer -= delta
-		if poke_ult_buff_timer <= 0.0:
-			poke_ult_buff_timer = 0.0
-
-	if name.to_int() == multiplayer.get_unique_id():
+	if is_local_player():
 		if shoot_timer > 0.0: shoot_timer -= delta
 		if rmb_timer > 0.0: rmb_timer -= delta
 		if q_timer > 0.0: q_timer -= delta
@@ -102,8 +113,7 @@ func _process_character_kit(delta: float) -> void:
 func _process_camera(delta: float) -> void:
 	if not camera:
 		return
-	var target_offset = CAMERA_ZOOMED_OFFSET if poke_ult_buff_timer > 0.0 else CAMERA_OFFSET
-	current_camera_offset = current_camera_offset.lerp(target_offset, 5.0 * delta)
+	current_camera_offset = current_camera_offset.lerp(CAMERA_OFFSET, 5.0 * delta)
 	camera.global_position = global_position + current_camera_offset
 	camera.look_at(global_position, Vector3.UP)
 
@@ -115,8 +125,6 @@ func get_effective_max_speed(current_speed: float) -> float:
 func get_status_text() -> String:
 	if poke_speed_boost_timer > 0.0:
 		return "⚡ FLEET FOOT (+15%% MS) (%.1fs) ⚡" % poke_speed_boost_timer
-	elif poke_ult_buff_timer > 0.0:
-		return "✦ EMPOWERED PIERCING LANCE (%.1fs) ✦" % poke_ult_buff_timer
 	return ""
 
 func _handle_character_input(_delta: float) -> void:
@@ -133,8 +141,7 @@ func _handle_character_input(_delta: float) -> void:
 			if dist > max_cast_dist:
 				var dir = (target_pos - global_position).normalized()
 				target_pos = global_position + dir * max_cast_dist
-				target_pos.y = 0.06
-			ind_q.global_position = target_pos
+			AbilityIndicator.update_discrete_location(ind_q, target_pos)
 			ind_q.rotation.y = rotation.y
 
 		if is_holding_e and ind_e:
@@ -143,8 +150,7 @@ func _handle_character_input(_delta: float) -> void:
 			if dist > max_cast_dist:
 				var dir = (target_pos - global_position).normalized()
 				target_pos = global_position + dir * max_cast_dist
-				target_pos.y = 0.06
-			ind_e.global_position = target_pos
+			AbilityIndicator.update_discrete_location(ind_e, target_pos)
 
 	# --- Dash (SHIFT) ---
 	if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
@@ -205,39 +211,45 @@ func _handle_character_input(_delta: float) -> void:
 			_perform_recon_flare()
 
 	# --- Ultimate (R): Overcharge ---
-	if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0 and not is_silenced():
-		_perform_overcharge()
+	if Input.is_action_just_pressed("ability_four") and not is_silenced():
+		is_holding_r = true
+		if ind_r:
+			AbilityIndicator.reset_indicator(ind_r)
+			ind_r.show()
+	if Input.is_action_just_released("ability_four") and is_holding_r:
+		is_holding_r = false
+		if ind_r: ind_r.hide()
+		if r_timer <= 0.0 and not is_silenced():
+			_perform_overcharge()
 
 func _execute_dash() -> void:
 	dash_timer = dash_cooldown
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
 	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
-	velocity.x = dash_dir.x * dash_impulse
-	velocity.z = dash_dir.z * dash_impulse
+	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
 
 func _perform_rail_shot() -> void:
 	var def = abilities.get("LMB")
-	shoot_timer = def.cooldown if def else 0.9
+	shoot_timer = def.cooldown if def else 0.6
 	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
-	var is_empowered = (poke_ult_buff_timer > 0.0)
-	if is_empowered:
-		poke_ult_buff_timer = 0.0
-		sync_poke_ult_buff.rpc(0.0)
+	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	
-	var dmg = 18.0
-	var spd = 95.0 if is_empowered else 90.0
-	var sz = 1.3 if is_empowered else 0.35
-	var rng = 95.0 if is_empowered else 50.0
-	var pierces = is_empowered
-	var eff = "execute_scaling" if is_empowered else ""
+	var dmg = 20.0
+	var spd = 90.0
+	var sz = 0.35
+	var rng = 50.0
+	var pierces = false
+	var eff = ""
 
 	attack_performed.emit("Rail Shot")
-	if multiplayer.is_server():
-		_spawn_rail_shot(spawn_pos, facing_dir, 1, dmg, spd, sz, rng, pierces, eff)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_spawn_rail_shot(spawn_pos, shoot_dir, 1, dmg, spd, sz, rng, pierces, eff)
 	else:
-		request_rail_shot.rpc_id(1, spawn_pos, facing_dir, dmg, spd, sz, rng, pierces, eff)
+		request_rail_shot.rpc_id(1, spawn_pos, shoot_dir, dmg, spd, sz, rng, pierces, eff)
 
 func _spawn_rail_shot(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int, dmg: float, spd: float, p_size: float, max_rng: float, pierces: bool, eff: String) -> void:
 	var main_node = get_tree().root.get_node_or_null("Main")
@@ -275,15 +287,14 @@ func _perform_repulsor_bolt() -> void:
 	facing_dir.y = 0.0
 	facing_dir = facing_dir.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
+	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	ability_cast.emit("Repulsor Bolt", "RMB")
-	if multiplayer.is_server():
-		_spawn_repulsor_bolt(spawn_pos, facing_dir, 1)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_spawn_repulsor_bolt(spawn_pos, shoot_dir, 1)
 	else:
-		request_repulsor_bolt.rpc_id(1, spawn_pos, facing_dir)
+		request_repulsor_bolt.rpc_id(1, spawn_pos, shoot_dir)
 
 func _spawn_repulsor_bolt(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int) -> void:
-	shoot_dir.y = 0.0
-	shoot_dir = shoot_dir.normalized()
 	var main_node = get_tree().root.get_node_or_null("Main")
 	if main_node and main_node.has_method("spawn_projectile"):
 		main_node.spawn_projectile(
@@ -296,7 +307,7 @@ func _spawn_repulsor_bolt(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int
 			60.0 / 85.0,
 			"knockback_stun",
 			1.0,
-			36.0,
+			22.0,
 			false,
 			false,
 			0,
@@ -326,7 +337,7 @@ func _perform_ion_fence() -> void:
 	target_pos.y = 0.05
 	var fence_rot_y = rotation.y
 	ability_cast.emit("Ion Fence", "Q")
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_spawn_ion_fence(target_pos, fence_rot_y, 1)
 	else:
 		request_ion_fence.rpc_id(1, target_pos, fence_rot_y)
@@ -360,7 +371,7 @@ func _perform_recon_flare() -> void:
 	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
 	var target_distance = global_position.distance_to(target_pos)
 	ability_cast.emit("Recon Flare", "E")
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_spawn_recon_flare(spawn_pos, facing_dir, 1, target_distance)
 	else:
 		request_recon_flare.rpc_id(1, spawn_pos, facing_dir, target_distance)
@@ -368,7 +379,7 @@ func _perform_recon_flare() -> void:
 func _spawn_recon_flare(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int, target_dist: float) -> void:
 	var main_node = get_tree().root.get_node_or_null("Main")
 	if main_node and main_node.has_method("spawn_vision_flare"):
-		main_node.spawn_vision_flare(spawn_pos, shoot_dir, sender_id, target_dist)
+		main_node.spawn_vision_flare(spawn_pos, shoot_dir, target_dist, sender_id, team_id)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_recon_flare(spawn_pos: Vector3, shoot_dir: Vector3, target_dist: float) -> void:
@@ -380,13 +391,44 @@ func request_recon_flare(spawn_pos: Vector3, shoot_dir: Vector3, target_dist: fl
 func _perform_overcharge() -> void:
 	var def = abilities.get("R")
 	r_timer = def.cooldown if def else 24.0
-	poke_ult_buff_timer = POKE_ULT_BUFF_DURATION
+	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
+	var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
+	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	ability_cast.emit("Overcharge", "R")
-	sync_poke_ult_buff.rpc(POKE_ULT_BUFF_DURATION)
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_spawn_overcharge_beam(spawn_pos, shoot_dir, 1)
+	else:
+		request_overcharge_beam.rpc_id(1, spawn_pos, shoot_dir)
 
-@rpc("any_peer", "call_local", "reliable")
-func sync_poke_ult_buff(duration: float) -> void:
-	poke_ult_buff_timer = duration
+func _spawn_overcharge_beam(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int) -> void:
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and main_node.has_method("spawn_projectile"):
+		main_node.spawn_projectile(
+			spawn_pos,
+			shoot_dir,
+			sender_id,
+			50.0,
+			110.0,
+			1.3,
+			95.0 / 110.0,
+			"execute_scaling",
+			0.0,
+			0.0,
+			true,
+			false,
+			0,
+			ActionType.ABILITY,
+			95.0
+		)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_overcharge_beam(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	_spawn_overcharge_beam(spawn_pos, shoot_dir, sender_id)
 
 func _on_character_damage_dealt(_target: Node, _amount: float, _action_type: int) -> void:
 	# Trigger Fleet Foot speed boost on hit
@@ -408,6 +450,5 @@ func _update_character_hud() -> void:
 		slot_ability_three.update_cooldown(e_timer, def_e.cooldown, 1, 1, is_silenced())
 	if slot_ability_four and def_r:
 		slot_ability_four.update_cooldown(r_timer, def_r.cooldown, 1, 1, is_silenced())
-		slot_ability_four.set_active_state(poke_ult_buff_timer > 0.0)
 	if slot_dash and def_shift:
 		slot_dash.update_cooldown(dash_timer, dash_cooldown, 1, 1, is_rooted() or is_grounded())

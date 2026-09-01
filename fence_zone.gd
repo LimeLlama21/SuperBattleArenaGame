@@ -6,6 +6,8 @@ extends Area3D
 @export var fence_depth: float = 0.25
 @export var duration: float = 6.0
 @export var grounded_duration: float = 2.5
+@export var slow_duration: float = 1.5
+@export var slow_percent: float = 0.70
 
 var shooter_id: int = 0
 var shooter_team: int = 0
@@ -20,9 +22,17 @@ const TICK_INTERVAL: float = 0.1
 
 func _ready() -> void:
 	_update_geometry()
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		body_entered.connect(_on_body_entered)
 		get_tree().create_timer(duration).timeout.connect(queue_free)
+
+func is_multiplayer_match() -> bool:
+	if not multiplayer or not multiplayer.has_multiplayer_peer():
+		return false
+	var main_node = get_tree().root.get_node_or_null("Main") if get_tree() else null
+	if main_node and main_node.get("is_training_mode") == true:
+		return false
+	return multiplayer.get_peers().size() > 0
 
 func _update_geometry() -> void:
 	if collision_shape and collision_shape.shape is BoxShape3D:
@@ -48,7 +58,7 @@ func _update_geometry() -> void:
 			post_right.mesh.height = fence_height
 
 func _physics_process(delta: float) -> void:
-	if not multiplayer.is_server():
+	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 		
 	tick_timer += delta
@@ -57,7 +67,7 @@ func _physics_process(delta: float) -> void:
 		_apply_zone_effects()
 
 func _on_body_entered(body: Node) -> void:
-	if not multiplayer.is_server():
+	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 	_apply_effect_to_body(body)
 
@@ -73,3 +83,5 @@ func _apply_effect_to_body(body: Node) -> void:
 	if not is_ally:
 		if body.has_method("apply_grounded"):
 			body.apply_grounded(grounded_duration)
+		if body.has_method("apply_slow"):
+			body.apply_slow(slow_duration, slow_percent)

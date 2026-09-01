@@ -21,7 +21,7 @@ static func get_abilities() -> Dictionary:
 	lmb.hitbox.width = 0.4
 	var lmb_dmg = AbilityPipeline.AbilityRider.new()
 	lmb_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
-	lmb_dmg.amount = 14.0
+	lmb_dmg.amount = 9.0
 	lmb.riders.append(lmb_dmg)
 	dict["LMB"] = lmb
 	dict[lmb.id] = lmb
@@ -31,12 +31,12 @@ static func get_abilities() -> Dictionary:
 	rmb.id = "morrigan_omen_of_death"
 	rmb.name = "Omen of Death"
 	rmb.slot_key = "RMB"
-	rmb.charges = 2
-	rmb.recharge_time = 6.5
-	rmb.cooldown = 0.8
+	rmb.charges = 1
+	rmb.recharge_time = 6.0
+	rmb.cooldown = 6.0
 	rmb.effect = AbilityPipeline.AbilityEffect.new()
 	rmb.effect.effect_type = AbilityPipeline.EffectType.PROJECTILE
-	rmb.effect.speed = 24.0
+	rmb.effect.speed = 38.0
 	rmb.effect.max_range = 22.0
 	rmb.effect.chargeable = true
 	rmb.hitbox = AbilityPipeline.AbilityHitbox.new()
@@ -44,7 +44,7 @@ static func get_abilities() -> Dictionary:
 	rmb.hitbox.radius = 3.2
 	var rmb_dmg = AbilityPipeline.AbilityRider.new()
 	rmb_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
-	rmb_dmg.amount = 45.0
+	rmb_dmg.amount = 20.0
 	rmb.riders.append(rmb_dmg)
 	dict["RMB"] = rmb
 	dict[rmb.id] = rmb
@@ -86,7 +86,7 @@ static func get_abilities() -> Dictionary:
 	e.hitbox.height = 2.6
 	var e_dmg = AbilityPipeline.AbilityRider.new()
 	e_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
-	e_dmg.amount = 38.0
+	e_dmg.amount = 24.0
 	e.riders.append(e_dmg)
 	var e_silence = AbilityPipeline.AbilityRider.new()
 	e_silence.rider_type = AbilityPipeline.RiderType.STUN # Or Silence handled in script
@@ -111,7 +111,7 @@ static func get_abilities() -> Dictionary:
 	r.hitbox.height = 3.2
 	var r_dmg = AbilityPipeline.AbilityRider.new()
 	r_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
-	r_dmg.amount = 80.0
+	r_dmg.amount = 50.0
 	r.riders.append(r_dmg)
 	var r_stun = AbilityPipeline.AbilityRider.new()
 	r_stun.rider_type = AbilityPipeline.RiderType.STUN
@@ -128,7 +128,7 @@ static func get_abilities() -> Dictionary:
 	dash.cooldown = 6.0
 	dash.effect = AbilityPipeline.AbilityEffect.new()
 	dash.effect.effect_type = AbilityPipeline.EffectType.BUFF
-	dash.effect.duration = 1.4
+	dash.effect.duration = 2.0
 	dict["SHIFT"] = dash
 	dict[dash.id] = dash
 

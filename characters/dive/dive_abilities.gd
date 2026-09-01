@@ -89,13 +89,23 @@ static func get_abilities() -> Dictionary:
 
 	# Ability 3 (E): Deflecting Guard
 	var e = AbilityPipeline.AbilityDefinition.new()
-	e.id = "dive_deflecting_guard"
-	e.name = "Deflecting Guard"
+	e.id = "dive_molten_splash"
+	e.name = "Molten Splash"
 	e.slot_key = "E"
-	e.cooldown = 10.0
+	e.cooldown = 4.0
 	e.effect = AbilityPipeline.AbilityEffect.new()
-	e.effect.effect_type = AbilityPipeline.EffectType.STANCE_BLOCK
-	e.effect.duration = 1.75
+	e.effect.effect_type = AbilityPipeline.EffectType.MELEE_STRIKE
+	e.hitbox = AbilityPipeline.AbilityHitbox.new()
+	e.hitbox.shape = AbilityPipeline.HitboxShape.CIRCLE
+	e.hitbox.radius = 5.0
+	e.hitbox.height = 5.0
+	var e_damage = AbilityPipeline.AbilityRider.new()
+	e_damage.rider_type = AbilityPipeline.RiderType.DAMAGE
+	e_damage.amount = 40
+	var e_slow = AbilityPipeline.AbilityRider.new()
+	e_slow.rider_type = AbilityPipeline.RiderType.SLOW
+	e_slow.duration = 3.0
+	e_slow.intensity = 0.3
 	dict["E"] = e
 	dict[e.id] = e
 
@@ -117,8 +127,8 @@ static func get_abilities() -> Dictionary:
 	dash.id = "dive_dash_or_crash"
 	dash.name = "Dash / Crash"
 	dash.slot_key = "SHIFT"
-	dash.charges = 2
-	dash.recharge_time = 5.0
+	dash.charges = 1
+	dash.recharge_time = 8.0
 	dash.cooldown = 0.85
 	dict["SHIFT"] = dash
 	dict[dash.id] = dash

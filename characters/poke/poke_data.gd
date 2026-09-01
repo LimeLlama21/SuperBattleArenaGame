@@ -25,6 +25,8 @@ static func create() -> CharacterData:
 		"fleet_foot_duration": 2.5,
 		"fleet_foot_ms_percent": 0.15,
 		"dash_impulse": 28.0,
-		"dash_cooldown": 4.0
+		"dash_cooldown": 4.0,
+		"repulsor_knockback": 22.0,
+		"repulsor_wall_stun_duration": 1.0
 	}
 	return data

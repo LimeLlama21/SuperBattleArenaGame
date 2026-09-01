@@ -65,6 +65,7 @@ class AbilityEffect extends RefCounted:
 	var max_range: float = 0.0
 	var duration: float = 0.0
 	var windup_time: float = 0.0
+	var follow_caster: bool = false
 	var pierces: bool = false
 	var projectile_size: float = 1.0
 	var count: int = 1
@@ -76,7 +77,7 @@ class AbilityHitbox extends RefCounted:
 	var radius: float = 0.0
 	var length: float = 0.0
 	var width: float = 0.0
-	var height: float = 0.0
+	var height: float = 2.0
 	var angle_deg: float = 0.0
 
 class AbilityTrigger extends RefCounted:

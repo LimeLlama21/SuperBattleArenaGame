@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cyulrhfo6xm6a"]
 
-[ext_resource type="Script" path="res://characters/dive/dive.gd" id="1_dive"]
+[ext_resource type="Script" uid="uid://v66yoqxc0ci2" path="res://characters/dive/dive.gd" id="1_dive"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
@@ -38,19 +38,30 @@ material = SubResource("StandardMaterial3D_slash")
 size = Vector3(3.6, 0.2, 1.6)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_heavy_slash"]
-albedo_color = Color(0.2, 0.9, 1.0, 0.9)
+albedo_color = Color(0.2, 0.9, 1, 0.9)
 emission_enabled = true
-emission = Color(0.2, 0.95, 1.0, 1)
+emission = Color(0.2, 0.95, 1, 1)
 emission_energy_multiplier = 5.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_heavy_slash"]
 material = SubResource("StandardMaterial3D_heavy_slash")
 size = Vector3(4.2, 0.25, 1.8)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crash_aoe"]
-albedo_color = Color(0.7, 0.2, 1.0, 0.55)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_block"]
+transparency = 1
+albedo_color = Color(0.2, 0.75, 1, 0.6)
 emission_enabled = true
-emission = Color(0.8, 0.2, 1.0, 1)
+emission = Color(0.2, 0.8, 1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_block"]
+material = SubResource("StandardMaterial3D_block")
+size = Vector3(2.6, 1.8, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_crash_aoe"]
+albedo_color = Color(0.7, 0.2, 1, 0.55)
+emission_enabled = true
+emission = Color(0.8, 0.2, 1, 1)
 emission_energy_multiplier = 4.5
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_crash_aoe"]
@@ -58,6 +69,14 @@ material = SubResource("StandardMaterial3D_crash_aoe")
 top_radius = 6.0
 bottom_radius = 6.0
 height = 0.35
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 0.8)
@@ -73,107 +92,86 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_block"]
-transparency = 1
-albedo_color = Color(0.2, 0.75, 1.0, 0.6)
-emission_enabled = true
-emission = Color(0.2, 0.8, 1.0, 1)
-emission_energy_multiplier = 4.0
-
-[sub_resource type="BoxMesh" id="BoxMesh_block"]
-material = SubResource("StandardMaterial3D_block")
-size = Vector3(2.6, 1.8, 0.25)
-
-[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
-properties/0/path = NodePath(".:position")
-properties/0/spawn = true
-properties/0/replication_mode = 1
-properties/1/path = NodePath(".:rotation")
-properties/1/spawn = true
-properties/1/replication_mode = 1
-
-[node name="Dive" type="CharacterBody3D"]
+[node name="Dive" type="CharacterBody3D" unique_id=581126200]
 collision_layer = 2
-collision_mask = 1
 script = ExtResource("1_dive")
 character_name = "Dive"
 max_health = 120.0
 current_health = 120.0
 max_move_speed = 9.5
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1899927248]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_1")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1906290131]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("CapsuleMesh_1")
 
-[node name="FacingIndicator" type="MeshInstance3D" parent="."]
+[node name="FacingIndicator" type="MeshInstance3D" parent="." unique_id=1802649719]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.4)
 mesh = SubResource("BoxMesh_nose")
 
-[node name="MeleeVisual" type="Node3D" parent="."]
+[node name="MeleeVisual" type="Node3D" parent="." unique_id=1075463148]
 visible = false
 
-[node name="SlashIndicator" type="MeshInstance3D" parent="MeleeVisual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.0)
+[node name="SlashIndicator" type="MeshInstance3D" parent="MeleeVisual" unique_id=154735301]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1)
 mesh = SubResource("BoxMesh_slash")
 
-[node name="AbilityOneVisual" type="Node3D" parent="."]
+[node name="AbilityOneVisual" type="Node3D" parent="." unique_id=909546648]
 visible = false
 
-[node name="HeavySlashIndicator" type="MeshInstance3D" parent="AbilityOneVisual"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.0)
+[node name="HeavySlashIndicator" type="MeshInstance3D" parent="AbilityOneVisual" unique_id=376934790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1)
 mesh = SubResource("BoxMesh_heavy_slash")
 
-[node name="BlockVisual" type="Node3D" parent="."]
+[node name="AbilityTwoVisual" type="Node3D" parent="." unique_id=463284765]
 visible = false
 
-[node name="BlockMesh" type="MeshInstance3D" parent="BlockVisual"]
+[node name="SplashMesh" type="MeshInstance3D" parent="AbilityTwoVisual" unique_id=62708737]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, -1.2)
 mesh = SubResource("BoxMesh_block")
 
-[node name="CrashVisual" type="Node3D" parent="."]
+[node name="CrashVisual" type="Node3D" parent="." unique_id=1724166829]
 visible = false
 
-[node name="CrashRing" type="MeshInstance3D" parent="CrashVisual"]
+[node name="CrashRing" type="MeshInstance3D" parent="CrashVisual" unique_id=1131929180]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 mesh = SubResource("CylinderMesh_crash_aoe")
 
-[node name="Camera3D" type="Camera3D" parent="."]
+[node name="Camera3D" type="Camera3D" parent="." unique_id=88104873]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
-current = false
 
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=62256699]
 replication_config = SubResource("SceneReplicationConfig_1")
 
-[node name="HealthBarViewport" type="SubViewport" parent="."]
+[node name="HealthBarViewport" type="SubViewport" parent="." unique_id=616365100]
 disable_3d = true
 transparent_bg = true
-size = Vector2i(130, 18)
+size = Vector2i(220, 28)
 render_target_update_mode = 4
 
-[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
-custom_minimum_size = Vector2(130, 18)
-offset_right = 130.0
-offset_bottom = 18.0
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=891843330]
+custom_minimum_size = Vector2(220, 28)
+offset_right = 220.0
+offset_bottom = 28.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
-value = 120.0
 max_value = 120.0
+value = 100.0
 show_percentage = false
 
-[node name="HealthBarSprite" type="Sprite3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.35, 0)
+[node name="HealthBarSprite" type="Sprite3D" parent="." unique_id=505779964]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, 2.5, 0)
 billboard = 1
 double_sided = false
 no_depth_test = true
 
-[node name="PlayerHUD" type="CanvasLayer" parent="."]
+[node name="PlayerHUD" type="CanvasLayer" parent="." unique_id=2104477816]
 layer = 10
 
-[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD"]
+[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD" unique_id=2055400858]
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
@@ -188,52 +186,51 @@ grow_vertical = 0
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer"]
+[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer" unique_id=897974472]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 horizontal_alignment = 1
 
-[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer"]
+[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer" unique_id=1082818918]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=790135830]
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
 key_bind_text = "RMB"
 slot_name = "Ability 1"
 
-[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=887362392]
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
-key_bind_text = "Q"
 slot_name = "Ability 2"
 
-[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1616990899]
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
 key_bind_text = "E"
 slot_name = "Ability 3"
 
-[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=2118695367]
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
 key_bind_text = "R"
 slot_name = "Ultimate"
 
-[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
+[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=972484991]
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 script = ExtResource("2_ability_slot")
 key_bind_text = "SHIFT"
 slot_name = "Dash"
 
-[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
+[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD" unique_id=54491664]
 visible = false
 anchors_preset = 5
 anchor_left = 0.5
@@ -244,10 +241,10 @@ offset_right = 175.0
 offset_bottom = 76.0
 grow_horizontal = 2
 
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel"]
+[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel" unique_id=1812776319]
 layout_mode = 2
 
-[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox"]
+[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox" unique_id=1218756062]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "SPECTATING: Player

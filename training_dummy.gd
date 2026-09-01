@@ -35,11 +35,11 @@ func _process_character_kit(delta: float) -> void:
 			current_health = max_health
 
 	# Smoothly return to home center position if knocked back
-	if global_position.distance_to(home_position) > 0.1 and not is_stunned() and knockback_velocity.length() < 0.5 and is_on_floor():
+	if global_position.distance_to(home_position) > 0.1 and not is_stunned() and velocity.length() < 1.0 and is_on_floor():
 		var return_vel = (home_position - global_position) * 4.0
 		velocity.x = return_vel.x
 		velocity.z = return_vel.z
-	elif knockback_velocity.length() < 0.5:
+	else:
 		velocity.x = move_toward(velocity.x, 0.0, 15.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 15.0 * delta)
 
@@ -92,7 +92,6 @@ func die() -> void:
 func respawn() -> void:
 	global_position = home_position
 	velocity = Vector3.ZERO
-	knockback_velocity = Vector3.ZERO
 	current_health = max_health
 	current_shield = 0.0
 	cleanse_cc()

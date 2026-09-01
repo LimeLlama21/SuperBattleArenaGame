@@ -13,7 +13,10 @@ var dash_impulse: float = 24.0
 var dash_cooldown: float = 8.0
 
 # Gray Health / Iron Blood
-var gray_health: float = 0.0
+var gray_health: float = 0.0:
+	set(value):
+		gray_health = max(0.0, value)
+		update_health_bar()
 var time_since_last_damage: float = 0.0
 
 # Titan Surge Empowerment
@@ -51,6 +54,8 @@ func _setup_character_kit() -> void:
 	max_move_speed = data.max_move_speed
 	ground_acceleration = data.ground_acceleration
 	ground_friction = data.ground_friction
+	if "intentional_movement_friction" in data:
+		intentional_movement_friction = data.intentional_movement_friction
 	air_acceleration = data.air_acceleration
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
@@ -61,34 +66,46 @@ func _setup_character_kit() -> void:
 	abilities = CrushAbilities.get_abilities()
 	_setup_local_indicators()
 
+	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
+	if sync and sync.replication_config:
+		_add_sync_property(sync.replication_config, NodePath(".:gray_health"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:is_crush_charging"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+
 func _setup_local_indicators() -> void:
-	if name.to_int() != multiplayer.get_unique_id():
+	if not is_local_player():
 		return
 
-	ind_attack = AbilityIndicator.create_sector_indicator(4.2, 120.0, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_attack)
-	ind_attack.hide()
+	var lmb_def = abilities.get("LMB")
+	if lmb_def and lmb_def.hitbox:
+		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_attack)
+		ind_attack.hide()
 
-	ind_rmb = AbilityIndicator.create_sector_indicator(5.2, 100.0, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_rmb)
-	ind_rmb.hide()
+	var rmb_def = abilities.get("RMB")
+	if rmb_def and rmb_def.hitbox:
+		ind_rmb = AbilityIndicator.create_emanating_indicator(rmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_rmb)
+		ind_rmb.hide()
 
-	ind_q = AbilityIndicator.create_circle_indicator(6.5, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_q)
-	ind_q.hide()
+	var q_def = abilities.get("Q")
+	if q_def and q_def.hitbox:
+		ind_q = AbilityIndicator.create_emanating_indicator(q_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_q)
+		ind_q.hide()
 
 func _process_character_kit(delta: float) -> void:
 	# Crush Gray Health Decay & Out-of-Combat Regen (Server-authoritative)
 	time_since_last_damage += delta
-	if multiplayer.is_server() and not is_dead:
+	if (not is_multiplayer_match() or multiplayer.is_server()) and not is_dead:
 		if time_since_last_damage >= 5.0 and gray_health > 0.0:
 			var max_consume_rate = max_health * 0.1
 			var consume = min(gray_health, max_consume_rate * delta)
 			gray_health -= consume
-			heal(consume * 0.5)
-			sync_gray_health.rpc(gray_health)
+			heal(consume)
+			if is_multiplayer_match() and multiplayer.is_server():
+				sync_gray_health.rpc(gray_health)
 
-	if name.to_int() == multiplayer.get_unique_id():
+	if is_local_player():
 		if attack_timer > 0.0: attack_timer -= delta
 		if rmb_timer > 0.0: rmb_timer -= delta
 		if q_timer > 0.0: q_timer -= delta
@@ -122,16 +139,15 @@ func get_status_text() -> String:
 
 func _on_damage_taken_hook(amount: float, _attacker_id: int, _action_type: int) -> void:
 	time_since_last_damage = 0.0
-	if multiplayer.is_server():
-		gray_health = min(max_health, gray_health + amount * 0.5)
-		sync_gray_health.rpc(gray_health)
+	if is_server_authoritative() and amount > 0.0:
+		var max_possible_gray = max(0.0, max_health - current_health)
+		gray_health = clamp(gray_health + amount * 0.5, 0.0, max_possible_gray)
+		if is_multiplayer_match() and multiplayer.is_server():
+			sync_gray_health.rpc(gray_health)
 
-@rpc("authority", "call_local", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func sync_gray_health(new_val: float) -> void:
 	gray_health = new_val
-	if gray_health_bar:
-		gray_health_bar.max_value = max_health
-		gray_health_bar.value = current_health + gray_health
 
 func _handle_character_input(_delta: float) -> void:
 	if is_crush_charging or is_channeling:
@@ -196,8 +212,7 @@ func _execute_crush_dash() -> void:
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
 	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
-	velocity.x = dash_dir.x * dash_impulse
-	velocity.z = dash_dir.z * dash_impulse
+	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
 
 func _perform_slam() -> void:
 	var def = abilities.get("LMB")
@@ -206,8 +221,8 @@ func _perform_slam() -> void:
 	var dmg = 55.0 * (1.4 if is_crush_empowered else 1.0)
 	is_crush_empowered = false
 	attack_performed.emit("Slam")
-	_show_melee_visual()
-	if multiplayer.is_server():
+	trigger_ability_hitbox("LMB", global_position, facing_dir)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_slam_hit(global_position, facing_dir, 1, dmg)
 	else:
 		request_slam_hit.rpc_id(1, global_position, facing_dir, dmg)
@@ -216,13 +231,20 @@ func _execute_slam_hit(origin_pos: Vector3, forward_dir: Vector3, attacker_id: i
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if not players_container:
 		return
-	var half_angle_rad = deg_to_rad(60.0)
+	var def = abilities.get("LMB")
+	var rad = def.hitbox.radius if (def and def.hitbox) else 4.2
+	var angle_deg = def.hitbox.angle_deg if (def and def.hitbox) else 120.0
+	var height = def.hitbox.height if (def and def.hitbox and def.hitbox.height > 0.0) else 2.4
+	var half_angle_rad = deg_to_rad(angle_deg * 0.5)
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			var to_body = body.global_position - origin_pos
+			var dy = to_body.y
+			if dy < -2.0 or dy > height:
+				continue
 			to_body.y = 0.0
 			var dist = to_body.length()
-			if dist <= 4.2 and dist > 0.001:
+			if dist <= rad and dist > 0.001:
 				if forward_dir.angle_to(to_body.normalized()) <= half_angle_rad:
 					if body.has_method("take_damage"):
 						body.take_damage(dmg, attacker_id, ActionType.ATTACK)
@@ -239,8 +261,8 @@ func _perform_fan_stun() -> void:
 	rmb_timer = def.cooldown if def else 7.5
 	var facing_dir = -global_transform.basis.z.normalized()
 	ability_cast.emit("Fan Stun", "RMB")
-	_show_fan_stun_visual()
-	if multiplayer.is_server():
+	trigger_ability_hitbox("RMB", global_position, facing_dir)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_fan_stun(global_position, facing_dir, 1)
 	else:
 		request_fan_stun.rpc_id(1, global_position, facing_dir)
@@ -249,14 +271,21 @@ func _execute_fan_stun(origin_pos: Vector3, forward_dir: Vector3, attacker_id: i
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if not players_container:
 		return
-	var half_angle_rad = deg_to_rad(50.0)
+	var def = abilities.get("RMB")
+	var rad = def.hitbox.radius if (def and def.hitbox) else 5.2
+	var angle_deg = def.hitbox.angle_deg if (def and def.hitbox) else 100.0
+	var height = def.hitbox.height if (def and def.hitbox and def.hitbox.height > 0.0) else 2.4
+	var half_angle_rad = deg_to_rad(angle_deg * 0.5)
 	var hit_anyone = false
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			var to_body = body.global_position - origin_pos
+			var dy = to_body.y
+			if dy < -2.0 or dy > height:
+				continue
 			to_body.y = 0.0
 			var dist = to_body.length()
-			if dist <= 5.2 and dist > 0.001:
+			if dist <= rad and dist > 0.001:
 				if forward_dir.angle_to(to_body.normalized()) <= half_angle_rad:
 					hit_anyone = true
 					if body.has_method("take_damage"):
@@ -282,8 +311,8 @@ func _perform_ground_stomp() -> void:
 	var def = abilities.get("Q")
 	q_timer = def.cooldown if def else 8.0
 	ability_cast.emit("Ground Stomp", "Q")
-	_show_stomp_visual()
-	if multiplayer.is_server():
+	trigger_ability_hitbox("Q", global_position, Vector3.ZERO)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_ground_stomp(global_position, 1)
 	else:
 		request_ground_stomp.rpc_id(1, global_position)
@@ -292,13 +321,15 @@ func _execute_ground_stomp(origin_pos: Vector3, attacker_id: int) -> void:
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
 	if not players_container:
 		return
+	var def = abilities.get("Q")
+	var rad = def.hitbox.radius if (def and def.hitbox) else 6.5
 	for body in players_container.get_children():
 		if body is Node3D and not body.get("is_dead"):
 			if body.name == str(attacker_id):
 				if body.has_method("apply_shield"):
 					body.apply_shield(40.0, 5.0)
-			else:
-				if body.global_position.distance_to(origin_pos) <= 6.5:
+			elif is_enemy(body):
+				if body.global_position.distance_to(origin_pos) <= rad:
 					if body.has_method("take_damage"):
 						body.take_damage(20.0, attacker_id, ActionType.ABILITY)
 					if body.has_method("apply_slow"):
@@ -314,8 +345,18 @@ func request_ground_stomp(origin_pos: Vector3) -> void:
 func _perform_iron_barrier() -> void:
 	var def = abilities.get("E")
 	e_timer = def.cooldown if def else 10.0
-	apply_shield(50.0, 5.0)
 	ability_cast.emit("Iron Barrier", "E")
+	apply_shield(50.0, 5.0)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_iron_barrier() -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	var players_container = get_tree().root.get_node_or_null("Main/Players")
+	var p = players_container.get_node_or_null(str(sender_id)) if players_container else null
+	if p and p.has_method("apply_shield"):
+		p.apply_shield(50.0, 5.0)
 
 func _perform_juggernaut_charge() -> void:
 	var def = abilities.get("R")
@@ -331,7 +372,8 @@ func end_juggernaut_charge() -> void:
 	crush_charge_timer = 0.0
 	is_cc_immune = false
 	var facing_dir = -global_transform.basis.z.normalized()
-	if multiplayer.is_server():
+	trigger_ability_hitbox("R", global_position, facing_dir)
+	if not is_multiplayer_match() or multiplayer.is_server():
 		_execute_charge_slam(global_position, facing_dir, 1)
 	else:
 		request_charge_slam.rpc_id(1, global_position, facing_dir)
@@ -341,14 +383,14 @@ func _execute_charge_slam(origin_pos: Vector3, forward_dir: Vector3, attacker_id
 	if not players_container:
 		return
 	for body in players_container.get_children():
-		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead"):
+		if body is Node3D and body.name != str(attacker_id) and not body.get("is_dead") and is_enemy(body):
 			if body.global_position.distance_to(origin_pos) <= 3.6:
 				if body.has_method("take_damage"):
 					body.take_damage(120.0, attacker_id, ActionType.ABILITY)
 				if body.has_method("apply_stun"):
 					body.apply_stun(1.25)
 				if body.has_method("apply_knockback"):
-					body.apply_knockback(Vector3.UP * 16.0, true)
+					body.apply_knockback(Vector3.UP * 6.5 + forward_dir * 8.0, true)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_charge_slam(origin_pos: Vector3, forward_dir: Vector3) -> void:
@@ -356,21 +398,6 @@ func request_charge_slam(origin_pos: Vector3, forward_dir: Vector3) -> void:
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
 	_execute_charge_slam(origin_pos, forward_dir, sender_id)
-
-func _show_melee_visual() -> void:
-	if melee_visual:
-		melee_visual.visible = true
-		get_tree().create_timer(0.16).timeout.connect(func(): if melee_visual: melee_visual.visible = false)
-
-func _show_fan_stun_visual() -> void:
-	if ability_one_visual:
-		ability_one_visual.visible = true
-		get_tree().create_timer(0.20).timeout.connect(func(): if ability_one_visual: ability_one_visual.visible = false)
-
-func _show_stomp_visual() -> void:
-	if ability_two_visual:
-		ability_two_visual.visible = true
-		get_tree().create_timer(0.25).timeout.connect(func(): if ability_two_visual: ability_two_visual.visible = false)
 
 func _update_character_hud() -> void:
 	var def_rmb = abilities.get("RMB")

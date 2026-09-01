@@ -34,18 +34,29 @@ func _ready() -> void:
 		var up_vec = Vector3.UP if abs(direction.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
 		look_at(global_position + direction, up_vec)
 
-	if max_range <= 0.0 and speed > 0.0 and lifetime > 0.0:
-		max_range = speed * lifetime
+	if max_range <= 0.0:
+		if speed > 0.0 and lifetime > 0.0:
+			max_range = speed * lifetime
+		else:
+			max_range = 50.0
 
-	if multiplayer.is_server():
+	if lifetime <= 0.0 and speed > 0.0:
+		lifetime = max_range / speed
+
+	if is_server_authority():
 		body_entered.connect(_on_body_entered)
 		if lifetime > 0.0:
-			get_tree().create_timer(lifetime + 0.5).timeout.connect(_on_timeout)
+			get_tree().create_timer(lifetime + 0.2).timeout.connect(_on_timeout)
+
+func is_server_authority() -> bool:
+	if not multiplayer or not multiplayer.has_multiplayer_peer():
+		return true
+	return multiplayer.is_server()
 
 func _physics_process(delta: float) -> void:
 	var step = speed * delta
 	global_position += direction * step
-	if multiplayer.is_server():
+	if is_server_authority():
 		distance_traveled += step
 		if classification == ProjectileClassification.TARGET_LOCATION:
 			var effective_target = target_distance if target_distance > 0.0 else max_range
@@ -62,7 +73,7 @@ func _on_timeout() -> void:
 	queue_free()
 
 func _trigger_death_effects() -> void:
-	if not multiplayer.is_server() or has_spawned_terrain:
+	if not is_server_authority() or has_spawned_terrain:
 		return
 	has_spawned_terrain = true
 	if spawn_terrain_on_death:
@@ -71,7 +82,7 @@ func _trigger_death_effects() -> void:
 			main_node.spawn_temporary_terrain(global_position, 5.0, shooter_id)
 
 func _on_body_entered(body: Node) -> void:
-	if not multiplayer.is_server():
+	if not is_server_authority():
 		return
 	
 	if body.has_method("take_damage") and body.name != str(shooter_id):
@@ -101,7 +112,7 @@ func _on_body_entered(body: Node) -> void:
 			elif effect_type == "knockback_stun" or effect_type == "poke_repulsor":
 				if body.has_method("apply_knockback"):
 					var kb_dir = Vector3(direction.x, 0.0, direction.z).normalized()
-					body.apply_knockback(kb_dir * effect_intensity, true)
+					body.apply_knockback(kb_dir * effect_intensity, true, effect_duration)
 			elif effect_type == "reaper_tether":
 				if shooter and shooter.has_method("start_reaper_tether_server"):
 					shooter.start_reaper_tether_server(body)

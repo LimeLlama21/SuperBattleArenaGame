@@ -1,6 +1,10 @@
 extends CharacterBody3D
 
 @export var max_health: float = 100.0
+@export var team_id: int = 1:
+	set(value):
+		team_id = value
+		_update_team_visuals()
 @export var current_health: float = 100.0:
 	set(value):
 		current_health = clamp(value, 0.0, max_health)
@@ -46,7 +50,8 @@ func _ready() -> void:
 		set_multiplayer_authority(peer_id)
 		$MultiplayerSynchronizer.set_multiplayer_authority(peer_id)
 
-	var is_local = (name.to_int() == multiplayer.get_unique_id())
+	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
+	var is_local = (name.to_int() == my_id or name == "1")
 	camera.current = is_local
 	if is_local:
 		camera.top_level = true
@@ -55,9 +60,12 @@ func _ready() -> void:
 	
 	sprite_3d.texture = $HealthBarViewport.get_texture()
 	update_health_bar()
+	_update_team_visuals()
+	call_deferred("_update_team_visuals")
 
 func _physics_process(delta: float) -> void:
-	if name.to_int() != multiplayer.get_unique_id():
+	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
+	if name.to_int() != my_id and name != "1":
 		return
 
 	if not DisplayServer.window_is_focused():
@@ -131,12 +139,15 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_pressed("shoot") and shoot_timer <= 0.0:
 		shoot_timer = shoot_cooldown
 		var facing_dir = -global_transform.basis.z.normalized()
+		facing_dir.y = 0.0
+		facing_dir = facing_dir.normalized()
 		var spawn_pos = global_position + Vector3(0, 0.8, 0) + facing_dir * 1.0
+		var shoot_dir = get_ranged_aim_direction(spawn_pos)
 		
 		if multiplayer.is_server():
-			get_tree().root.get_node("Main").spawn_projectile(spawn_pos, facing_dir, 1, projectile_damage, projectile_speed, projectile_size)
+			get_tree().root.get_node("Main").spawn_projectile(spawn_pos, shoot_dir, 1, projectile_damage, projectile_speed, projectile_size)
 		else:
-			request_fire.rpc_id(1, spawn_pos, facing_dir, projectile_damage, projectile_speed, projectile_size)
+			request_fire.rpc_id(1, spawn_pos, shoot_dir, projectile_damage, projectile_speed, projectile_size)
 
 	move_and_slide()
 
@@ -158,6 +169,66 @@ func aim_at_mouse() -> void:
 			look_at(target, Vector3.UP)
 			rotation.x = 0.0
 			rotation.z = 0.0
+
+func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:
+	var default_fwd = -global_transform.basis.z.normalized()
+	default_fwd.y = 0.0
+	if default_fwd.length_squared() < 0.0001:
+		default_fwd = Vector3.FORWARD
+	default_fwd = default_fwd.normalized()
+	
+	var viewport = get_viewport()
+	if not viewport or not camera:
+		return default_fwd
+	
+	var mouse_pos = viewport.get_mouse_position()
+	var ray_origin = camera.project_ray_origin(mouse_pos)
+	var ray_dir = camera.project_ray_normal(mouse_pos)
+	var space_state = get_world_3d().direct_space_state
+	
+	# Raycast against characters (Collision layer 2: players / dummies)
+	var player_query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 300.0, 2)
+	player_query.collide_with_areas = false
+	player_query.collide_with_bodies = true
+	player_query.exclude = [get_rid()]
+	var player_result = space_state.intersect_ray(player_query)
+	
+	if not player_result.is_empty():
+		var hit_collider = player_result.collider
+		if hit_collider != self and hit_collider is CharacterBody3D and not hit_collider.get("is_dead"):
+			var target_pos = hit_collider.global_position + Vector3(0, 0.85, 0)
+			var shoot_dir = target_pos - spawn_pos
+			if shoot_dir.length_squared() > 0.0001:
+				return shoot_dir.normalized()
+	
+	# 2. Forgiving Proximity Check: If cursor is near an enemy character
+	var players_container = get_tree().root.get_node_or_null("Main/Players")
+	var best_target_pos: Vector3 = Vector3.ZERO
+	var min_screen_dist: float = 80.0 # Forgiving pixel radius around mouse cursor
+	var max_ray_dist: float = 2.5     # 3D distance tolerance to ray (meters)
+	
+	if players_container:
+		for p in players_container.get_children():
+			if p != self and p is CharacterBody3D and not p.get("is_dead"):
+				var t_pos = p.global_position + Vector3(0, 0.85, 0)
+				if not camera.is_position_behind(t_pos):
+					var screen_pos = camera.unproject_position(t_pos)
+					var screen_dist = mouse_pos.distance_to(screen_pos)
+					var v = t_pos - ray_origin
+					var t = v.dot(ray_dir)
+					if t > 0.0:
+						var closest_pt = ray_origin + ray_dir * t
+						var dist_to_ray = (t_pos - closest_pt).length()
+						if screen_dist <= min_screen_dist and dist_to_ray <= max_ray_dist:
+							min_screen_dist = screen_dist
+							best_target_pos = t_pos
+
+	if best_target_pos != Vector3.ZERO:
+		var shoot_dir = best_target_pos - spawn_pos
+		if shoot_dir.length_squared() > 0.0001:
+			return shoot_dir.normalized()
+	
+	return default_fwd
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_fire(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float) -> void:
@@ -194,3 +265,59 @@ func update_health_bar() -> void:
 	if health_bar:
 		health_bar.max_value = max_health
 		health_bar.value = current_health
+
+func get_local_player_team() -> int:
+	var local_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
+	var main_node = get_tree().root.get_node_or_null("Main") if get_tree() else null
+	if main_node and main_node.has_method("get_player_team"):
+		return main_node.get_player_team(local_id)
+	var local_player = get_tree().root.get_node_or_null("Main/Players/" + str(local_id)) if get_tree() else null
+	if local_player and local_player.get("team_id") != null:
+		return local_player.team_id
+	if name == str(local_id):
+		return team_id
+	return 1
+
+func _refresh_all_team_visuals() -> void:
+	_update_team_visuals()
+	var players_cont = get_tree().root.get_node_or_null("Main/Players") if get_tree() else null
+	if players_cont:
+		for p in players_cont.get_children():
+			if p.has_method("_update_team_visuals"):
+				p._update_team_visuals()
+
+func _update_team_visuals() -> void:
+	var mesh_inst: MeshInstance3D = get_node_or_null("MeshInstance3D")
+	var local_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
+	var local_team = get_local_player_team()
+	var is_same_team = (team_id == local_team) or (name == str(local_id))
+	var model_color = Color(0.18, 0.58, 1.0, 1.0) if is_same_team else Color(0.95, 0.20, 0.20, 1.0)
+	var emissive_color = Color(0.08, 0.25, 0.5, 1.0) if is_same_team else Color(0.45, 0.08, 0.08, 1.0)
+
+	if mesh_inst:
+		var mat = mesh_inst.material_override as StandardMaterial3D
+		if not mat:
+			mat = StandardMaterial3D.new()
+		else:
+			mat = mat.duplicate() as StandardMaterial3D
+		mat.albedo_color = model_color
+		mat.roughness = 0.35
+		mat.metallic = 0.2
+		mat.emission_enabled = true
+		mat.emission = emissive_color
+		mat.emission_energy_multiplier = 0.3
+		mesh_inst.material_override = mat
+
+	if health_bar:
+		var fill_sb = health_bar.get_theme_stylebox("fill")
+		if fill_sb:
+			fill_sb = fill_sb.duplicate()
+		else:
+			fill_sb = StyleBoxFlat.new()
+			fill_sb.corner_radius_top_left = 4
+			fill_sb.corner_radius_top_right = 4
+			fill_sb.corner_radius_bottom_right = 4
+			fill_sb.corner_radius_bottom_left = 4
+		if fill_sb is StyleBoxFlat:
+			fill_sb.bg_color = Color(0.18, 0.65, 1.0, 1.0) if is_same_team else Color(1.0, 0.25, 0.25, 1.0)
+			health_bar.add_theme_stylebox_override("fill", fill_sb)

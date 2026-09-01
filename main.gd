@@ -11,6 +11,8 @@ const CHARACTERS: Dictionary = {
 }
 
 @export var projectile_scene: PackedScene = preload("res://projectile.tscn")
+@export var mortar_shell_scene: PackedScene = preload("res://mortar_shell.tscn")
+@export var blood_wave_scene: PackedScene = preload("res://blood_wave.tscn")
 @export var terrain_scene: PackedScene = preload("res://temporary_terrain.tscn")
 @export var vision_flare_scene: PackedScene = preload("res://vision_flare.tscn")
 @export var vision_reveal_zone_scene: PackedScene = preload("res://vision_reveal_zone.tscn")
@@ -94,10 +96,16 @@ var connected_players: Dictionary = {}
 var match_in_progress: bool = false
 var is_training_mode: bool = false
 
+var scoreboard_panel: PanelContainer = null
+var scoreboard_status_label: Label = null
+var scoreboard_t1_list: VBoxContainer = null
+var scoreboard_t2_list: VBoxContainer = null
+
 var active_upnp: UPNP = null
 var upnp_thread: Thread = null
 
 func _ready() -> void:
+	_setup_scoreboard_ui()
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	cancel_join_button.pressed.connect(func(): join_dialog.hide())
@@ -142,6 +150,7 @@ func _ready() -> void:
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
 	
 	player_spawner.spawn_function = _custom_spawn_player
 	projectile_spawner.spawn_function = _custom_spawn_projectile
@@ -231,11 +240,8 @@ func request_team_slot(team: int, slot: int) -> void:
 
 func _on_training_pressed() -> void:
 	is_training_mode = true
-	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(PORT)
-	if error != OK:
-		print("Local training session peer init: ", error)
-	multiplayer.multiplayer_peer = peer
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer = null
 	
 	menu_panel.hide()
 	lobby_panel.show()
@@ -321,7 +327,13 @@ func _on_connection_failed() -> void:
 func _on_peer_connected(_id: int) -> void:
 	pass
 
+func _on_server_disconnected() -> void:
+	_leave_to_main_menu()
+
 func _on_peer_disconnected(id: int) -> void:
+	if id == 1:
+		_leave_to_main_menu()
+		return
 	if multiplayer.is_server():
 		connected_players.erase(id)
 		sync_lobby_state.rpc(connected_players)
@@ -380,7 +392,7 @@ func sync_lobby_state(players_dict: Dictionary) -> void:
 		_refresh_lobby_ui()
 
 func _refresh_lobby_ui() -> void:
-	var my_id = multiplayer.get_unique_id()
+	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
 	
 	if is_training_mode:
 		if team_section:
@@ -450,20 +462,31 @@ func _refresh_lobby_ui() -> void:
 			start_match_button.text = "CANNOT START (Need 1+ player on each team)"
 
 func _on_start_match_pressed() -> void:
-	if not multiplayer.is_server():
+	if is_training_mode:
+		start_game()
 		return
-	if not is_training_mode:
-		var t1_count = 0
-		var t2_count = 0
-		for pid in connected_players.keys():
-			var p = connected_players[pid]
-			if p.get("team", 1) == 1:
-				t1_count += 1
-			elif p.get("team", 1) == 2:
-				t2_count += 1
-		if t1_count < 1 or t2_count < 1:
-			return
+	if not is_multiplayer_match() or not multiplayer.is_server():
+		return
+	var t1_count = 0
+	var t2_count = 0
+	for pid in connected_players.keys():
+		var p = connected_players[pid]
+		if p.get("team", 1) == 1:
+			t1_count += 1
+		elif p.get("team", 1) == 2:
+			t2_count += 1
+	if t1_count < 1 or t2_count < 1:
+		return
 	start_game.rpc()
+
+func is_multiplayer_match() -> bool:
+	if is_training_mode:
+		return false
+	if not multiplayer or not multiplayer.has_multiplayer_peer():
+		return false
+	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return false
+	return connected_players.size() > 1 or multiplayer.get_peers().size() > 0
 
 func get_player_team(peer_id: int) -> int:
 	if connected_players.has(peer_id):
@@ -487,7 +510,7 @@ func start_game() -> void:
 		training_map.visible = is_training_mode
 		training_map.process_mode = Node.PROCESS_MODE_INHERIT if is_training_mode else Node.PROCESS_MODE_DISABLED
 	
-	if multiplayer.is_server():
+	if not is_multiplayer_match() or multiplayer.is_server():
 		for c in players_container.get_children():
 			c.queue_free()
 		for proj in projectiles_container.get_children():
@@ -555,32 +578,77 @@ func _custom_spawn_player(data: Variant) -> Node:
 	player_instance.position = data["pos"]
 	if data.has("rot_y"):
 		player_instance.rotation.y = data["rot_y"]
+	call_deferred("_refresh_all_player_team_visuals")
 	return player_instance
 
+func _refresh_all_player_team_visuals() -> void:
+	if players_container:
+		for p in players_container.get_children():
+			if p.has_method("_update_team_visuals"):
+				p._update_team_visuals()
+
 func on_player_died(_peer_id: int) -> void:
-	if not multiplayer.is_server() or not match_in_progress or is_training_mode:
+	if not is_multiplayer_match() or not multiplayer.is_server() or not match_in_progress or is_training_mode:
 		return
 	_check_match_status()
 
 func _check_match_status() -> void:
-	if is_training_mode:
+	if not is_multiplayer_match() or not multiplayer.is_server() or not match_in_progress or is_training_mode:
 		return
-	var alive_team1 = 0
-	var alive_team2 = 0
-	for p in players_container.get_children():
-		if not p.get("is_dead"):
-			var t = p.get("team_id")
-			if t == 1:
-				alive_team1 += 1
-			elif t == 2:
-				alive_team2 += 1
 	
-	if alive_team1 == 0 and alive_team2 == 0:
-		end_match.rpc("DRAW")
-	elif alive_team1 > 0 and alive_team2 == 0:
-		end_match.rpc("TEAM 1")
-	elif alive_team2 > 0 and alive_team1 == 0:
-		end_match.rpc("TEAM 2")
+	if players_container.get_child_count() == 0:
+		return
+	
+	var total_t1 = 0
+	var total_t2 = 0
+	var alive_t1 = 0
+	var alive_t2 = 0
+	var alive_players: Array = []
+	
+	for p in players_container.get_children():
+		if p is Node3D:
+			var t = p.get("team_id")
+			var dead = p.get("is_dead") == true or (p.get("current_health") != null and p.current_health <= 0.0)
+			if t == 1:
+				total_t1 += 1
+				if not dead:
+					alive_t1 += 1
+					alive_players.append(p)
+			elif t == 2:
+				total_t2 += 1
+				if not dead:
+					alive_t2 += 1
+					alive_players.append(p)
+			else:
+				if not dead:
+					alive_players.append(p)
+	
+	# If both teams are participating in match
+	if total_t1 > 0 and total_t2 > 0:
+		if alive_t1 == 0 and alive_t2 == 0:
+			end_match.rpc("DRAW")
+		elif alive_t1 == 0 and alive_t2 > 0:
+			end_match.rpc("TEAM 2")
+		elif alive_t2 == 0 and alive_t1 > 0:
+			end_match.rpc("TEAM 1")
+	# If only one team or free for all
+	elif total_t1 > 0 or total_t2 > 0:
+		var total_active = total_t1 + total_t2
+		var total_alive = alive_t1 + alive_t2
+		if total_alive == 0:
+			end_match.rpc("DRAW")
+		elif total_active > 1 and total_alive <= 1:
+			if alive_players.size() == 1:
+				var winner = alive_players[0]
+				var winner_id = winner.name.to_int()
+				var p_info = connected_players.get(winner_id, {})
+				var p_name = p_info.get("name", "Player " + str(winner_id))
+				var char_name = winner.get("character_name")
+				if not char_name or str(char_name).is_empty():
+					char_name = p_info.get("character", "Hero").capitalize()
+				end_match.rpc("%s (%s)" % [p_name, char_name])
+			else:
+				end_match.rpc("DRAW")
 
 @rpc("any_peer", "call_local", "reliable")
 func display_damage_number(amount: float, pos: Vector3, action_type: int = 0) -> void:
@@ -623,9 +691,13 @@ func end_match(winner_name: String) -> void:
 		winner_label.text = "MATCH OVER!\n%s WINS!" % winner_name.to_upper()
 	match_over_panel.show()
 	
-	await get_tree().create_timer(3.5).timeout
+	await get_tree().create_timer(3.0).timeout
 	
 	match_over_panel.hide()
+	escape_panel.hide()
+	settings_panel.hide()
+	if scoreboard_panel:
+		scoreboard_panel.hide()
 	lobby_panel.show()
 	_refresh_lobby_ui()
 	
@@ -669,6 +741,37 @@ func spawn_projectile(pos: Vector3, dir: Vector3, shooter_id: int, dmg: float = 
 	projectile_spawner.spawn(spawn_data)
 
 func _custom_spawn_projectile(data: Variant) -> Node:
+	var p_type = data.get("type", "projectile")
+	if p_type == "mortar_shell":
+		var shell = mortar_shell_scene.instantiate()
+		shell.start_pos = data["start_pos"]
+		shell.end_pos = data["end_pos"]
+		shell.speed = data.get("speed", 24.0)
+		shell.aoe_radius = data.get("aoe_radius", 3.2)
+		shell.damage = data.get("damage", 45.0)
+		shell.shooter_id = data.get("shooter_id", 0)
+		shell.shooter_team = data.get("shooter_team", 0)
+		return shell
+	elif p_type == "blood_wave":
+		var wave = blood_wave_scene.instantiate()
+		wave.position = data["pos"]
+		wave.direction = data["dir"]
+		wave.speed = data.get("speed", 22.0)
+		wave.max_range = data.get("max_range", 45.0)
+		wave.wave_width = data.get("wave_width", 12.0)
+		wave.damage = data.get("damage", 80.0)
+		wave.shooter_id = data.get("shooter_id", 0)
+		wave.shooter_team = data.get("shooter_team", 0)
+		return wave
+	elif p_type == "vision_flare":
+		var flare = vision_flare_scene.instantiate()
+		flare.position = data["pos"]
+		flare.direction = data["dir"]
+		flare.target_distance = data.get("target_dist", 65.0)
+		flare.shooter_id = data.get("shooter_id", 0)
+		flare.shooter_team = data.get("shooter_team", 0)
+		return flare
+
 	var proj = projectile_scene.instantiate()
 	proj.shooter_id = data.get("shooter_id", 0)
 	proj.shooter_team = data.get("shooter_team", 0)
@@ -711,13 +814,50 @@ func spawn_vision_flare(pos: Vector3, dir: Vector3, target_dist: float, shooter_
 		return
 	if shooter_team == 0 and shooter_id > 0:
 		shooter_team = get_player_team(shooter_id)
-	var flare = vision_flare_scene.instantiate()
-	flare.position = pos
-	flare.direction = dir
-	flare.target_distance = target_dist
-	flare.shooter_id = shooter_id
-	flare.shooter_team = shooter_team
-	projectiles_container.add_child(flare, true)
+	var spawn_data = {
+		"type": "vision_flare",
+		"pos": pos,
+		"dir": dir,
+		"target_dist": target_dist,
+		"shooter_id": shooter_id,
+		"shooter_team": shooter_team
+	}
+	projectile_spawner.spawn(spawn_data)
+
+func spawn_mortar_shell(start_p: Vector3, end_p: Vector3, shooter_id: int = 0, shooter_team: int = 0, spd: float = 24.0, rad: float = 3.2, dmg: float = 45.0) -> void:
+	if not multiplayer.is_server():
+		return
+	if shooter_team == 0 and shooter_id > 0:
+		shooter_team = get_player_team(shooter_id)
+	var spawn_data = {
+		"type": "mortar_shell",
+		"start_pos": start_p,
+		"end_pos": end_p,
+		"speed": spd,
+		"aoe_radius": rad,
+		"damage": dmg,
+		"shooter_id": shooter_id,
+		"shooter_team": shooter_team
+	}
+	projectile_spawner.spawn(spawn_data)
+
+func spawn_blood_wave(pos: Vector3, dir: Vector3, shooter_id: int = 0, shooter_team: int = 0, spd: float = 22.0, max_rng: float = 45.0, width: float = 12.0, dmg: float = 80.0) -> void:
+	if not multiplayer.is_server():
+		return
+	if shooter_team == 0 and shooter_id > 0:
+		shooter_team = get_player_team(shooter_id)
+	var spawn_data = {
+		"type": "blood_wave",
+		"pos": pos,
+		"dir": dir,
+		"speed": spd,
+		"max_range": max_rng,
+		"wave_width": width,
+		"damage": dmg,
+		"shooter_id": shooter_id,
+		"shooter_team": shooter_team
+	}
+	projectile_spawner.spawn(spawn_data)
 
 func spawn_vision_reveal_zone(pos: Vector3, rad: float = 12.0, lifetime: float = 5.5, owner_id: int = 0, owner_team: int = 0) -> void:
 	if not multiplayer.is_server():
@@ -802,6 +942,234 @@ func _custom_spawn_hazard_zone(data: Variant) -> Node:
 	zone.shooter_id = data.get("shooter_id", 0)
 	zone.shooter_team = data.get("shooter_team", 0)
 	return zone
+
+func _process(_delta: float) -> void:
+	if is_multiplayer_match() and multiplayer.is_server() and match_in_progress and not is_training_mode:
+		_check_match_status()
+
+	if Input.is_key_pressed(KEY_TAB):
+		if not scoreboard_panel.visible:
+			_show_scoreboard(true)
+		else:
+			_update_scoreboard_content()
+	else:
+		if scoreboard_panel and scoreboard_panel.visible:
+			_show_scoreboard(false)
+
+func _setup_scoreboard_ui() -> void:
+	var ui_node = get_node_or_null("UI")
+	if not ui_node:
+		return
+	
+	scoreboard_panel = PanelContainer.new()
+	scoreboard_panel.name = "ScoreboardPanel"
+	scoreboard_panel.visible = false
+	scoreboard_panel.anchors_preset = Control.PRESET_CENTER
+	scoreboard_panel.anchor_left = 0.5
+	scoreboard_panel.anchor_top = 0.5
+	scoreboard_panel.anchor_right = 0.5
+	scoreboard_panel.anchor_bottom = 0.5
+	scoreboard_panel.offset_left = -330.0
+	scoreboard_panel.offset_top = -190.0
+	scoreboard_panel.offset_right = 330.0
+	scoreboard_panel.offset_bottom = 190.0
+	scoreboard_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	scoreboard_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	scoreboard_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.08, 0.13, 0.94)
+	style.border_color = Color(0.25, 0.45, 0.75, 0.85)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 20
+	style.content_margin_top = 16
+	style.content_margin_right = 20
+	style.content_margin_bottom = 16
+	scoreboard_panel.add_theme_stylebox_override("panel", style)
+	
+	var main_vbox = VBoxContainer.new()
+	main_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_vbox.add_theme_constant_override("separation", 8)
+	scoreboard_panel.add_child(main_vbox)
+	
+	var header_lbl = Label.new()
+	header_lbl.text = "MATCH ROSTER & STATUS"
+	header_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header_lbl.add_theme_font_size_override("font_size", 18)
+	header_lbl.add_theme_color_override("font_color", Color(0.95, 0.95, 1.0))
+	main_vbox.add_child(header_lbl)
+	
+	scoreboard_status_label = Label.new()
+	scoreboard_status_label.text = "TEAM 1: 0/0 ALIVE    |    TEAM 2: 0/0 ALIVE"
+	scoreboard_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_status_label.add_theme_font_size_override("font_size", 13)
+	scoreboard_status_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+	main_vbox.add_child(scoreboard_status_label)
+	
+	var sep1 = HSeparator.new()
+	main_vbox.add_child(sep1)
+	
+	var columns_hbox = HBoxContainer.new()
+	columns_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	columns_hbox.add_theme_constant_override("separation", 16)
+	main_vbox.add_child(columns_hbox)
+	
+	# Team 1 Column
+	var t1_vbox = VBoxContainer.new()
+	t1_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t1_vbox.add_theme_constant_override("separation", 6)
+	columns_hbox.add_child(t1_vbox)
+	
+	var t1_header = Label.new()
+	t1_header.text = "TEAM 1 (BLUE)"
+	t1_header.add_theme_font_size_override("font_size", 14)
+	t1_header.add_theme_color_override("font_color", Color(0.3, 0.65, 1.0))
+	t1_vbox.add_child(t1_header)
+	
+	scoreboard_t1_list = VBoxContainer.new()
+	scoreboard_t1_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_t1_list.add_theme_constant_override("separation", 4)
+	t1_vbox.add_child(scoreboard_t1_list)
+	
+	var v_sep = VSeparator.new()
+	columns_hbox.add_child(v_sep)
+	
+	# Team 2 Column
+	var t2_vbox = VBoxContainer.new()
+	t2_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t2_vbox.add_theme_constant_override("separation", 6)
+	columns_hbox.add_child(t2_vbox)
+	
+	var t2_header = Label.new()
+	t2_header.text = "TEAM 2 (RED)"
+	t2_header.add_theme_font_size_override("font_size", 14)
+	t2_header.add_theme_color_override("font_color", Color(1.0, 0.35, 0.4))
+	t2_vbox.add_child(t2_header)
+	
+	scoreboard_t2_list = VBoxContainer.new()
+	scoreboard_t2_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_t2_list.add_theme_constant_override("separation", 4)
+	t2_vbox.add_child(scoreboard_t2_list)
+	
+	var sep2 = HSeparator.new()
+	main_vbox.add_child(sep2)
+	
+	var footer_lbl = Label.new()
+	footer_lbl.text = "[ Hold TAB to view • Release TAB to close ]"
+	footer_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer_lbl.add_theme_font_size_override("font_size", 11)
+	footer_lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	main_vbox.add_child(footer_lbl)
+	
+	ui_node.add_child(scoreboard_panel)
+
+func _show_scoreboard(show: bool) -> void:
+	if not scoreboard_panel:
+		return
+	if show:
+		_update_scoreboard_content()
+		scoreboard_panel.show()
+	else:
+		scoreboard_panel.hide()
+
+func _update_scoreboard_content() -> void:
+	if not scoreboard_panel or not scoreboard_panel.visible:
+		return
+	
+	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
+	var t1_alive = 0
+	var t1_total = 0
+	var t2_alive = 0
+	var t2_total = 0
+	
+	for c in scoreboard_t1_list.get_children():
+		c.queue_free()
+	for c in scoreboard_t2_list.get_children():
+		c.queue_free()
+	
+	if is_training_mode:
+		scoreboard_status_label.text = "TRAINING ARENA SESSION"
+		var p_node = players_container.get_node_or_null(str(my_id))
+		var row = _create_scoreboard_player_row(my_id, "Player (YOU)", selected_character, p_node, true)
+		scoreboard_t1_list.add_child(row)
+		return
+	
+	for pid in connected_players.keys():
+		var p_data = connected_players[pid]
+		var team = p_data.get("team", 1)
+		var p_name = p_data.get("name", "Player " + str(pid))
+		var char_key = p_data.get("character", "poke")
+		var p_node = players_container.get_node_or_null(str(pid))
+		
+		var is_alive = true
+		if match_in_progress:
+			is_alive = (p_node != null and not p_node.get("is_dead"))
+		
+		if team == 1:
+			t1_total += 1
+			if is_alive: t1_alive += 1
+			var row = _create_scoreboard_player_row(pid, p_name, char_key, p_node, is_alive)
+			scoreboard_t1_list.add_child(row)
+		elif team == 2:
+			t2_total += 1
+			if is_alive: t2_alive += 1
+			var row = _create_scoreboard_player_row(pid, p_name, char_key, p_node, is_alive)
+			scoreboard_t2_list.add_child(row)
+	
+	if match_in_progress:
+		scoreboard_status_label.text = "TEAM 1: %d/%d ALIVE    |    TEAM 2: %d/%d ALIVE" % [t1_alive, t1_total, t2_alive, t2_total]
+	else:
+		scoreboard_status_label.text = "LOBBY ROSTER (%d Connected Players)" % connected_players.size()
+
+func _create_scoreboard_player_row(pid: int, p_name: String, char_key: String, p_node: Node, is_alive: bool) -> Control:
+	var row = HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
+	var is_me = (pid == my_id)
+	var name_lbl = Label.new()
+	name_lbl.text = ("★ " if is_me else "• ") + p_name
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.add_theme_font_size_override("font_size", 13)
+	if is_me:
+		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
+	row.add_child(name_lbl)
+	
+	var char_lbl = Label.new()
+	char_lbl.text = char_key.to_upper()
+	char_lbl.custom_minimum_size = Vector2(80, 0)
+	char_lbl.add_theme_font_size_override("font_size", 12)
+	char_lbl.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+	row.add_child(char_lbl)
+	
+	var status_lbl = Label.new()
+	status_lbl.custom_minimum_size = Vector2(110, 0)
+	status_lbl.add_theme_font_size_override("font_size", 12)
+	status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	
+	if match_in_progress:
+		if is_alive:
+			var hp_text = ""
+			if p_node and p_node.get("current_health") != null:
+				hp_text = " (%d HP)" % int(p_node.current_health)
+			status_lbl.text = "● ALIVE" + hp_text
+			status_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+		else:
+			status_lbl.text = "✖ DEAD"
+			status_lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+	else:
+		status_lbl.text = "READY"
+		status_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	
+	row.add_child(status_lbl)
+	return row
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
@@ -928,8 +1296,15 @@ func return_to_lobby() -> void:
 func _on_leave_match_pressed() -> void:
 	_leave_to_main_menu()
 
+@rpc("authority", "call_local", "reliable")
+func host_ended_session() -> void:
+	_leave_to_main_menu()
+
 func _leave_to_main_menu() -> void:
 	_cleanup_upnp()
+	
+	if multiplayer.multiplayer_peer and multiplayer.is_server() and connected_players.size() > 1:
+		host_ended_session.rpc()
 	
 	escape_panel.hide()
 	join_dialog.hide()

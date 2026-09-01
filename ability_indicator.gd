@@ -364,6 +364,7 @@ static func create_box_indicator(width: float, length: float, fill_color: Color,
 static func create_arc_trajectory_indicator(aoe_radius: float, fill_color: Color, border_color: Color) -> Node3D:
 	var root = Node3D.new()
 	root.name = "ArcTrajectoryIndicator"
+	root.top_level = true
 	
 	# Endpoint circle
 	var circle = create_circle_indicator(aoe_radius, fill_color, border_color)
@@ -398,17 +399,74 @@ static func update_arc_trajectory_indicator(indicator: Node3D, start_pos: Vector
 		var st = SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_LINE_STRIP)
 		var segments = 24
-		# Transform from global space to indicator local space
 		var inv_trans = indicator.global_transform.affine_inverse()
 		for i in range(segments + 1):
 			var t = float(i) / float(segments)
 			var current_xz = start_pos.lerp(end_pos, t)
-			# Parabolic arc curve y = 4 * apex * t * (1 - t)
 			var current_y = lerp(start_pos.y, end_pos.y, t) + 4.0 * apex_height * t * (1.0 - t)
 			var world_pt = Vector3(current_xz.x, current_y, current_xz.z)
 			var local_pt = inv_trans * world_pt
 			st.add_vertex(local_pt)
 		line_mesh_inst.mesh = st.commit()
+
+# --- Unified Indicator APIs ---
+
+# 1. Caster-Emanating Indicators: requires only the shape of the given hitbox and the aim angle
+static func create_emanating_indicator(hitbox: RefCounted, fill_color: Color = EMPTY_FILL, border_color: Color = WHITE_OUTLINE) -> Node3D:
+	return create_from_hitbox(hitbox, fill_color, border_color)
+
+static func update_emanating_angle(indicator: Node3D, angle_rad: float) -> void:
+	if is_instance_valid(indicator):
+		indicator.rotation.y = angle_rad
+
+# 2. Discrete Location Indicators: requires a discrete location instead of an aim angle
+static func create_discrete_location_indicator(hitbox: RefCounted, fill_color: Color = EMPTY_FILL, border_color: Color = WHITE_OUTLINE) -> Node3D:
+	var ind = create_from_hitbox(hitbox, fill_color, border_color)
+	if ind:
+		ind.top_level = true
+	return ind
+
+static func update_discrete_location(indicator: Node3D, target_location: Vector3) -> void:
+	if is_instance_valid(indicator):
+		indicator.global_position = Vector3(target_location.x, 0.06, target_location.z)
+
+# 3. Emanating Distance + Angle Indicators: for abilities like Morrigan's Mortar
+static func create_mortar_indicator(radius: float, fill_color: Color = Color(0.2, 0.05, 0.35, 0.25), border_color: Color = Color(0.75, 0.2, 0.95, 0.95)) -> Node3D:
+	return create_arc_trajectory_indicator(radius, fill_color, border_color)
+
+static func update_mortar_distance_and_angle(indicator: Node3D, start_pos: Vector3, distance: float, angle_rad: float, apex_height: float = -1.0) -> Vector3:
+	var aim_dir = Vector3(sin(angle_rad), 0.0, -cos(angle_rad)).normalized()
+	var end_pos = start_pos + aim_dir * distance
+	end_pos.y = 0.05
+	var apex = apex_height if apex_height > 0.0 else max(3.5, distance * 0.42)
+	update_arc_trajectory_indicator(indicator, start_pos + Vector3(0, 0.8, 0), end_pos, apex)
+	return end_pos
+
+static func create_from_hitbox(hitbox: RefCounted, fill_color: Color = Color(1.0, 0.2, 0.2, 0.25), border_color: Color = Color(1.0, 0.4, 0.4, 0.95)) -> Node3D:
+	if not hitbox:
+		return null
+	var shape = hitbox.get("shape")
+	match shape:
+		AbilityPipeline.HitboxShape.SECTOR:
+			var rad = hitbox.get("radius") if hitbox.get("radius") != null else 4.0
+			var ang = hitbox.get("angle_deg") if hitbox.get("angle_deg") != null else 90.0
+			return create_sector_indicator(rad, ang, fill_color, border_color)
+		AbilityPipeline.HitboxShape.CIRCLE, AbilityPipeline.HitboxShape.CYLINDER:
+			var rad = hitbox.get("radius") if hitbox.get("radius") != null else 4.0
+			return create_circle_indicator(rad, fill_color, border_color)
+		AbilityPipeline.HitboxShape.LINE:
+			var l = hitbox.get("length") if hitbox.get("length") != null else 10.0
+			var w = hitbox.get("width") if hitbox.get("width") != null else 1.0
+			return create_line_indicator(l, w, fill_color, border_color)
+		AbilityPipeline.HitboxShape.BOX:
+			var rad = hitbox.get("radius") if hitbox.get("radius") != null else (hitbox.get("length") if hitbox.get("length") != null else 4.0)
+			var w = hitbox.get("width") if hitbox.get("width") != null else 2.0
+			return create_line_indicator(rad, w, fill_color, border_color)
+		AbilityPipeline.HitboxShape.DONUT:
+			var inner_r = hitbox.get("width") if hitbox.get("width") != null else 3.0
+			var outer_r = hitbox.get("radius") if hitbox.get("radius") != null else 5.5
+			return create_donut_indicator(inner_r, outer_r, fill_color, border_color)
+	return null
 
 const WHITE_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.92)
 const EMPTY_FILL: Color = Color(1.0, 1.0, 1.0, 0.0)
@@ -451,5 +509,3 @@ static func _apply_flash_mat_recursive(target: Node, mat: Material) -> void:
 		target.material_override = mat
 	for child in target.get_children():
 		_apply_flash_mat_recursive(child, mat)
-
-

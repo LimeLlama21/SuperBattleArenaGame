@@ -3,9 +3,10 @@
 [ext_resource type="Script" path="res://main.gd" id="1_2"]
 [ext_resource type="Script" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
 [ext_resource type="Script" path="res://settings_ui.gd" id="3_settings_script"]
+[ext_resource type="Shader" path="res://fog_of_war.gdshader" id="4_fow_shader"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_mul"]
-blend_mode = 3
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fow"]
+shader = ExtResource("4_fow_shader")
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -294,7 +295,7 @@ mouse_filter = 2
 script = ExtResource("2_fow_script")
 
 [node name="FogOfWarTexture" type="TextureRect" parent="FogOfWarCanvas"]
-material = SubResource("CanvasItemMaterial_mul")
+material = SubResource("ShaderMaterial_fow")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

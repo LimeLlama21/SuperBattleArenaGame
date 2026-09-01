@@ -22,7 +22,7 @@ static func create() -> CharacterData:
 		"SHIFT": "crush_dash"
 	}
 	data.passive_data = {
-		"dash_impulse": 24.0,
+		"dash_impulse": 40.0,
 		"max_dash_charges": 1,
 		"dash_cooldown": 8.0,
 		"titan_surge_damage_mult": 1.4,
@@ -35,6 +35,7 @@ static func create() -> CharacterData:
 		"melee_windup_time": 0.28,
 		"fan_stun_damage": 25.0,
 		"fan_stun_radius": 5.2,
+		"fan_stun_height": 2.4,
 		"fan_stun_angle_deg": 100.0,
 		"fan_stun_duration": 0.8,
 		"stomp_damage": 20.0,

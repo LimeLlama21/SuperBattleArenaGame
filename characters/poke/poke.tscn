@@ -75,13 +75,13 @@ replication_config = SubResource("SceneReplicationConfig_1")
 [node name="HealthBarViewport" type="SubViewport" parent="." unique_id=1172474910]
 disable_3d = true
 transparent_bg = true
-size = Vector2i(120, 16)
+size = Vector2i(220, 28)
 render_target_update_mode = 4
 
 [node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=1738470589]
-custom_minimum_size = Vector2(120, 16)
-offset_right = 120.0
-offset_bottom = 16.0
+custom_minimum_size = Vector2(220, 28)
+offset_right = 220.0
+offset_bottom = 28.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
 max_value = 80.0
@@ -89,7 +89,7 @@ value = 80.0
 show_percentage = false
 
 [node name="HealthBarSprite" type="Sprite3D" parent="." unique_id=1065039526]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 0)
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, 2.45, 0)
 billboard = 1
 double_sided = false
 no_depth_test = true

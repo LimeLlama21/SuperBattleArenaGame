@@ -195,4 +195,3 @@ func set_active_state(active: bool) -> void:
 		add_theme_stylebox_override("panel", normal_style)
 		if key_label:
 			key_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0, 0.9))
-

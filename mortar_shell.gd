@@ -21,7 +21,7 @@ func _ready() -> void:
 	global_position = start_pos
 	var horizontal_dist = Vector2(start_pos.x - end_pos.x, start_pos.z - end_pos.z).length()
 	apex_height = max(3.5, horizontal_dist * 0.42)
-	flight_duration = max(0.4, horizontal_dist / max(1.0, speed))
+	flight_duration = max(0.2, horizontal_dist / max(1.0, speed))
 
 func _physics_process(delta: float) -> void:
 	if is_exploded:
@@ -67,7 +67,8 @@ func _explode() -> void:
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.28)
 	tw.tween_callback(blast.queue_free)
 	
-	if multiplayer.is_server():
+	var is_srv = multiplayer.is_server() if (multiplayer and multiplayer.has_multiplayer_peer()) else true
+	if is_srv:
 		var players_container = get_tree().root.get_node_or_null("Main/Players")
 		if players_container:
 			for player in players_container.get_children():

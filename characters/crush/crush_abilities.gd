@@ -14,13 +14,13 @@ static func get_abilities() -> Dictionary:
 	lmb.effect.effect_type = AbilityPipeline.EffectType.MELEE_STRIKE
 	lmb.effect.windup_time = 0.28
 	lmb.hitbox = AbilityPipeline.AbilityHitbox.new()
-	lmb.hitbox.shape = AbilityPipeline.HitboxShape.BOX
+	lmb.hitbox.shape = AbilityPipeline.HitboxShape.SECTOR
 	lmb.hitbox.radius = 4.2
 	lmb.hitbox.angle_deg = 120.0
 	lmb.hitbox.height = 2.4
 	var r_dmg = AbilityPipeline.AbilityRider.new()
 	r_dmg.rider_type = AbilityPipeline.RiderType.DAMAGE
-	r_dmg.amount = 55.0
+	r_dmg.amount = 40.0
 	lmb.riders.append(r_dmg)
 	dict["LMB"] = lmb
 	dict[lmb.id] = lmb

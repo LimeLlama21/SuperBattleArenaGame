@@ -5,7 +5,7 @@ extends Area3D
 @export var max_range: float = 45.0
 @export var wave_width: float = 12.0
 @export var wave_height: float = 3.2
-@export var damage: float = 80.0
+@export var damage: float = 50.0
 @export var stun_duration: float = 1.2
 @export var shooter_id: int = 0
 @export var shooter_team: int = 0
@@ -69,7 +69,7 @@ func _check_hit(body: Node) -> void:
 		if body.has_method("take_damage"):
 			body.take_damage(damage, shooter_id, BasePlayer.ActionType.ABILITY)
 		if body.has_method("apply_knockback"):
-			var kb = Vector3.UP * 16.0 + direction * 10.0
+			var kb = Vector3.UP * 5.5
 			body.apply_knockback(kb, true)
 		if body.has_method("apply_stun"):
 			body.apply_stun(stun_duration)
