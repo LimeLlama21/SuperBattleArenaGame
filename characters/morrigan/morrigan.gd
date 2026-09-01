@@ -121,7 +121,7 @@ func _setup_character_kit() -> void:
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
 	
-	abilities = MorriganAbilities.get_abilities()
+	abilities = data.abilities
 	_setup_local_indicators()
 	_setup_tether_visual()
 

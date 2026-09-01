@@ -51,7 +51,7 @@ func _setup_character_kit() -> void:
 	dash_impulse = data.passive_data.get("dash_impulse", 28.0)
 	dash_cooldown = data.passive_data.get("dash_cooldown", 4.0)
 
-	abilities = PokeAbilities.get_abilities()
+	abilities = data.abilities
 	_setup_local_indicators()
 
 func _setup_local_indicators() -> void:

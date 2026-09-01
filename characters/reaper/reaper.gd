@@ -77,7 +77,7 @@ func _setup_character_kit() -> void:
 	dash_impulse = data.passive_data.get("dash_impulse", 28.0)
 	dash_cooldown = data.passive_data.get("dash_cooldown", 5.0)
 
-	abilities = ReaperAbilities.get_abilities()
+	abilities = data.abilities
 	_setup_local_indicators()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer

@@ -1,15 +1,5 @@
 extends Control
 
-const CLOSE_RADIUS_M: float = 5.5
-const CONE_RADIUS_M: float = 24.0
-const CONE_HALF_ANGLE_DEG: float = 30.0 # 60 degrees total cone
-const HEIGHT_SCALE_FACTOR: float = 0.20 # +20% radius per meter of elevation
-const MAX_HEIGHT_MULT: float = 2.5
-
-static func get_height_vision_multiplier(pos_y: float) -> float:
-	var height = max(0.0, pos_y)
-	return clamp(1.0 + (height * HEIGHT_SCALE_FACTOR), 1.0, MAX_HEIGHT_MULT)
-
 @onready var texture_rect: TextureRect = get_node_or_null("../../FogOfWarTexture")
 
 func _ready() -> void:
@@ -57,8 +47,8 @@ func _draw() -> void:
 		if local_player and local_player.get("spectate_target") != null and is_instance_valid(local_player.spectate_target) and not local_player.spectate_target.get("is_dead"):
 			focus_player = local_player.spectate_target
 		else:
-			draw_rect(Rect2(Vector2.ZERO, vp_size), Color(1, 1, 1, 1))
-			_reveal_all_players(main_node)
+			draw_rect(Rect2(Vector2.ZERO, vp_size), Color(0.0, 0.0, 0.0, 1.0))
+			_hide_all_opponents(main_node)
 			return
 
 	var focus_id = focus_player.name.to_int()
@@ -95,9 +85,10 @@ func _draw() -> void:
 			tm_fwd_3d = Vector3.FORWARD
 		tm_fwd_3d = tm_fwd_3d.normalized()
 
-		# Height-scaled vision radii
+		# Height-scaled vision radii with finite limits
 		var height_mult = PlayerVision.get_height_vision_multiplier(tm_pos_3d.y)
-		var effective_close_radius = CLOSE_RADIUS_M * height_mult
+		var effective_close_radius = PlayerVision.CLOSE_RADIUS_M * height_mult
+		var effective_cone_radius = PlayerVision.CONE_RADIUS_M * height_mult
 
 		# Close circle (5.5m base, scaled with elevation, vertex-shadowed)
 		var close_poly = PlayerVision.generate_vertex_vision_polygon(
@@ -109,14 +100,9 @@ func _draw() -> void:
 			close_loop.append(close_poly[0])
 			draw_polyline(close_loop, vision_white, 3.0, true)
 
-		# Forward cone (24.0m normal or 70.0m Poke Ult, scaled with elevation, vertex-shadowed)
-		var is_poke_ult_buff = (tm.get("poke_ult_buff_timer") != null and tm.poke_ult_buff_timer > 0.0)
-		var base_cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
-		var effective_cone_radius = base_cone_radius * height_mult
-		var see_through = is_poke_ult_buff
-
+		# Forward cone (24.0m base, 60 deg, scaled with elevation, vertex-shadowed)
 		var cone_poly = PlayerVision.generate_vertex_vision_polygon(
-			camera, space_state, tm_eye_pos, effective_cone_radius, true, tm_fwd_3d, deg_to_rad(CONE_HALF_ANGLE_DEG), see_through, obstacle_vertices
+			camera, space_state, tm_eye_pos, effective_cone_radius, true, tm_fwd_3d, deg_to_rad(PlayerVision.CONE_HALF_ANGLE_DEG), false, obstacle_vertices
 		)
 		if cone_poly.size() >= 3:
 			draw_colored_polygon(cone_poly, vision_white)
@@ -180,52 +166,6 @@ func _draw() -> void:
 	# 4. Update enemies & projectile entities visibility (hide entities in fog)
 	_update_team_enemies_visibility(main_node, teammates, space_state, active_reveal_sources, focus_team, focus_id)
 
-func _make_circle_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, radius: float, num_rays: int) -> PackedVector2Array:
-	var pts_2d = PackedVector2Array()
-	for i in range(num_rays):
-		var a = float(i) / float(num_rays) * TAU
-		var dir_3d = Vector3(cos(a), 0.0, sin(a))
-		var ray_endpoint = _cast_ray_3d(space_state, origin_3d, dir_3d, radius)
-		pts_2d.append(camera.unproject_position(ray_endpoint))
-	return pts_2d
-
-func _make_cone_poly_3d(camera: Camera3D, space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, fwd_3d: Vector3, half_angle_rad: float, max_radius: float, num_rays: int, see_through_terrain: bool = false) -> PackedVector2Array:
-	var pts_2d = PackedVector2Array()
-	pts_2d.append(camera.unproject_position(origin_3d))
-	
-	var right_3d = Vector3(fwd_3d.z, 0.0, -fwd_3d.x).normalized()
-	
-	for i in range(num_rays + 1):
-		var t = float(i) / float(num_rays)
-		var alpha = lerp(-half_angle_rad, half_angle_rad, t)
-		var dir_3d = (fwd_3d * cos(alpha) + right_3d * sin(alpha)).normalized()
-		var ray_endpoint: Vector3
-		if see_through_terrain:
-			ray_endpoint = origin_3d + dir_3d * max_radius
-		else:
-			ray_endpoint = _cast_ray_3d(space_state, origin_3d, dir_3d, max_radius)
-		pts_2d.append(camera.unproject_position(ray_endpoint))
-		
-	return pts_2d
-
-func _cast_ray_3d(space_state: PhysicsDirectSpaceState3D, origin_3d: Vector3, dir_3d: Vector3, max_dist: float) -> Vector3:
-	var target_3d = origin_3d + dir_3d * max_dist
-	
-	var query = PhysicsRayQueryParameters3D.create(origin_3d, target_3d, 1) # Layer 1 = Static terrain / walls
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	
-	var result = space_state.intersect_ray(query)
-	if result.is_empty():
-		return target_3d
-	
-	var hit_pos: Vector3 = result.position
-	# Check if player is above the terrain
-	if origin_3d.y >= hit_pos.y + 0.3:
-		return target_3d
-	
-	return hit_pos
-
 func _get_local_player(main_node: Node, my_id: int) -> Node:
 	var players_container = main_node.get_node_or_null("Players")
 	if not players_container:
@@ -247,6 +187,25 @@ func _get_local_player(main_node: Node, my_id: int) -> Node:
 				return p
 
 	return null
+
+func _hide_all_opponents(main_node: Node) -> void:
+	var players_container = main_node.get_node_or_null("Players")
+	if players_container:
+		for p in players_container.get_children():
+			if p.has_method("set_opponent_visible"):
+				var is_local = p.is_local_player() if p.has_method("is_local_player") else false
+				if is_local:
+					p.set_opponent_visible(not p.get("is_dead"))
+				else:
+					p.set_opponent_visible(false)
+	var proj_container = main_node.get_node_or_null("Projectiles")
+	if proj_container:
+		for proj in proj_container.get_children():
+			proj.visible = false
+	var hazard_container = main_node.get_node_or_null("HazardZones")
+	if hazard_container:
+		for h in hazard_container.get_children():
+			h.visible = false
 
 func _reveal_all_players(main_node: Node) -> void:
 	var players_container = main_node.get_node_or_null("Players")
@@ -311,34 +270,32 @@ func _is_point_in_team_vision(target_pos: Vector3, eye_offset_y: float, teammate
 	# Check line of sight from ANY living teammate
 	for tm in teammates:
 		var tm_pos = tm.global_position
-		var tm_eye_pos = tm_pos + Vector3(0, 1.25, 0)
-		var tm_fwd_3d = -tm.global_transform.basis.z.normalized()
+		var tm_eye_pos = tm.get_predicted_vision_origin(1.25) if tm.has_method("get_predicted_vision_origin") else (tm_pos + Vector3(0, 1.25, 0))
+		var tm_fwd_3d = tm.get_facing_direction_3d() if tm.has_method("get_facing_direction_3d") else -tm.global_transform.basis.z.normalized()
 		tm_fwd_3d.y = 0.0
+		if tm_fwd_3d.length_squared() < 0.0001:
+			tm_fwd_3d = Vector3.FORWARD
 		var tm_fwd_2d = Vector2(tm_fwd_3d.x, tm_fwd_3d.z).normalized()
 
 		var diff = target_pos - tm_pos
 		var diff_2d = Vector2(diff.x, diff.z)
 		var dist = diff_2d.length()
 
-		var is_poke_ult_buff = (tm.get("poke_ult_buff_timer") != null and tm.poke_ult_buff_timer > 0.0)
-		var height_mult = get_height_vision_multiplier(tm_pos.y)
-		var effective_close_radius = CLOSE_RADIUS_M * height_mult
-		var base_cone_radius = 70.0 if is_poke_ult_buff else CONE_RADIUS_M
-		var effective_cone_radius = base_cone_radius * height_mult
+		var height_mult = PlayerVision.get_height_vision_multiplier(tm_pos.y)
+		var effective_close_radius = PlayerVision.CLOSE_RADIUS_M * height_mult
+		var effective_cone_radius = PlayerVision.CONE_RADIUS_M * height_mult
 
 		var in_vision_shape: bool = false
 
-		# 1. Close proximity circle (scaled with height)
+		# 1. Close proximity circle (finite size: 5.5m base, scaled with height)
 		if dist <= effective_close_radius:
 			in_vision_shape = true
-		# 2. Acute forward cone (scaled with height)
+		# 2. Acute forward cone (finite size: 24.0m base, 60 deg, scaled with height)
 		elif dist <= effective_cone_radius and tm_fwd_2d.length_squared() > 0.001:
 			var to_target_2d = diff_2d.normalized()
 			var angle_deg = rad_to_deg(tm_fwd_2d.angle_to(to_target_2d))
-			if abs(angle_deg) <= CONE_HALF_ANGLE_DEG:
+			if abs(angle_deg) <= PlayerVision.CONE_HALF_ANGLE_DEG:
 				in_vision_shape = true
-				if is_poke_ult_buff:
-					return true
 
 		if in_vision_shape:
 			var query = PhysicsRayQueryParameters3D.create(tm_eye_pos, target_eye_pos, 1)

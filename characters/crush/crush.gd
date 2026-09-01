@@ -63,7 +63,7 @@ func _setup_character_kit() -> void:
 	dash_impulse = data.passive_data.get("dash_impulse", 24.0)
 	dash_cooldown = data.passive_data.get("dash_cooldown", 8.0)
 
-	abilities = CrushAbilities.get_abilities()
+	abilities = data.abilities
 	_setup_local_indicators()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer

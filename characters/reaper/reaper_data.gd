@@ -52,4 +52,121 @@ static func create() -> CharacterData:
 		"ult_cdr_mult": 0.50,
 		"ult_damage_mult": 1.30
 	}
+
+	data.define_abilities([
+		# Primary Fire (LMB): Reaper's Scythe
+		{
+			"id": "reaper_slash",
+			"name": "Reaper's Scythe",
+			"slot": "LMB",
+			"cooldown": 0.45,
+			"effect": {
+				"type": AbilityPipeline.EffectType.MELEE_STRIKE,
+				"windup": 0.18
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.SECTOR,
+				"radius": 3.6,
+				"angle": 110.0,
+				"height": 2.4
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 36.0},
+				{"type": AbilityPipeline.RiderType.MS_STEAL, "duration": 2.5, "intensity": 0.15}
+			]
+		},
+		# Ability 1 (RMB): Spectral Tether
+		{
+			"id": "reaper_tether",
+			"name": "Spectral Tether",
+			"slot": "RMB",
+			"cooldown": 7.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.PROJECTILE,
+				"speed": 52.0,
+				"range": 24.0,
+				"size": 0.6
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.LINE,
+				"length": 24.0,
+				"width": 0.8
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 25.0},
+				{"type": AbilityPipeline.RiderType.TETHER, "duration": 1.75}
+			]
+		},
+		# Ability 2 (Q): Cull the Weak
+		{
+			"id": "reaper_cull_the_weak",
+			"name": "Cull the Weak",
+			"slot": "Q",
+			"cooldown": 7.5,
+			"effect": {
+				"type": AbilityPipeline.EffectType.AREA_ZONE,
+				"windup": 0.75,
+				"follow_caster": true
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.DONUT,
+				"radius": 5.5,
+				"width": 3.2,
+				"height": 2.4
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 65.0},
+				{"type": AbilityPipeline.RiderType.CRIPPLE, "duration": 2.5, "intensity": 0.35}
+			]
+		},
+		# Ability 3 (E): Nightmare
+		{
+			"id": "reaper_nightmare",
+			"name": "Nightmare",
+			"slot": "E",
+			"cooldown": 12.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.BUFF,
+				"duration": 1.8
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.CIRCLE,
+				"radius": 4.5
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 35.0},
+				{"type": AbilityPipeline.RiderType.SLOW, "duration": 1.8, "intensity": 0.40},
+				{"type": AbilityPipeline.RiderType.ETHEREAL, "duration": 1.8}
+			]
+		},
+		# Ultimate (R): One with Death
+		{
+			"id": "reaper_one_with_death",
+			"name": "One with Death",
+			"slot": "R",
+			"cooldown": 25.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.BUFF,
+				"duration": 8.0
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.SPEED_BOOST, "duration": 8.0, "intensity": 0.45},
+				{"type": AbilityPipeline.RiderType.EMPOWER, "duration": 8.0}
+			]
+		},
+		# Dash (SHIFT): Ethereal Dash
+		{
+			"id": "ethereal_dash",
+			"name": "Ethereal Dash",
+			"slot": "SHIFT",
+			"cooldown": 5.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.DASH
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.ETHEREAL, "duration": 0.45}
+			]
+		}
+	])
+
 	return data

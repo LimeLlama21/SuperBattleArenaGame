@@ -31,3 +31,29 @@ var ability_slots: Dictionary = {
 
 # Character Specific Passives & Tuning Data
 var passive_data: Dictionary = {}
+
+# Parsed Ability Definitions (keyed by slot_key e.g. "LMB" and ability id)
+var abilities: Dictionary = {}
+
+func add_ability(config_or_def: Variant) -> CharacterData:
+	var def: AbilityPipeline.AbilityDefinition = null
+	if config_or_def is AbilityPipeline.AbilityDefinition:
+		def = config_or_def
+	elif config_or_def is Dictionary:
+		def = AbilityPipeline.create_ability(config_or_def)
+	
+	if def != null:
+		if def.slot_key != "":
+			abilities[def.slot_key] = def
+			ability_slots[def.slot_key] = def.id
+		if def.id != "":
+			abilities[def.id] = def
+	return self
+
+func define_abilities(list: Array) -> CharacterData:
+	for item in list:
+		add_ability(item)
+	return self
+
+func get_ability(key: String) -> AbilityPipeline.AbilityDefinition:
+	return abilities.get(key, null)

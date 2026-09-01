@@ -16,6 +16,7 @@ var dash_recharge_timer: float = 0.0
 var dash_impulse: float = 26.0
 var dash_lockout: float = 0.85
 var dash_recharge_time: float = 5.0
+var wall_bounce_ratio: float = 0.55
 var dash_wall_bounce_timer: float = 0.0
 var dive_dash_dir: Vector3 = Vector3.FORWARD
 var is_wall_launched: bool = false
@@ -94,8 +95,9 @@ func _setup_character_kit() -> void:
 	current_dash_charges = max_dash_charges
 	dash_lockout = data.passive_data.get("dash_lockout", 0.85)
 	dash_recharge_time = data.passive_data.get("dash_recharge_time", 5.0)
+	wall_bounce_ratio = data.passive_data.get("wall_bounce_ratio", 0.55)
 
-	abilities = DiveAbilities.get_abilities()
+	abilities = data.abilities
 	_setup_local_indicators()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
@@ -346,10 +348,12 @@ func _trigger_wall_bounce() -> void:
 	dash_lockout_timer = 0.0
 	is_wall_launched = true
 	wall_launch_air_time = 0.0
-	# Convert all horizontal velocity into vertical velocity!
+	# Convert horizontal momentum to vertical momentum with the reduced ratio
+	var horiz_speed = Vector2(velocity.x, velocity.z).length()
+	var base_speed = max(horiz_speed, dash_impulse * 0.8)
 	velocity.x = 0.0
 	velocity.z = 0.0
-	velocity.y = 22.0
+	velocity.y = base_speed * wall_bounce_ratio
 	start_float_state()
 
 func _perform_crash_down() -> void:

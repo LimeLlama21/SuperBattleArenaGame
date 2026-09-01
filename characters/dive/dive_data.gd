@@ -26,6 +26,7 @@ static func create() -> CharacterData:
 		"max_dash_charges": 1,
 		"dash_lockout": 0.85,
 		"dash_recharge_time": 5.0,
+		"wall_bounce_ratio": 0.55,
 		"rupture_mark_duration": 3.5,
 		"rupture_mark_max": 5,
 		"rupture_damage_per_mark": 18.0,
@@ -41,4 +42,110 @@ static func create() -> CharacterData:
 		"crash_damage": 36.0,
 		"crash_radius": 6.0
 	}
+
+	data.define_abilities([
+		# Primary Fire (LMB): Slash
+		{
+			"id": "dive_slash",
+			"name": "Slash",
+			"slot": "LMB",
+			"cooldown": 0.45,
+			"effect": {
+				"type": AbilityPipeline.EffectType.MELEE_STRIKE,
+				"windup": 0.18
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.SECTOR,
+				"radius": 3.4,
+				"angle": 100.0,
+				"height": 2.4
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 32.0},
+				{"type": AbilityPipeline.RiderType.DIVE_MARK, "duration": 3.5}
+			]
+		},
+		# Ability 1 (RMB): Heavy Cleave
+		{
+			"id": "dive_heavy_cleave",
+			"name": "Heavy Cleave",
+			"slot": "RMB",
+			"cooldown": 6.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.MELEE_STRIKE,
+				"windup": 0.18
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.SECTOR,
+				"radius": 3.0,
+				"angle": 135.0,
+				"height": 2.4
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 65.0},
+				{"type": AbilityPipeline.RiderType.DIVE_MARK, "duration": 3.5}
+			]
+		},
+		# Ability 2 (Q): Earth Tremor
+		{
+			"id": "dive_earth_tremor",
+			"name": "Earth Tremor",
+			"slot": "Q",
+			"cooldown": 8.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.PROJECTILE,
+				"speed": 28.0,
+				"range": 14.0,
+				"size": 1.5,
+				"pierces": true,
+				"windup": 0.35
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.LINE,
+				"length": 14.0,
+				"width": 1.5
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 18.0},
+				{"type": AbilityPipeline.RiderType.SLOW, "duration": 2.0, "intensity": 0.40},
+				{"type": AbilityPipeline.RiderType.SPAWN_TERRAIN, "duration": 5.0}
+			]
+		},
+		# Ability 3 (E): Deflecting Guard
+		{
+			"id": "dive_deflecting_guard",
+			"name": "Deflecting Guard",
+			"slot": "E",
+			"cooldown": 4.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.STANCE_BLOCK,
+				"duration": 3.0
+			}
+		},
+		# Ultimate (R): Tectonic Uprising
+		{
+			"id": "dive_tectonic_uprising",
+			"name": "Tectonic Uprising",
+			"slot": "R",
+			"cooldown": 24.0,
+			"can_cast_while_stunned": true,
+			"effect": {
+				"type": AbilityPipeline.EffectType.BUFF,
+				"duration": 6.0
+			}
+		},
+		# Dash & Aerial Crash (SHIFT)
+		{
+			"id": "dive_dash_or_crash",
+			"name": "Dash / Crash",
+			"slot": "SHIFT",
+			"charges": 1,
+			"recharge_time": 5.0,
+			"cooldown": 0.85,
+			"effect": {
+				"type": AbilityPipeline.EffectType.DASH
+			}
+		}
+	])
+
 	return data
