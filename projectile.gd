@@ -25,6 +25,7 @@ var direction: Vector3 = Vector3.FORWARD
 var spawn_origin: Vector3 = Vector3.ZERO
 var hit_targets: Array = []
 var has_spawned_terrain: bool = false
+var has_hit_any_enemy: bool = false
 var distance_traveled: float = 0.0
 
 func _ready() -> void:
@@ -33,6 +34,70 @@ func _ready() -> void:
 	if direction != Vector3.ZERO:
 		var up_vec = Vector3.UP if abs(direction.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
 		look_at(global_position + direction, up_vec)
+
+	if effect_type == "poke_sniper_laser":
+		var mesh_inst = get_node_or_null("MeshInstance3D") as MeshInstance3D
+		var col_shape = get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if mesh_inst:
+			var cap = CapsuleMesh.new()
+			cap.radius = 0.22
+			cap.height = 3.5
+			mesh_inst.mesh = cap
+			mesh_inst.rotation.x = deg_to_rad(90.0)
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = Color(0.15, 0.95, 1.0, 1.0)
+			mat.emission_enabled = true
+			mat.emission = Color(0.3, 0.95, 1.0, 1.0)
+			mat.emission_energy_multiplier = 6.0
+			mesh_inst.material_override = mat
+		if col_shape:
+			var cap_shape = CapsuleShape3D.new()
+			cap_shape.radius = 0.35
+			cap_shape.height = 3.5
+			col_shape.shape = cap_shape
+			col_shape.rotation.x = deg_to_rad(90.0)
+	elif effect_type == "poke_sniper_empowered":
+		var mesh_inst = get_node_or_null("MeshInstance3D") as MeshInstance3D
+		var col_shape = get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if mesh_inst:
+			var cap = CapsuleMesh.new()
+			cap.radius = 0.28
+			cap.height = 4.0
+			mesh_inst.mesh = cap
+			mesh_inst.rotation.x = deg_to_rad(90.0)
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = Color(1.0, 0.2, 0.85, 1.0)
+			mat.emission_enabled = true
+			mat.emission = Color(1.0, 0.25, 0.9, 1.0)
+			mat.emission_energy_multiplier = 8.0
+			mesh_inst.material_override = mat
+		if col_shape:
+			var cap_shape = CapsuleShape3D.new()
+			cap_shape.radius = 0.40
+			cap_shape.height = 4.0
+			col_shape.shape = cap_shape
+			col_shape.rotation.x = deg_to_rad(90.0)
+	elif effect_type == "poke_orbital_hyperbeam":
+		var mesh_inst = get_node_or_null("MeshInstance3D") as MeshInstance3D
+		var col_shape = get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if mesh_inst:
+			var cap = CapsuleMesh.new()
+			cap.radius = 1.4
+			cap.height = 6.0
+			mesh_inst.mesh = cap
+			mesh_inst.rotation.x = deg_to_rad(90.0)
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = Color(0.2, 0.95, 1.0, 0.9)
+			mat.emission_enabled = true
+			mat.emission = Color(0.4, 0.95, 1.0, 1.0)
+			mat.emission_energy_multiplier = 10.0
+			mesh_inst.material_override = mat
+		if col_shape:
+			var cap_shape = CapsuleShape3D.new()
+			cap_shape.radius = 1.6
+			cap_shape.height = 6.0
+			col_shape.shape = cap_shape
+			col_shape.rotation.x = deg_to_rad(90.0)
 
 	if max_range <= 0.0:
 		if speed > 0.0 and lifetime > 0.0:
@@ -76,6 +141,10 @@ func _trigger_death_effects() -> void:
 	if not is_server_authority() or has_spawned_terrain:
 		return
 	has_spawned_terrain = true
+	if effect_type == "poke_sniper_empowered" and not has_hit_any_enemy:
+		var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
+		if shooter and shooter.has_method("on_empowered_sniper_miss"):
+			shooter.on_empowered_sniper_miss("dissipated")
 	if spawn_terrain_on_death:
 		var main_node = get_tree().root.get_node_or_null("Main")
 		if main_node and main_node.has_method("spawn_temporary_terrain"):
@@ -91,11 +160,6 @@ func _on_body_entered(body: Node) -> void:
 		if not body.get("is_dead") and not (body in hit_targets):
 			hit_targets.append(body)
 			
-			var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
-			if shooter and shooter.get("character_name") == "Poke":
-				if shooter.has_method("apply_speed_boost"):
-					shooter.apply_speed_boost(2.5, 0.15)
-					
 			var final_damage = damage
 			if effect_type == "execute_scaling":
 				var target_hp = body.get("current_health") if body.get("current_health") != null else 100.0
@@ -113,6 +177,11 @@ func _on_body_entered(body: Node) -> void:
 				if body.has_method("apply_knockback"):
 					var kb_dir = Vector3(direction.x, 0.0, direction.z).normalized()
 					body.apply_knockback(kb_dir * effect_intensity, true, effect_duration)
+			var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
+			if effect_type == "poke_sniper_empowered":
+				has_hit_any_enemy = true
+				if shooter and shooter.has_method("on_empowered_sniper_hit"):
+					shooter.on_empowered_sniper_hit(body)
 			elif effect_type == "reaper_tether":
 				if shooter and shooter.has_method("start_reaper_tether_server"):
 					shooter.start_reaper_tether_server(body)
@@ -125,8 +194,17 @@ func _on_body_entered(body: Node) -> void:
 				queue_free()
 	elif body is StaticBody3D:
 		var body_name = body.name.to_lower()
-		if body_name.contains("floor") or pierces:
+		if body_name.contains("floor"):
 			return
+		if effect_type == "poke_orbital_hyperbeam":
+			return # Pierces terrain/walls!
+		if pierces and effect_type != "poke_sniper_laser" and effect_type != "poke_sniper_empowered":
+			return
+		if effect_type == "poke_sniper_empowered":
+			if not has_hit_any_enemy:
+				var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
+				if shooter and shooter.has_method("on_empowered_sniper_miss"):
+					shooter.on_empowered_sniper_miss("wall")
 		if effect_type == "morrigan_tether_first" or effect_type == "morrigan_tether_recast":
 			var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
 			if shooter and shooter.has_method("on_tether_impact_server"):

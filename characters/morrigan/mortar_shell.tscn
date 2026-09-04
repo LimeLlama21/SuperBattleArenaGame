@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://c7w3x5y1v8m2p"]
+
+[ext_resource type="Script" path="res://characters/morrigan/mortar_shell.gd" id="1_mortar"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shell"]
+albedo_color = Color(0.12, 0.04, 0.22, 1)
+metallic = 0.5
+roughness = 0.4
+emission_enabled = true
+emission = Color(0.7, 0.15, 0.95, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_shell"]
+material = SubResource("StandardMaterial3D_shell")
+radius = 0.35
+height = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trail"]
+transparency = 1
+albedo_color = Color(0.6, 0.1, 0.8, 0.45)
+emission_enabled = true
+emission = Color(0.6, 0.1, 0.8, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_trail"]
+material = SubResource("StandardMaterial3D_trail")
+radius = 0.45
+height = 0.9
+
+[node name="MortarShell" type="Node3D"]
+script = ExtResource("1_mortar")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_shell")
+
+[node name="TrailMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_trail")

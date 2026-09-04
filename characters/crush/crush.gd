@@ -33,37 +33,30 @@ const CRUSH_CHARGE_TURN_SPEED: float = 1.8
 # Hold-to-aim Indicators
 var shoot_hold_timer: float = 0.0
 const LMB_HOLD_THRESHOLD: float = 0.18
+var is_holding_shoot: bool = false
+var is_holding_dash: bool = false
 var is_holding_rmb: bool = false
 var is_holding_q: bool = false
+var is_holding_e: bool = false
+var is_holding_r: bool = false
 
 var ind_attack: Node3D = null
 var ind_rmb: Node3D = null
 var ind_q: Node3D = null
+var ind_e: Node3D = null
+var ind_r: Node3D = null
 
 @onready var melee_visual: Node3D = get_node_or_null("MeleeVisual")
 @onready var ability_one_visual: Node3D = get_node_or_null("AbilityOneVisual")
 @onready var ability_two_visual: Node3D = get_node_or_null("AbilityTwoVisual")
 
-var abilities: Dictionary = {}
-
 func _setup_character_kit() -> void:
-	character_name = "Crush"
 	var data = CrushData.create()
-	max_health = data.max_health
-	current_health = data.max_health
-	max_move_speed = data.max_move_speed
-	ground_acceleration = data.ground_acceleration
-	ground_friction = data.ground_friction
-	if "intentional_movement_friction" in data:
-		intentional_movement_friction = data.intentional_movement_friction
-	air_acceleration = data.air_acceleration
-	air_drag = data.air_drag
-	jump_velocity = data.jump_velocity
+	load_character_data(data)
 
 	dash_impulse = data.passive_data.get("dash_impulse", 24.0)
 	dash_cooldown = data.passive_data.get("dash_cooldown", 8.0)
 
-	abilities = data.abilities
 	_setup_local_indicators()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
@@ -154,69 +147,111 @@ func _handle_character_input(_delta: float) -> void:
 		return
 
 	# --- Dash (SHIFT) ---
-	if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
-		_execute_crush_dash()
+	if is_cast_on_press("dash"):
+		if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+			_execute_crush_dash()
+	else:
+		if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+			is_holding_dash = true
+		if Input.is_action_just_released("dash") and is_holding_dash:
+			is_holding_dash = false
+			if dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+				_execute_crush_dash()
 
 	# --- Primary Fire (LMB): Slam ---
-	if Input.is_action_just_pressed("shoot"):
-		shoot_hold_timer = 0.0
-		if attack_timer <= 0.0:
+	if is_cast_on_press("shoot"):
+		if (Input.is_action_just_pressed("shoot") or Input.is_action_pressed("shoot")) and attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
 			_perform_slam()
-	elif Input.is_action_pressed("shoot"):
-		shoot_hold_timer += _delta
-		if shoot_hold_timer >= LMB_HOLD_THRESHOLD:
-			if ind_attack and not ind_attack.visible:
+	else:
+		if Input.is_action_just_pressed("shoot") and can_cast_ability_slot("LMB"):
+			is_holding_shoot = true
+			if ind_attack:
 				AbilityIndicator.reset_indicator(ind_attack)
 				ind_attack.show()
-	if Input.is_action_just_released("shoot"):
-		if ind_attack and ind_attack.visible:
-			ind_attack.hide()
-			if attack_timer <= 0.0:
+		if Input.is_action_just_released("shoot") and is_holding_shoot:
+			is_holding_shoot = false
+			if ind_attack: ind_attack.hide()
+			if attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
 				_perform_slam()
-		shoot_hold_timer = 0.0
 
 	# --- Ability 1 (RMB): Fan Stun ---
-	if Input.is_action_just_pressed("ability_one") and not is_silenced():
-		is_holding_rmb = true
-		if ind_rmb:
-			AbilityIndicator.reset_indicator(ind_rmb)
-			ind_rmb.show()
-	if Input.is_action_just_released("ability_one") and is_holding_rmb:
-		is_holding_rmb = false
-		if ind_rmb: ind_rmb.hide()
-		if rmb_timer <= 0.0 and not is_silenced():
+	if is_cast_on_press("ability_one"):
+		if Input.is_action_just_pressed("ability_one") and rmb_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("RMB"):
 			_perform_fan_stun()
+	else:
+		if Input.is_action_just_pressed("ability_one") and not is_silenced() and can_cast_ability_slot("RMB"):
+			if rmb_timer <= 0.0:
+				is_holding_rmb = true
+				if ind_rmb:
+					AbilityIndicator.reset_indicator(ind_rmb)
+					ind_rmb.show()
+		if Input.is_action_just_released("ability_one") and is_holding_rmb:
+			is_holding_rmb = false
+			if ind_rmb: ind_rmb.hide()
+			if rmb_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("RMB"):
+				_perform_fan_stun()
 
 	# --- Ability 2 (Q): Ground Stomp ---
-	if Input.is_action_just_pressed("ability_two") and not is_silenced():
-		is_holding_q = true
-		if ind_q:
-			AbilityIndicator.reset_indicator(ind_q)
-			ind_q.show()
-	if Input.is_action_just_released("ability_two") and is_holding_q:
-		is_holding_q = false
-		if ind_q: ind_q.hide()
-		if q_timer <= 0.0 and not is_silenced():
+	if is_cast_on_press("ability_two"):
+		if Input.is_action_just_pressed("ability_two") and q_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("Q"):
 			_perform_ground_stomp()
+	else:
+		if Input.is_action_just_pressed("ability_two") and not is_silenced() and can_cast_ability_slot("Q"):
+			if q_timer <= 0.0:
+				is_holding_q = true
+				if ind_q:
+					AbilityIndicator.reset_indicator(ind_q)
+					ind_q.show()
+		if Input.is_action_just_released("ability_two") and is_holding_q:
+			is_holding_q = false
+			if ind_q: ind_q.hide()
+			if q_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("Q"):
+				_perform_ground_stomp()
 
 	# --- Ability 3 (E): Iron Barrier ---
-	if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced():
-		_perform_iron_barrier()
+	if is_cast_on_press("ability_three"):
+		if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("E"):
+			_perform_iron_barrier()
+	else:
+		if Input.is_action_just_pressed("ability_three") and not is_silenced() and can_cast_ability_slot("E"):
+			if e_timer <= 0.0:
+				is_holding_e = true
+				if ind_e:
+					AbilityIndicator.reset_indicator(ind_e)
+					ind_e.show()
+		if Input.is_action_just_released("ability_three") and is_holding_e:
+			is_holding_e = false
+			if ind_e: ind_e.hide()
+			if e_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("E"):
+				_perform_iron_barrier()
 
 	# --- Ultimate (R): Juggernaut Charge ---
-	if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0 and not is_silenced():
-		_perform_juggernaut_charge()
+	if is_cast_on_press("ability_four"):
+		if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("R"):
+			_perform_juggernaut_charge()
+	else:
+		if Input.is_action_just_pressed("ability_four") and not is_silenced() and can_cast_ability_slot("R"):
+			if r_timer <= 0.0:
+				is_holding_r = true
+				if ind_r:
+					AbilityIndicator.reset_indicator(ind_r)
+					ind_r.show()
+		if Input.is_action_just_released("ability_four") and is_holding_r:
+			is_holding_r = false
+			if ind_r: ind_r.hide()
+			if r_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("R"):
+				_perform_juggernaut_charge()
 
 func _execute_crush_dash() -> void:
 	dash_timer = dash_cooldown
-	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
-	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
-	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
+	var dash_dir = get_dash_direction()
+	var effective_impulse = get_effective_dash_impulse(dash_impulse)
+	apply_velocity_impulse(Vector3(dash_dir.x * effective_impulse, 0, dash_dir.z * effective_impulse), true)
 
 func _perform_slam() -> void:
 	var def = abilities.get("LMB")
 	attack_timer = def.cooldown if def else 0.65
+	start_ability_cast("LMB")
 	var facing_dir = -global_transform.basis.z.normalized()
 	var dmg = 55.0 * (1.4 if is_crush_empowered else 1.0)
 	is_crush_empowered = false
@@ -259,6 +294,7 @@ func request_slam_hit(origin_pos: Vector3, forward_dir: Vector3, dmg: float) -> 
 func _perform_fan_stun() -> void:
 	var def = abilities.get("RMB")
 	rmb_timer = def.cooldown if def else 7.5
+	start_ability_cast("RMB")
 	var facing_dir = -global_transform.basis.z.normalized()
 	ability_cast.emit("Fan Stun", "RMB")
 	trigger_ability_hitbox("RMB", global_position, facing_dir)
@@ -310,6 +346,7 @@ func empower_crush_slam() -> void:
 func _perform_ground_stomp() -> void:
 	var def = abilities.get("Q")
 	q_timer = def.cooldown if def else 8.0
+	start_ability_cast("Q")
 	ability_cast.emit("Ground Stomp", "Q")
 	trigger_ability_hitbox("Q", global_position, Vector3.ZERO)
 	if not is_multiplayer_match() or multiplayer.is_server():
@@ -345,6 +382,7 @@ func request_ground_stomp(origin_pos: Vector3) -> void:
 func _perform_iron_barrier() -> void:
 	var def = abilities.get("E")
 	e_timer = def.cooldown if def else 10.0
+	start_ability_cast("E")
 	ability_cast.emit("Iron Barrier", "E")
 	apply_shield(50.0, 5.0)
 
@@ -361,6 +399,7 @@ func request_iron_barrier() -> void:
 func _perform_juggernaut_charge() -> void:
 	var def = abilities.get("R")
 	r_timer = def.cooldown if def else 26.0
+	start_ability_cast("R")
 	is_crush_charging = true
 	crush_charge_timer = CRUSH_CHARGE_DURATION
 	crush_charge_dir = -global_transform.basis.z.normalized()
@@ -417,3 +456,33 @@ func _update_character_hud() -> void:
 		slot_ability_four.set_active_state(is_crush_charging)
 	if slot_dash and def_shift:
 		slot_dash.update_cooldown(dash_timer, dash_cooldown, 1, 1, is_rooted() or is_grounded())
+
+func execute_ability_slot(slot_key: String) -> bool:
+	if is_dead or is_stunned():
+		return false
+	match slot_key.to_upper():
+		"LMB", "SHOOT":
+			if attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
+				_perform_slam()
+				return true
+		"RMB", "ABILITY_ONE":
+			if rmb_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("RMB"):
+				_perform_fan_stun()
+				return true
+		"Q", "ABILITY_TWO":
+			if q_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("Q"):
+				_perform_ground_stomp()
+				return true
+		"E", "ABILITY_THREE":
+			if e_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("E"):
+				_perform_iron_barrier()
+				return true
+		"R", "ABILITY_FOUR":
+			if r_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("R"):
+				_perform_juggernaut_charge()
+				return true
+		"SHIFT", "DASH":
+			if dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+				_execute_crush_dash()
+				return true
+	return false

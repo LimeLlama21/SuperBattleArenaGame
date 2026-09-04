@@ -16,13 +16,26 @@ const DEFAULT_BINDINGS: Dictionary = {
 	"move_right": {"type": "key", "physical_keycode": KEY_D}
 }
 
+const DEFAULT_CAST_MODES: Dictionary = {
+	"shoot": "press",
+	"dash": "press",
+	"ability_one": "release",
+	"ability_two": "release",
+	"ability_three": "release",
+	"ability_four": "release"
+}
+
+const DEFAULT_DASH_DIRECTION_MODE: String = "smart" # "smart" (movement unless mouse within 30 deg), "mouse", "movement"
+
 var current_settings: Dictionary = {
 	"window_mode": 0, # 0 = Windowed, 1 = Fullscreen, 2 = Borderless
 	"vsync": true,
 	"master_volume": 1.0,
 	"sfx_volume": 1.0,
 	"music_volume": 0.8,
-	"bindings": {}
+	"bindings": {},
+	"cast_modes": {},
+	"dash_direction_mode": "smart"
 }
 
 func _ready() -> void:
@@ -123,3 +136,51 @@ func get_action_display_name(action: String) -> String:
 		var code = ev.physical_keycode if ev.physical_keycode != 0 else ev.keycode
 		return OS.get_keycode_string(code)
 	return ev.as_text()
+
+# --- Cast Mode Configuration ---
+
+func get_cast_mode(action: String) -> String:
+	var modes = current_settings.get("cast_modes", {})
+	if modes is Dictionary and modes.has(action):
+		return modes[action]
+	return DEFAULT_CAST_MODES.get(action, "press")
+
+func set_cast_mode(action: String, mode: String) -> void:
+	if not (current_settings.get("cast_modes") is Dictionary):
+		current_settings["cast_modes"] = {}
+	current_settings["cast_modes"][action] = mode
+	save_settings()
+
+func set_all_cast_modes(mode: String) -> void:
+	if not (current_settings.get("cast_modes") is Dictionary):
+		current_settings["cast_modes"] = {}
+	for action in DEFAULT_CAST_MODES.keys():
+		current_settings["cast_modes"][action] = mode
+	save_settings()
+
+func reset_cast_modes_to_defaults() -> void:
+	if not (current_settings.get("cast_modes") is Dictionary):
+		current_settings["cast_modes"] = {}
+	for action in DEFAULT_CAST_MODES.keys():
+		current_settings["cast_modes"][action] = DEFAULT_CAST_MODES[action]
+	save_settings()
+
+func is_cast_on_press(action: String) -> bool:
+	return get_cast_mode(action) == "press"
+
+func is_cast_on_release(action: String) -> bool:
+	return get_cast_mode(action) == "release"
+
+# --- Dash Direction Mode Configuration ---
+
+func get_dash_direction_mode() -> String:
+	return current_settings.get("dash_direction_mode", DEFAULT_DASH_DIRECTION_MODE)
+
+func set_dash_direction_mode(mode: String) -> void:
+	current_settings["dash_direction_mode"] = mode
+	save_settings()
+
+func reset_dash_direction_mode() -> void:
+	current_settings["dash_direction_mode"] = DEFAULT_DASH_DIRECTION_MODE
+	save_settings()
+

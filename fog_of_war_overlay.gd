@@ -73,7 +73,7 @@ func _draw() -> void:
 
 	var active_reveal_sources: Array = []
 	var vision_white = Color(1.0, 1.0, 1.0, 1.0)
-	var obstacle_vertices = PlayerVision.extract_map_obstacle_vertices(main_node)
+	var obstacles_2d = PlayerVision.extract_map_obstacles_2d(main_node)
 
 	# 2. Draw Vertex-Targeted Vision Shapes for all living teammates (1.0 = Full Color Vision)
 	for tm in teammates:
@@ -87,12 +87,14 @@ func _draw() -> void:
 
 		# Height-scaled vision radii with finite limits
 		var height_mult = PlayerVision.get_height_vision_multiplier(tm_pos_3d.y)
+		var base_cone_radius = tm.get_custom_cone_radius() if tm.has_method("get_custom_cone_radius") else PlayerVision.CONE_RADIUS_M
+		var base_half_angle = tm.get_custom_cone_half_angle_deg() if tm.has_method("get_custom_cone_half_angle_deg") else PlayerVision.CONE_HALF_ANGLE_DEG
 		var effective_close_radius = PlayerVision.CLOSE_RADIUS_M * height_mult
-		var effective_cone_radius = PlayerVision.CONE_RADIUS_M * height_mult
+		var effective_cone_radius = base_cone_radius * height_mult
 
 		# Close circle (5.5m base, scaled with elevation, vertex-shadowed)
 		var close_poly = PlayerVision.generate_vertex_vision_polygon(
-			camera, space_state, tm_eye_pos, effective_close_radius, false, tm_fwd_3d, 0.0, false, obstacle_vertices
+			camera, space_state, tm_eye_pos, effective_close_radius, false, tm_fwd_3d, 0.0, false, obstacles_2d
 		)
 		if close_poly.size() >= 3:
 			draw_colored_polygon(close_poly, vision_white)
@@ -100,9 +102,9 @@ func _draw() -> void:
 			close_loop.append(close_poly[0])
 			draw_polyline(close_loop, vision_white, 3.0, true)
 
-		# Forward cone (24.0m base, 60 deg, scaled with elevation, vertex-shadowed)
+		# Forward cone (scaled with elevation, vertex-shadowed)
 		var cone_poly = PlayerVision.generate_vertex_vision_polygon(
-			camera, space_state, tm_eye_pos, effective_cone_radius, true, tm_fwd_3d, deg_to_rad(PlayerVision.CONE_HALF_ANGLE_DEG), false, obstacle_vertices
+			camera, space_state, tm_eye_pos, effective_cone_radius, true, tm_fwd_3d, deg_to_rad(base_half_angle), false, obstacles_2d
 		)
 		if cone_poly.size() >= 3:
 			draw_colored_polygon(cone_poly, vision_white)
@@ -130,7 +132,7 @@ func _draw() -> void:
 				var z_rad_m = zone.get("radius") if zone.get("radius") != null else 12.0
 				var z_eye = z_pos_3d + Vector3(0, 1.5, 0)
 				var z_poly = PlayerVision.generate_vertex_vision_polygon(
-					camera, space_state, z_eye, z_rad_m, false, Vector3.FORWARD, 0.0, false, obstacle_vertices
+					camera, space_state, z_eye, z_rad_m, false, Vector3.FORWARD, 0.0, false, obstacles_2d
 				)
 				if z_poly.size() >= 3:
 					draw_colored_polygon(z_poly, vision_white)
@@ -154,7 +156,7 @@ func _draw() -> void:
 				var f_rad_m = proj.vision_radius
 				var f_eye = f_pos_3d + Vector3(0, 0.8, 0)
 				var f_poly = PlayerVision.generate_vertex_vision_polygon(
-					camera, space_state, f_eye, f_rad_m, false, Vector3.FORWARD, 0.0, false, obstacle_vertices
+					camera, space_state, f_eye, f_rad_m, false, Vector3.FORWARD, 0.0, false, obstacles_2d
 				)
 				if f_poly.size() >= 3:
 					draw_colored_polygon(f_poly, vision_white)
@@ -164,7 +166,7 @@ func _draw() -> void:
 				active_reveal_sources.append({"pos": f_pos_3d, "radius": f_rad_m})
 
 	# 4. Update enemies & projectile entities visibility (hide entities in fog)
-	_update_team_enemies_visibility(main_node, teammates, space_state, active_reveal_sources, focus_team, focus_id)
+	_update_team_enemies_visibility(main_node, teammates, space_state, active_reveal_sources, focus_team, focus_id, obstacles_2d)
 
 func _get_local_player(main_node: Node, my_id: int) -> Node:
 	var players_container = main_node.get_node_or_null("Players")
@@ -222,7 +224,7 @@ func _reveal_all_players(main_node: Node) -> void:
 		for h in hazard_container.get_children():
 			h.visible = true
 
-func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_state: PhysicsDirectSpaceState3D, active_reveals: Array, focus_team: int, focus_id: int) -> void:
+func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_state: PhysicsDirectSpaceState3D, active_reveals: Array, focus_team: int, focus_id: int, obstacles_2d: Array[Dictionary] = []) -> void:
 	var players_container = main_node.get_node_or_null("Players")
 	if players_container:
 		for player in players_container.get_children():
@@ -235,7 +237,7 @@ func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_st
 				continue
 
 			var target_pos = player.global_position
-			var is_visible = _is_point_in_team_vision(target_pos, 1.25, teammates, space_state, active_reveals)
+			var is_visible = _is_point_in_team_vision(target_pos, 1.25, teammates, space_state, active_reveals, obstacles_2d)
 			player.set_opponent_visible(is_visible)
 
 	# Hide enemy projectiles in Fog of War
@@ -248,7 +250,7 @@ func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_st
 			if is_friendly:
 				proj.visible = true
 			else:
-				var p_vis = _is_point_in_team_vision(proj.global_position, 0.4, teammates, space_state, active_reveals)
+				var p_vis = _is_point_in_team_vision(proj.global_position, 0.4, teammates, space_state, active_reveals, obstacles_2d)
 				proj.visible = p_vis
 
 	# Hide enemy hazard zones in Fog of War
@@ -261,11 +263,11 @@ func _update_team_enemies_visibility(main_node: Node, teammates: Array, space_st
 			if is_friendly:
 				h.visible = true
 			else:
-				var h_vis = _is_point_in_team_vision(h.global_position, 0.4, teammates, space_state, active_reveals)
+				var h_vis = _is_point_in_team_vision(h.global_position, 0.4, teammates, space_state, active_reveals, obstacles_2d)
 				h.visible = h_vis
 
-func _is_point_in_team_vision(target_pos: Vector3, eye_offset_y: float, teammates: Array, space_state: PhysicsDirectSpaceState3D, active_reveals: Array) -> bool:
-	var target_eye_pos = target_pos + Vector3(0, eye_offset_y, 0)
+func _is_point_in_team_vision(target_pos: Vector3, eye_offset_y: float, teammates: Array, _space_state: PhysicsDirectSpaceState3D, active_reveals: Array, obstacles_2d: Array[Dictionary] = []) -> bool:
+	var target_eye_y = target_pos.y + eye_offset_y
 
 	# Check line of sight from ANY living teammate
 	for tm in teammates:
@@ -282,27 +284,25 @@ func _is_point_in_team_vision(target_pos: Vector3, eye_offset_y: float, teammate
 		var dist = diff_2d.length()
 
 		var height_mult = PlayerVision.get_height_vision_multiplier(tm_pos.y)
+		var base_cone_radius = tm.get_custom_cone_radius() if tm.has_method("get_custom_cone_radius") else PlayerVision.CONE_RADIUS_M
+		var base_half_angle = tm.get_custom_cone_half_angle_deg() if tm.has_method("get_custom_cone_half_angle_deg") else PlayerVision.CONE_HALF_ANGLE_DEG
 		var effective_close_radius = PlayerVision.CLOSE_RADIUS_M * height_mult
-		var effective_cone_radius = PlayerVision.CONE_RADIUS_M * height_mult
+		var effective_cone_radius = base_cone_radius * height_mult
 
 		var in_vision_shape: bool = false
 
 		# 1. Close proximity circle (finite size: 5.5m base, scaled with height)
 		if dist <= effective_close_radius:
 			in_vision_shape = true
-		# 2. Acute forward cone (finite size: 24.0m base, 60 deg, scaled with height)
+		# 2. Forward cone (scaled with height & character stance)
 		elif dist <= effective_cone_radius and tm_fwd_2d.length_squared() > 0.001:
 			var to_target_2d = diff_2d.normalized()
 			var angle_deg = rad_to_deg(tm_fwd_2d.angle_to(to_target_2d))
-			if abs(angle_deg) <= PlayerVision.CONE_HALF_ANGLE_DEG:
+			if abs(angle_deg) <= base_half_angle:
 				in_vision_shape = true
 
 		if in_vision_shape:
-			var query = PhysicsRayQueryParameters3D.create(tm_eye_pos, target_eye_pos, 1)
-			query.collide_with_areas = false
-			query.collide_with_bodies = true
-			var result = space_state.intersect_ray(query)
-			if result.is_empty() or tm_eye_pos.y >= result.position.y + 0.3:
+			if PlayerVision.is_target_visible_2d(tm_pos, tm_eye_pos.y, target_pos, target_eye_y, obstacles_2d):
 				return true
 
 	# Check active reveal sources (flares & reveal zones)
@@ -310,12 +310,8 @@ func _is_point_in_team_vision(target_pos: Vector3, eye_offset_y: float, teammate
 		var r_diff = target_pos - r["pos"]
 		var r_dist = Vector2(r_diff.x, r_diff.z).length()
 		if r_dist <= r["radius"]:
-			var z_eye = r["pos"] + Vector3(0, 1.5, 0)
-			var q = PhysicsRayQueryParameters3D.create(z_eye, target_eye_pos, 1)
-			q.collide_with_areas = false
-			q.collide_with_bodies = true
-			var res = space_state.intersect_ray(q)
-			if res.is_empty() or z_eye.y >= res.position.y + 0.3:
+			var r_eye_y = r["pos"].y + 1.5
+			if PlayerVision.is_target_visible_2d(r["pos"], r_eye_y, target_pos, target_eye_y, obstacles_2d):
 				return true
 
 	return false

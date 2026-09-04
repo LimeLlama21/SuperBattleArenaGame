@@ -29,10 +29,7 @@ const NIGHTMARE_RADIUS: float = 4.5
 
 # Spectral Tether State
 var is_holding_rmb: bool = false
-var reaper_rmb_charge: float = 0.0
-const REAPER_RMB_MIN_RANGE: float = 6.0
 const REAPER_RMB_MAX_RANGE: float = 24.0
-const REAPER_RMB_CHARGE_TIME: float = 1.0
 
 var reaper_tether_target_id: int = 0
 var reaper_tether_timer: float = 0.0
@@ -44,13 +41,17 @@ var reaper_q_windup_timer: float = 0.0
 # Hold-to-aim Indicators
 var shoot_hold_timer: float = 0.0
 const LMB_HOLD_THRESHOLD: float = 0.18
+var is_holding_shoot: bool = false
+var is_holding_dash: bool = false
 var is_holding_q: bool = false
 var is_holding_e: bool = false
+var is_holding_r: bool = false
 
 var ind_attack: Node3D = null
 var ind_rmb: Node3D = null
 var ind_q: Node3D = null
 var ind_e: Node3D = null
+var ind_r: Node3D = null
 
 @onready var melee_visual: Node3D = get_node_or_null("MeleeVisual")
 @onready var ability_one_visual: Node3D = get_node_or_null("AbilityOneVisual")
@@ -58,26 +59,13 @@ var ind_e: Node3D = null
 @onready var nightmare_visual: Node3D = get_node_or_null("NightmareVisual")
 @onready var ult_visual: Node3D = get_node_or_null("UltVisual")
 
-var abilities: Dictionary = {}
-
 func _setup_character_kit() -> void:
-	character_name = "Reaper"
 	var data = ReaperData.create()
-	max_health = data.max_health
-	current_health = data.max_health
-	max_move_speed = data.max_move_speed
-	ground_acceleration = data.ground_acceleration
-	ground_friction = data.ground_friction
-	if "intentional_movement_friction" in data:
-		intentional_movement_friction = data.intentional_movement_friction
-	air_acceleration = data.air_acceleration
-	air_drag = data.air_drag
-	jump_velocity = data.jump_velocity
+	load_character_data(data)
 
 	dash_impulse = data.passive_data.get("dash_impulse", 28.0)
 	dash_cooldown = data.passive_data.get("dash_cooldown", 5.0)
 
-	abilities = data.abilities
 	_setup_local_indicators()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
@@ -97,9 +85,15 @@ func _setup_local_indicators() -> void:
 		add_child(ind_attack)
 		ind_attack.hide()
 
-	ind_rmb = AbilityIndicator.create_line_indicator(REAPER_RMB_MIN_RANGE, 0.8, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
-	add_child(ind_rmb)
-	ind_rmb.hide()
+	var rmb_def = abilities.get("RMB")
+	if rmb_def and rmb_def.hitbox:
+		ind_rmb = AbilityIndicator.create_emanating_indicator(rmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_rmb)
+		ind_rmb.hide()
+	else:
+		ind_rmb = AbilityIndicator.create_line_indicator(REAPER_RMB_MAX_RANGE, 0.8, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		add_child(ind_rmb)
+		ind_rmb.hide()
 
 	var q_def = abilities.get("Q")
 	if q_def and q_def.hitbox:
@@ -166,12 +160,6 @@ func _process_character_kit(delta: float) -> void:
 				reaper_q_windup_timer = 0.0
 				_on_cull_channel_finished()
 
-		if is_holding_rmb and rmb_timer <= 0.0 and not is_silenced() and reaper_q_windup_timer <= 0.0:
-			reaper_rmb_charge = min(REAPER_RMB_CHARGE_TIME, reaper_rmb_charge + delta)
-			var cur_range = lerp(REAPER_RMB_MIN_RANGE, REAPER_RMB_MAX_RANGE, reaper_rmb_charge / REAPER_RMB_CHARGE_TIME)
-			if ind_rmb:
-				ind_rmb.scale = Vector3(1.0, 1.0, cur_range / REAPER_RMB_MIN_RANGE)
-
 func get_effective_max_speed(current_speed: float) -> float:
 	var mult = 1.0
 	if reaper_ms_steal_timer > 0.0:
@@ -199,70 +187,108 @@ func _handle_character_input(_delta: float) -> void:
 		return
 
 	# --- Dash (SHIFT): Ethereal Dash ---
-	if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
-		_execute_ethereal_dash()
+	if is_cast_on_press("dash"):
+		if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
+			_execute_ethereal_dash()
+	else:
+		if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
+			is_holding_dash = true
+		if Input.is_action_just_released("dash") and is_holding_dash:
+			is_holding_dash = false
+			if dash_timer <= 0.0 and not is_rooted() and not is_grounded():
+				_execute_ethereal_dash()
 
 	# --- Primary Fire (LMB): Scythe Slash ---
-	if Input.is_action_just_pressed("shoot"):
-		shoot_hold_timer = 0.0
-		if attack_timer <= 0.0:
-			_perform_scythe_slash()
-	elif Input.is_action_pressed("shoot"):
-		shoot_hold_timer += _delta
-		if shoot_hold_timer >= LMB_HOLD_THRESHOLD:
-			if ind_attack and not ind_attack.visible:
-				AbilityIndicator.reset_indicator(ind_attack)
-				ind_attack.show()
-	if Input.is_action_just_released("shoot"):
-		if ind_attack and ind_attack.visible:
-			ind_attack.hide()
+	if is_cast_on_press("shoot"):
+		if Input.is_action_just_pressed("shoot") or (Input.is_action_pressed("shoot") and attack_timer <= 0.0):
 			if attack_timer <= 0.0:
 				_perform_scythe_slash()
-		shoot_hold_timer = 0.0
+	else:
+		if Input.is_action_just_pressed("shoot"):
+			is_holding_shoot = true
+			if ind_attack:
+				AbilityIndicator.reset_indicator(ind_attack)
+				ind_attack.show()
+		if Input.is_action_just_released("shoot") and is_holding_shoot:
+			is_holding_shoot = false
+			if ind_attack: ind_attack.hide()
+			if attack_timer <= 0.0:
+				_perform_scythe_slash()
 
-	# --- Ability 1 (RMB): Spectral Tether (Charge) - Locked out during Q windup ---
-	if Input.is_action_just_pressed("ability_one") and not is_silenced() and reaper_q_windup_timer <= 0.0:
-		if rmb_timer <= 0.0:
-			is_holding_rmb = true
-			reaper_rmb_charge = 0.0
-			if ind_rmb:
-				AbilityIndicator.reset_indicator(ind_rmb)
-				ind_rmb.scale = Vector3.ONE
-				ind_rmb.show()
-	if Input.is_action_just_released("ability_one") and is_holding_rmb:
-		is_holding_rmb = false
-		if ind_rmb: ind_rmb.hide()
-		if rmb_timer <= 0.0 and not is_silenced() and reaper_q_windup_timer <= 0.0:
-			var charged_range = lerp(REAPER_RMB_MIN_RANGE, REAPER_RMB_MAX_RANGE, reaper_rmb_charge / REAPER_RMB_CHARGE_TIME)
-			_perform_spectral_tether(charged_range)
+	# --- Ability 1 (RMB): Spectral Tether - Locked out during Q windup ---
+	if is_cast_on_press("ability_one"):
+		if Input.is_action_just_pressed("ability_one") and rmb_timer <= 0.0 and not is_silenced() and reaper_q_windup_timer <= 0.0:
+			_perform_spectral_tether()
+	else:
+		if Input.is_action_just_pressed("ability_one") and not is_silenced() and reaper_q_windup_timer <= 0.0:
+			if rmb_timer <= 0.0:
+				is_holding_rmb = true
+				if ind_rmb:
+					AbilityIndicator.reset_indicator(ind_rmb)
+					ind_rmb.show()
+		if Input.is_action_just_released("ability_one") and is_holding_rmb:
+			is_holding_rmb = false
+			if ind_rmb: ind_rmb.hide()
+			if rmb_timer <= 0.0 and not is_silenced() and reaper_q_windup_timer <= 0.0:
+				_perform_spectral_tether()
 
 	# --- Ability 2 (Q): Cull the Weak ---
-	if Input.is_action_just_pressed("ability_two") and not is_silenced():
-		is_holding_q = true
-		if ind_q:
-			AbilityIndicator.reset_indicator(ind_q)
-			ind_q.show()
-	if Input.is_action_just_released("ability_two") and is_holding_q:
-		is_holding_q = false
-		if ind_q: ind_q.hide()
-		if q_timer <= 0.0 and not is_silenced():
+	if is_cast_on_press("ability_two"):
+		if Input.is_action_just_pressed("ability_two") and q_timer <= 0.0 and not is_silenced():
 			_perform_cull_the_weak()
+	else:
+		if Input.is_action_just_pressed("ability_two") and not is_silenced():
+			if q_timer <= 0.0:
+				is_holding_q = true
+				if ind_q:
+					AbilityIndicator.reset_indicator(ind_q)
+					ind_q.show()
+		if Input.is_action_just_released("ability_two") and is_holding_q:
+			is_holding_q = false
+			if ind_q: ind_q.hide()
+			if q_timer <= 0.0 and not is_silenced():
+				_perform_cull_the_weak()
 
 	# --- Ability 3 (E): Nightmare ---
-	if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced():
-		_perform_nightmare()
+	if is_cast_on_press("ability_three"):
+		if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced():
+			_perform_nightmare()
+	else:
+		if Input.is_action_just_pressed("ability_three") and not is_silenced():
+			if e_timer <= 0.0:
+				is_holding_e = true
+				if ind_e:
+					AbilityIndicator.reset_indicator(ind_e)
+					ind_e.show()
+		if Input.is_action_just_released("ability_three") and is_holding_e:
+			is_holding_e = false
+			if ind_e: ind_e.hide()
+			if e_timer <= 0.0 and not is_silenced():
+				_perform_nightmare()
 
 	# --- Ultimate (R): One with Death ---
-	if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0 and not is_silenced():
-		_perform_one_with_death()
+	if is_cast_on_press("ability_four"):
+		if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0 and not is_silenced():
+			_perform_one_with_death()
+	else:
+		if Input.is_action_just_pressed("ability_four") and not is_silenced():
+			if r_timer <= 0.0:
+				is_holding_r = true
+				if ind_r:
+					AbilityIndicator.reset_indicator(ind_r)
+					ind_r.show()
+		if Input.is_action_just_released("ability_four") and is_holding_r:
+			is_holding_r = false
+			if ind_r: ind_r.hide()
+			if r_timer <= 0.0 and not is_silenced():
+				_perform_one_with_death()
 
 func _execute_ethereal_dash() -> void:
 	dash_timer = dash_cooldown
+	var effective_impulse = get_effective_dash_impulse(dash_impulse)
 	apply_ethereal(0.45)
-	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
-	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
-	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
+	var dash_dir = get_dash_direction()
+	apply_velocity_impulse(Vector3(dash_dir.x * effective_impulse, 0, dash_dir.z * effective_impulse), true)
 
 func _perform_scythe_slash() -> void:
 	var def = abilities.get("LMB")
@@ -318,8 +344,9 @@ func apply_soul_harvest() -> void:
 	reaper_ms_steal_timer = 2.5
 	reaper_ms_steal_pct = 0.15
 
-func _perform_spectral_tether(charged_range: float) -> void:
+func _perform_spectral_tether(target_range: float = 0.0) -> void:
 	var def = abilities.get("RMB")
+	var max_rng = target_range if target_range > 0.0 else (def.effect.max_range if (def and def.effect and def.effect.max_range > 0.0) else REAPER_RMB_MAX_RANGE)
 	rmb_timer = def.cooldown if def else 7.0
 	var facing_dir = -global_transform.basis.z.normalized()
 	facing_dir.y = 0.0
@@ -328,14 +355,14 @@ func _perform_spectral_tether(charged_range: float) -> void:
 	var shoot_dir = get_ranged_aim_direction(spawn_pos)
 	var dmg_mult = REAPER_ULT_DMG_MULT if reaper_ult_buff_timer > 0.0 else 1.0
 	var dmg = 25.0 * dmg_mult
-	var spd = 52.0
-	var p_size = 0.6
-	var lifetime = charged_range / spd
+	var spd = def.effect.speed if (def and def.effect and def.effect.speed > 0.0) else 52.0
+	var p_size = def.effect.projectile_size if (def and def.effect and def.effect.projectile_size > 0.0) else 0.6
+	var lifetime = max_rng / spd
 	ability_cast.emit("Spectral Tether", "RMB")
 	if not is_multiplayer_match() or multiplayer.is_server():
-		_spawn_tether_projectile(spawn_pos, shoot_dir, 1, dmg, spd, p_size, lifetime, charged_range)
+		_spawn_tether_projectile(spawn_pos, shoot_dir, 1, dmg, spd, p_size, lifetime, max_rng)
 	else:
-		request_tether_fire.rpc_id(1, spawn_pos, shoot_dir, dmg, spd, p_size, lifetime, charged_range)
+		request_tether_fire.rpc_id(1, spawn_pos, shoot_dir, dmg, spd, p_size, lifetime, max_rng)
 
 func _spawn_tether_projectile(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int, dmg: float, spd: float, p_size: float, lifetime: float, max_rng: float) -> void:
 	var main_node = get_tree().root.get_node_or_null("Main")
@@ -407,6 +434,7 @@ func _perform_cull_the_weak() -> void:
 	
 	var delay = def.effect.windup_time if (def and def.effect and def.effect.windup_time > 0.0) else 0.75
 	reaper_q_windup_timer = delay
+	start_ability_cast("Q", {}, delay)
 	
 	# Systemic delayed telegraph through multiplayer synchronizer
 	start_ability_windup("reaper_cull_the_weak")
@@ -535,3 +563,36 @@ func _update_character_hud() -> void:
 		slot_ability_four.set_active_state(reaper_ult_buff_timer > 0.0)
 	if slot_dash and def_shift:
 		slot_dash.update_cooldown(dash_timer, dash_cooldown, 1, 1, is_rooted() or is_grounded())
+
+func is_in_cast_lockout() -> bool:
+	return super.is_in_cast_lockout() or reaper_q_windup_timer > 0.0
+
+func execute_ability_slot(slot_key: String) -> bool:
+	if is_dead or is_stunned():
+		return false
+	match slot_key.to_upper():
+		"LMB", "SHOOT":
+			if attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
+				_perform_scythe_slash()
+				return true
+		"RMB", "ABILITY_ONE":
+			if rmb_timer <= 0.0 and not is_silenced() and reaper_q_windup_timer <= 0.0 and can_cast_ability_slot("RMB"):
+				_perform_spectral_tether()
+				return true
+		"Q", "ABILITY_TWO":
+			if q_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("Q"):
+				_perform_cull_the_weak()
+				return true
+		"E", "ABILITY_THREE":
+			if e_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("E"):
+				_perform_nightmare()
+				return true
+		"R", "ABILITY_FOUR":
+			if r_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("R"):
+				_perform_one_with_death()
+				return true
+		"SHIFT", "DASH":
+			if dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+				_execute_reaper_dash()
+				return true
+	return false

@@ -4,13 +4,13 @@ extends RefCounted
 static func create() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Dive"
-	data.display_name = "Dive"
+	data.display_name = "Daughter of Gaia"
 	data.archetype = "Skirmisher"
-	data.max_health = 120.0
+	data.max_health = 240.0
 	data.max_move_speed = 9.5
 	data.ground_acceleration = 65.0
 	data.ground_friction = 40.0
-	data.air_acceleration = 25.0
+	data.air_acceleration = 8.0
 	data.air_drag = 3.5
 	data.jump_velocity = 9.5
 	data.ability_slots = {
@@ -48,6 +48,8 @@ static func create() -> CharacterData:
 		{
 			"id": "dive_slash",
 			"name": "Slash",
+			"icon": "⚔",
+			"description": "Quick dual blade strike dealing 32.0 damage and applying Rupture Marks to enemies hit.",
 			"slot": "LMB",
 			"cooldown": 0.45,
 			"effect": {
@@ -69,6 +71,8 @@ static func create() -> CharacterData:
 		{
 			"id": "dive_heavy_cleave",
 			"name": "Heavy Cleave",
+			"icon": "🪓",
+			"description": "Sweeping heavy arc dealing 65.0 damage and detonating Rupture Marks for explosive critical burst.",
 			"slot": "RMB",
 			"cooldown": 6.0,
 			"effect": {
@@ -90,6 +94,8 @@ static func create() -> CharacterData:
 		{
 			"id": "dive_earth_tremor",
 			"name": "Earth Tremor",
+			"icon": "🌋",
+			"description": "Fractures the ground forward with an erupting earth fissure, slowing foes by 40% and spawning temporary terrain.",
 			"slot": "Q",
 			"cooldown": 8.0,
 			"effect": {
@@ -115,6 +121,8 @@ static func create() -> CharacterData:
 		{
 			"id": "dive_deflecting_guard",
 			"name": "Deflecting Guard",
+			"icon": "🛡",
+			"description": "Raises blades in a defensive guard, mitigating 75% of incoming frontal damage and parrying incoming strikes.",
 			"slot": "E",
 			"cooldown": 4.0,
 			"effect": {
@@ -126,6 +134,8 @@ static func create() -> CharacterData:
 		{
 			"id": "dive_tectonic_uprising",
 			"name": "Tectonic Uprising",
+			"icon": "⛰",
+			"description": "Erupts the arena in an airborne seismic shockwave, launching all nearby enemies into the air.",
 			"slot": "R",
 			"cooldown": 24.0,
 			"can_cast_while_stunned": true,
@@ -138,6 +148,8 @@ static func create() -> CharacterData:
 		{
 			"id": "dive_dash_or_crash",
 			"name": "Dash / Crash",
+			"icon": "🚀",
+			"description": "Jet-propelled dash. Hitting a wall bounces Dive high into the sky, allowing a targeted ground Crash Down!",
 			"slot": "SHIFT",
 			"charges": 1,
 			"recharge_time": 5.0,

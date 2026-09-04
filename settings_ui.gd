@@ -2,6 +2,7 @@ extends PanelContainer
 
 signal settings_closed
 
+@onready var tab_container: TabContainer = find_child("TabContainer", true, false)
 @onready var window_mode_option: OptionButton = find_child("WindowModeOption", true, false)
 @onready var vsync_check: CheckBox = find_child("VSyncCheck", true, false)
 @onready var master_slider: HSlider = find_child("MasterSlider", true, false)
@@ -27,6 +28,18 @@ const ACTION_LABELS: Dictionary = {
 	"move_right": "Move Right (D)"
 }
 
+const CAST_ACTION_LABELS: Dictionary = {
+	"shoot": "Primary Attack (LMB)",
+	"dash": "Dash / Mobility (Shift)",
+	"ability_one": "Ability 1 (RMB)",
+	"ability_two": "Ability 2 (Q)",
+	"ability_three": "Ability 3 (E)",
+	"ability_four": "Ultimate (R)"
+}
+
+var cast_option_buttons: Dictionary = {}
+var dash_dir_option: OptionButton = null
+
 func _ready() -> void:
 	if window_mode_option:
 		window_mode_option.clear()
@@ -48,6 +61,7 @@ func _ready() -> void:
 		close_button.pressed.connect(_on_close_pressed)
 
 	_populate_controls_ui()
+	_setup_casting_tab()
 	_refresh_ui_from_settings()
 
 func _refresh_ui_from_settings() -> void:
@@ -61,6 +75,7 @@ func _refresh_ui_from_settings() -> void:
 		if master_val_label:
 			master_val_label.text = "%.0f%%" % (mv * 100.0)
 	_refresh_binding_buttons()
+	_refresh_cast_mode_ui()
 
 func _populate_controls_ui() -> void:
 	if not controls_container:
@@ -126,6 +141,134 @@ func _input(event: InputEvent) -> void:
 		_refresh_binding_buttons()
 		get_viewport().set_input_as_handled()
 
+func _setup_casting_tab() -> void:
+	if not tab_container:
+		return
+	
+	# Create Casting Tab Container
+	var cast_vbox = VBoxContainer.new()
+	cast_vbox.name = "Casting"
+	cast_vbox.custom_minimum_size = Vector2(0, 200)
+
+	var desc = Label.new()
+	desc.text = "Configure whether abilities and attacks cast immediately on click/press or on button release (aim while holding)."
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cast_vbox.add_child(desc)
+
+	# Presets row
+	var presets_box = HBoxContainer.new()
+	presets_box.add_theme_constant_override("separation", 10)
+
+	var preset_default_btn = Button.new()
+	preset_default_btn.text = "Default (Attacks/Dash on Click, Abilities on Release)"
+	preset_default_btn.pressed.connect(func():
+		SettingsManager.reset_cast_modes_to_defaults()
+		SettingsManager.reset_dash_direction_mode()
+		_refresh_cast_mode_ui()
+	)
+	presets_box.add_child(preset_default_btn)
+
+	var preset_instant_btn = Button.new()
+	preset_instant_btn.text = "All on Click (Instant)"
+	preset_instant_btn.pressed.connect(func():
+		SettingsManager.set_all_cast_modes("press")
+		_refresh_cast_mode_ui()
+	)
+	presets_box.add_child(preset_instant_btn)
+
+	var preset_release_btn = Button.new()
+	preset_release_btn.text = "All on Release (Aim on Hold)"
+	preset_release_btn.pressed.connect(func():
+		SettingsManager.set_all_cast_modes("release")
+		_refresh_cast_mode_ui()
+	)
+	presets_box.add_child(preset_release_btn)
+
+	cast_vbox.add_child(presets_box)
+
+	# Dash Direction Targeting Row
+	var dash_dir_row = HBoxContainer.new()
+	dash_dir_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dash_dir_row.add_theme_constant_override("separation", 10)
+
+	var dash_dir_lbl = Label.new()
+	dash_dir_lbl.text = "Dash Direction Targeting:"
+	dash_dir_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dash_dir_lbl.custom_minimum_size = Vector2(220, 0)
+	dash_dir_row.add_child(dash_dir_lbl)
+
+	dash_dir_option = OptionButton.new()
+	dash_dir_option.custom_minimum_size = Vector2(300, 32)
+	dash_dir_option.add_item("Movement Keys (Mouse if within 30°)", 0)
+	dash_dir_option.add_item("Always Mouse Direction", 1)
+	dash_dir_option.add_item("Always Movement Keys Direction", 2)
+	dash_dir_option.item_selected.connect(func(idx: int):
+		var mode = "smart"
+		if idx == 1:
+			mode = "mouse"
+		elif idx == 2:
+			mode = "movement"
+		SettingsManager.set_dash_direction_mode(mode)
+	)
+	dash_dir_row.add_child(dash_dir_option)
+	cast_vbox.add_child(dash_dir_row)
+
+	# Scroll Container for individual slot options
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 180)
+
+	var items_vbox = VBoxContainer.new()
+	items_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	items_vbox.add_theme_constant_override("separation", 8)
+
+	for action in CAST_ACTION_LABELS.keys():
+		var row = HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var lbl = Label.new()
+		lbl.text = CAST_ACTION_LABELS[action]
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lbl.custom_minimum_size = Vector2(220, 0)
+		row.add_child(lbl)
+		
+		var opt = OptionButton.new()
+		opt.custom_minimum_size = Vector2(240, 32)
+		opt.add_item("Cast on Click (Instant)", 0)
+		opt.add_item("Cast on Release (Aim on Hold)", 1)
+		
+		var cur_action = action
+		opt.item_selected.connect(func(idx: int):
+			var mode_str = "press" if idx == 0 else "release"
+			SettingsManager.set_cast_mode(cur_action, mode_str)
+		)
+		row.add_child(opt)
+		cast_option_buttons[action] = opt
+		
+		items_vbox.add_child(row)
+
+	scroll.add_child(items_vbox)
+	cast_vbox.add_child(scroll)
+
+	tab_container.add_child(cast_vbox)
+
+func _refresh_cast_mode_ui() -> void:
+	for action in cast_option_buttons.keys():
+		var opt = cast_option_buttons[action] as OptionButton
+		if opt:
+			var mode = SettingsManager.get_cast_mode(action)
+			opt.select(0 if mode == "press" else 1)
+
+	if dash_dir_option:
+		var d_mode = SettingsManager.get_dash_direction_mode()
+		if d_mode == "mouse":
+			dash_dir_option.select(1)
+		elif d_mode == "movement":
+			dash_dir_option.select(2)
+		else:
+			dash_dir_option.select(0)
+
 func _on_window_mode_selected(idx: int) -> void:
 	SettingsManager.current_settings["window_mode"] = idx
 	SettingsManager.apply_all_settings()
@@ -146,8 +289,13 @@ func _on_master_volume_changed(val: float) -> void:
 
 func _on_reset_controls_pressed() -> void:
 	SettingsManager.reset_bindings_to_defaults()
+	SettingsManager.reset_cast_modes_to_defaults()
+	SettingsManager.reset_dash_direction_mode()
 	_refresh_binding_buttons()
+	_refresh_cast_mode_ui()
 
 func _on_close_pressed() -> void:
 	hide()
 	settings_closed.emit()
+
+

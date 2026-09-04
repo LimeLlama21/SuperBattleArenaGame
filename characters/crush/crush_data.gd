@@ -4,13 +4,13 @@ extends RefCounted
 static func create() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Crush"
-	data.display_name = "Crush"
+	data.display_name = "Heracles"
 	data.archetype = "Juggernaut"
-	data.max_health = 160.0
+	data.max_health = 320.0
 	data.max_move_speed = 8.5
 	data.ground_acceleration = 60.0
 	data.ground_friction = 40.0
-	data.air_acceleration = 20.0
+	data.air_acceleration = 6.5
 	data.air_drag = 3.5
 	data.jump_velocity = 9.5
 	data.ability_slots = {
@@ -54,8 +54,12 @@ static func create() -> CharacterData:
 		{
 			"id": "crush_slam",
 			"name": "Slam",
+			"icon": "🔨",
+			"description": "Heavy hammer slam dealing 55.0 melee damage in a 120-degree frontal arc. Titan's Surge empowers for +25 bonus damage and self-healing.",
 			"slot": "LMB",
 			"cooldown": 0.65,
+			"is_lockout": true,
+			"lockout_time": 0.28,
 			"effect": {
 				"type": AbilityPipeline.EffectType.MELEE_STRIKE,
 				"windup": 0.28
@@ -74,8 +78,12 @@ static func create() -> CharacterData:
 		{
 			"id": "crush_fan_stun",
 			"name": "Fan Stun",
+			"icon": "💫",
+			"description": "Sweeps a wide shockwave fan in front of Crush, stunning enemies for 0.8s and granting an empowered basic attack.",
 			"slot": "RMB",
 			"cooldown": 7.5,
+			"is_lockout": true,
+			"lockout_time": 0.16,
 			"effect": {
 				"type": AbilityPipeline.EffectType.MELEE_STRIKE,
 				"windup": 0.16
@@ -96,8 +104,12 @@ static func create() -> CharacterData:
 		{
 			"id": "crush_ground_stomp",
 			"name": "Ground Stomp",
+			"icon": "💥",
+			"description": "Slams the ground in a 6.5m radius to slow enemies by 30% for 2.5s, deal 20 damage, and grant 40 shield.",
 			"slot": "Q",
 			"cooldown": 8.0,
+			"is_lockout": true,
+			"lockout_time": 0.30,
 			"effect": {
 				"type": AbilityPipeline.EffectType.AREA_ZONE,
 				"windup": 0.30
@@ -117,8 +129,12 @@ static func create() -> CharacterData:
 		{
 			"id": "crush_iron_barrier",
 			"name": "Iron Barrier",
+			"icon": "🛡",
+			"description": "Hardens Crush's armor, instantly converting accrued Gray Health to shield and granting +50 personal shield for 5.0s.",
 			"slot": "E",
 			"cooldown": 10.0,
+			"is_lockout": true,
+			"lockout_time": 0.20,
 			"effect": {
 				"type": AbilityPipeline.EffectType.BUFF,
 				"duration": 5.0
@@ -131,8 +147,12 @@ static func create() -> CharacterData:
 		{
 			"id": "crush_juggernaut_charge",
 			"name": "Juggernaut Charge",
+			"icon": "🐗",
+			"description": "Unstoppable charge forward, smashing through terrain and launching struck enemies for 120 damage and 1.25s stun.",
 			"slot": "R",
 			"cooldown": 26.0,
+			"is_lockout": true,
+			"lockout_time": 0.45,
 			"effect": {
 				"type": AbilityPipeline.EffectType.CHARGE_SLAM,
 				"speed": 28.0,
@@ -154,8 +174,11 @@ static func create() -> CharacterData:
 		{
 			"id": "crush_dash",
 			"name": "Dash",
+			"icon": "💨",
+			"description": "Heavy forward momentum dash to re-position or engage enemies.",
 			"slot": "SHIFT",
 			"cooldown": 8.0,
+			"can_cast_during_lockout": true,
 			"effect": {
 				"type": AbilityPipeline.EffectType.DASH
 			}

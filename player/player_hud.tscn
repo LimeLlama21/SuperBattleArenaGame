@@ -1,0 +1,273 @@
+[gd_scene format=3 uid="uid://cdjy3oq13w80j"]
+
+[ext_resource type="Script" path="res://player/player_hud.gd" id="1_hud_script"]
+[ext_resource type="Script" path="res://ability/ability_slot.gd" id="2_slot_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tooltip"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0.06, 0.08, 0.12, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.28, 0.65, 0.9, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_panel"]
+bg_color = Color(0.07, 0.09, 0.13, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.24, 0.38, 0.54, 0.85)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
+bg_color = Color(0.04, 0.05, 0.07, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
+bg_color = Color(0.18, 0.82, 0.44, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gray_fill"]
+bg_color = Color(0.72, 0.22, 0.22, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_shield_fill"]
+bg_color = Color(0.25, 0.75, 1, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_bar"]
+
+[node name="PlayerHUD" type="CanvasLayer"]
+script = ExtResource("1_hud_script")
+layer = 10
+
+[node name="HUDContainer" type="VBoxContainer" parent="."]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -190.0
+offset_right = 780.0
+offset_bottom = -24.0
+grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="StatusCCLabel" type="Label" parent="HUDContainer"]
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 14
+
+[node name="AbilityTooltip" type="PanelContainer" parent="HUDContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_tooltip")
+
+[node name="VBox" type="VBoxContainer" parent="HUDContainer/AbilityTooltip"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="TitleLabel" type="Label" parent="HUDContainer/AbilityTooltip/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="StatsLabel" type="Label" parent="HUDContainer/AbilityTooltip/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.86, 1, 0.9)
+theme_override_font_sizes/font_size = 11
+
+[node name="DescLabel" type="Label" parent="HUDContainer/AbilityTooltip/VBox"]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.98, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+
+[node name="MainBar" type="HBoxContainer" parent="HUDContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 0
+
+[node name="HealthContainer" type="PanelContainer" parent="HUDContainer/MainBar"]
+custom_minimum_size = Vector2(230, 78)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hp_panel")
+
+[node name="Margin" type="MarginContainer" parent="HUDContainer/MainBar/HealthContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="HUDContainer/MainBar/HealthContainer/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="HeaderRow" type="HBoxContainer" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox"]
+layout_mode = 2
+alignment = 0
+
+[node name="CharNameLabel" type="Label" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HeaderRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "PLAYER"
+
+[node name="Spacer" type="Control" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FiringBox" type="ColorRect" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HeaderRow"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+color = Color(0.58, 0.6, 0.65, 0.95)
+
+[node name="HealthBarStack" type="Control" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox"]
+custom_minimum_size = Vector2(206, 32)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GrayHealthBar" type="ProgressBar" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_gray_fill")
+show_percentage = false
+
+[node name="ShieldBar" type="ProgressBar" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/background = SubResource("StyleBoxEmpty_bar")
+theme_override_styles/fill = SubResource("StyleBoxFlat_shield_fill")
+show_percentage = false
+
+[node name="HealthBar" type="ProgressBar" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/background = SubResource("StyleBoxEmpty_bar")
+theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
+show_percentage = false
+
+[node name="HealthLabel" type="Label" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.95)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+text = "100 / 100 HP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="AbilityBar" type="HBoxContainer" parent="HUDContainer/MainBar"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 0
+
+[node name="SlotLMB" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
+custom_minimum_size = Vector2(78, 78)
+layout_mode = 2
+script = ExtResource("2_slot_script")
+key_bind_text = "LMB"
+slot_name = "Primary Fire"
+is_primary_fire = true
+
+[node name="SlotRMB" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
+custom_minimum_size = Vector2(78, 78)
+layout_mode = 2
+script = ExtResource("2_slot_script")
+key_bind_text = "RMB"
+slot_name = "Secondary"
+
+[node name="SlotShift" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
+custom_minimum_size = Vector2(78, 78)
+layout_mode = 2
+script = ExtResource("2_slot_script")
+key_bind_text = "SHIFT"
+slot_name = "Dash"
+
+[node name="SlotQ" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
+custom_minimum_size = Vector2(78, 78)
+layout_mode = 2
+script = ExtResource("2_slot_script")
+key_bind_text = "Q"
+slot_name = "Ability 2"
+
+[node name="SlotE" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
+custom_minimum_size = Vector2(78, 78)
+layout_mode = 2
+script = ExtResource("2_slot_script")
+key_bind_text = "E"
+slot_name = "Ability 3"
+
+[node name="SlotR" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
+custom_minimum_size = Vector2(78, 78)
+layout_mode = 2
+script = ExtResource("2_slot_script")
+key_bind_text = "R"
+slot_name = "Ultimate"
+
+[node name="SpectatorPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -175.0
+offset_top = 20.0
+offset_right = 175.0
+offset_bottom = 76.0
+grow_horizontal = 2
+
+[node name="VBox" type="VBoxContainer" parent="SpectatorPanel"]
+layout_mode = 2
+alignment = 1
+
+[node name="SpectatorLabel" type="Label" parent="SpectatorPanel/VBox"]
+layout_mode = 2
+horizontal_alignment = 1

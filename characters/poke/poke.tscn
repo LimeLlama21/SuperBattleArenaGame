@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://dhqp0hfpijgwi"]
 
 [ext_resource type="Script" path="res://characters/poke/poke.gd" id="1_poke"]
-[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.35
@@ -50,8 +51,9 @@ corner_radius_bottom_left = 4
 collision_layer = 2
 script = ExtResource("1_poke")
 character_name = "Poke"
-max_health = 80.0
-current_health = 80.0
+display_name = "Arash"
+max_health = 160.0
+current_health = 160.0
 max_move_speed = 11.5
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1856021603]
@@ -94,86 +96,4 @@ billboard = 1
 double_sided = false
 no_depth_test = true
 
-[node name="PlayerHUD" type="CanvasLayer" parent="." unique_id=1425862011]
-layer = 10
-
-[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD" unique_id=1929910548]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -170.0
-offset_top = -105.0
-offset_right = 170.0
-offset_bottom = -25.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer" unique_id=1879832025]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-horizontal_alignment = 1
-
-[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer" unique_id=206286187]
-layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=946995548]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "RMB"
-slot_name = "Ability 1"
-
-[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1579189842]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "Q"
-slot_name = "Ability 2"
-
-[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1216945441]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "E"
-slot_name = "Ability 3"
-
-[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=406152619]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "R"
-slot_name = "Ultimate"
-
-[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1065917800]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "SHIFT"
-slot_name = "Dash"
-
-[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD" unique_id=1254145492]
-visible = false
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -175.0
-offset_top = 20.0
-offset_right = 175.0
-offset_bottom = 76.0
-grow_horizontal = 2
-
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel" unique_id=1402635284]
-layout_mode = 2
-
-[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox" unique_id=191713405]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "SPECTATING: Player
-[LMB / RMB to Cycle]"
-horizontal_alignment = 1
+[node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]

@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://dm6r8y2v4xak1"]
 
 [ext_resource type="Script" uid="uid://rl0wa80e4jvx" path="res://characters/morrigan/morrigan.gd" id="1_morrigan"]
-[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 height = 1.8
@@ -64,9 +65,10 @@ corner_radius_bottom_left = 4
 [node name="Morrigan" type="CharacterBody3D" unique_id=377419315]
 collision_layer = 2
 script = ExtResource("1_morrigan")
-character_name = "Morrigan"
-max_health = 90.0
-current_health = 90.0
+character_name = "Murder"
+display_name = "Morrigan"
+max_health = 180.0
+current_health = 180.0
 max_move_speed = 9.5
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1604146957]
@@ -131,85 +133,4 @@ billboard = 1
 double_sided = false
 no_depth_test = true
 
-[node name="PlayerHUD" type="CanvasLayer" parent="." unique_id=1356400994]
-layer = 10
-
-[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD" unique_id=1039534194]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -170.0
-offset_top = -105.0
-offset_right = 170.0
-offset_bottom = -25.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer" unique_id=906105863]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-horizontal_alignment = 1
-
-[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer" unique_id=1977466317]
-layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1760289481]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "RMB"
-slot_name = "Ability 1"
-
-[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=1767952220]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-slot_name = "Ability 2"
-
-[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=2145841583]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "E"
-slot_name = "Ability 3"
-
-[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=353018057]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "R"
-slot_name = "Ultimate"
-
-[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar" unique_id=971381955]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "SHIFT"
-slot_name = "Dash"
-
-[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD" unique_id=1569026911]
-visible = false
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -175.0
-offset_top = 20.0
-offset_right = 175.0
-offset_bottom = 76.0
-grow_horizontal = 2
-
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel" unique_id=918113056]
-layout_mode = 2
-
-[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox" unique_id=884724978]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "SPECTATING: Player
-[LMB / RMB to Cycle]"
-horizontal_alignment = 1
+[node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]

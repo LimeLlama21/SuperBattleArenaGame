@@ -3,14 +3,14 @@ extends RefCounted
 
 static func create() -> CharacterData:
 	var data = CharacterData.new()
-	data.character_name = "Morrigan"
+	data.character_name = "Murder"
 	data.display_name = "Morrigan"
 	data.archetype = "Mage"
-	data.max_health = 90.0
+	data.max_health = 180.0
 	data.max_move_speed = 9.5
 	data.ground_acceleration = 65.0
 	data.ground_friction = 40.0
-	data.air_acceleration = 25.0
+	data.air_acceleration = 8.0
 	data.air_drag = 3.5
 	data.jump_velocity = 9.5
 	data.ability_slots = {
@@ -61,6 +61,8 @@ static func create() -> CharacterData:
 		{
 			"id": "morrigan_black_plumage",
 			"name": "Black Plumage",
+			"icon": "🪶",
+			"description": "Fires a rapid stream of necrotic black feathers dealing 9 damage and applying lingering decay to targets.",
 			"slot": "LMB",
 			"cooldown": 0.25,
 			"effect": {
@@ -82,6 +84,8 @@ static func create() -> CharacterData:
 		{
 			"id": "morrigan_omen_of_death",
 			"name": "Omen of Death",
+			"icon": "💣",
+			"description": "Lobs a necrotic mortar shell over obstacles that explodes into an area-denial pool dealing 20 damage and slowing enemies.",
 			"slot": "RMB",
 			"charges": 1,
 			"recharge_time": 6.0,
@@ -104,6 +108,8 @@ static func create() -> CharacterData:
 		{
 			"id": "morrigan_inescapable_ends",
 			"name": "Inescapable Ends",
+			"icon": "🕸",
+			"description": "Fires a soul-siphoning tether that attaches to an enemy or terrain. Recast to yank the target towards Morrigan or pull Morrigan to the anchor.",
 			"slot": "Q",
 			"cooldown": 9.0,
 			"effect": {
@@ -124,6 +130,8 @@ static func create() -> CharacterData:
 		{
 			"id": "morrigan_banshee_cry",
 			"name": "Cry of the Banshee",
+			"icon": "🗣",
+			"description": "Unleashes a blood-curdling sonic scream in an 85-degree arc, silencing and stunning foes for 1.4s while dealing 24 damage.",
 			"slot": "E",
 			"cooldown": 14.0,
 			"effect": {
@@ -145,6 +153,8 @@ static func create() -> CharacterData:
 		{
 			"id": "morrigan_born_of_blood",
 			"name": "Born of Blood",
+			"icon": "🩸",
+			"description": "Channels a blood deluge for 1.0s, unleashing a colossal 45m tidal surge that crashes over all obstacles, stunning for 1.2s and dealing 50 damage.",
 			"slot": "R",
 			"cooldown": 30.0,
 			"effect": {
@@ -166,6 +176,8 @@ static func create() -> CharacterData:
 		{
 			"id": "morrigan_crowstorm",
 			"name": "Crowstorm",
+			"icon": "🦅",
+			"description": "Transforms into an agile flock of crows, granting unrestricted high-speed flight and steerable momentum.",
 			"slot": "SHIFT",
 			"cooldown": 6.0,
 			"effect": {

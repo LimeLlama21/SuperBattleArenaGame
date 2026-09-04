@@ -1,0 +1,318 @@
+[gd_scene format=3 uid="uid://map_chasm_jagged_scene"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_Floor"]
+albedo_color = Color(0.15, 0.18, 0.24, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_Bridge"]
+albedo_color = Color(0.24, 0.3, 0.38, 1)
+roughness = 0.6
+
+[sub_resource type="StandardMaterial3D" id="Mat_Wall"]
+albedo_color = Color(0.38, 0.45, 0.52, 1)
+metallic = 0.15
+roughness = 0.4
+
+[sub_resource type="BoxShape3D" id="Shape_WestBase"]
+size = Vector3(20, 1, 68)
+
+[sub_resource type="BoxMesh" id="Mesh_WestBase"]
+material = SubResource("Mat_Floor")
+size = Vector3(20, 1, 68)
+
+[sub_resource type="BoxShape3D" id="Shape_EastBase"]
+size = Vector3(20, 1, 68)
+
+[sub_resource type="BoxMesh" id="Mesh_EastBase"]
+material = SubResource("Mat_Floor")
+size = Vector3(20, 1, 68)
+
+[sub_resource type="BoxShape3D" id="Shape_JaggedBlockLarge"]
+size = Vector3(10, 1, 20)
+
+[sub_resource type="BoxMesh" id="Mesh_JaggedBlockLarge"]
+material = SubResource("Mat_Floor")
+size = Vector3(10, 1, 20)
+
+[sub_resource type="BoxShape3D" id="Shape_JaggedBlockMedium"]
+size = Vector3(12, 1, 14)
+
+[sub_resource type="BoxMesh" id="Mesh_JaggedBlockMedium"]
+material = SubResource("Mat_Floor")
+size = Vector3(12, 1, 14)
+
+[sub_resource type="BoxShape3D" id="Shape_Bridge"]
+size = Vector3(10, 1, 6)
+
+[sub_resource type="BoxMesh" id="Mesh_Bridge"]
+material = SubResource("Mat_Bridge")
+size = Vector3(10, 1, 6)
+
+[sub_resource type="BoxShape3D" id="Shape_Wall"]
+size = Vector3(4.5, 3.0, 1.2)
+
+[sub_resource type="BoxMesh" id="Mesh_Wall"]
+material = SubResource("Mat_Wall")
+size = Vector3(4.5, 3.0, 1.2)
+
+[sub_resource type="BoxShape3D" id="Shape_Pillar"]
+size = Vector3(3.5, 6.0, 3.5)
+
+[sub_resource type="BoxMesh" id="Mesh_Pillar"]
+material = SubResource("Mat_Wall")
+size = Vector3(3.5, 6.0, 3.5)
+
+[node name="MapChasm" type="Node3D"]
+
+[node name="WestBaseFloor" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WestBaseFloor"]
+shape = SubResource("Shape_WestBase")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WestBaseFloor"]
+mesh = SubResource("Mesh_WestBase")
+
+[node name="EastBaseFloor" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="EastBaseFloor"]
+shape = SubResource("Shape_EastBase")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="EastBaseFloor"]
+mesh = SubResource("Mesh_EastBase")
+
+[node name="WestNorthJagged" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, -0.5, -22)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WestNorthJagged"]
+shape = SubResource("Shape_JaggedBlockLarge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WestNorthJagged"]
+mesh = SubResource("Mesh_JaggedBlockLarge")
+
+[node name="WestMidBridgehead" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WestMidBridgehead"]
+shape = SubResource("Shape_JaggedBlockMedium")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WestMidBridgehead"]
+mesh = SubResource("Mesh_JaggedBlockMedium")
+
+[node name="WestSouthJagged" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, -0.5, 22)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WestSouthJagged"]
+shape = SubResource("Shape_JaggedBlockLarge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WestSouthJagged"]
+mesh = SubResource("Mesh_JaggedBlockLarge")
+
+[node name="EastNorthJagged" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, -0.5, -22)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="EastNorthJagged"]
+shape = SubResource("Shape_JaggedBlockLarge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="EastNorthJagged"]
+mesh = SubResource("Mesh_JaggedBlockLarge")
+
+[node name="EastMidBridgehead" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="EastMidBridgehead"]
+shape = SubResource("Shape_JaggedBlockMedium")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="EastMidBridgehead"]
+mesh = SubResource("Mesh_JaggedBlockMedium")
+
+[node name="EastSouthJagged" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, -0.5, 22)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="EastSouthJagged"]
+shape = SubResource("Shape_JaggedBlockLarge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="EastSouthJagged"]
+mesh = SubResource("Mesh_JaggedBlockLarge")
+
+[node name="BridgeNorth" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, 0, -0.5, -22)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BridgeNorth"]
+shape = SubResource("Shape_Bridge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BridgeNorth"]
+mesh = SubResource("Mesh_Bridge")
+
+[node name="BridgeCenter" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BridgeCenter"]
+shape = SubResource("Shape_Bridge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BridgeCenter"]
+mesh = SubResource("Mesh_Bridge")
+
+[node name="BridgeSouth" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, 0, -0.5, 22)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BridgeSouth"]
+shape = SubResource("Shape_Bridge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BridgeSouth"]
+mesh = SubResource("Mesh_Bridge")
+
+[node name="Wall_WN1" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, -7, 1.5, -20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_WN1"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_WN1"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_WN2" type="StaticBody3D" parent="."]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -13, 1.5, -11)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_WN2"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_WN2"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_WMid" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -4, 1.5, -3)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_WMid"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_WMid"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_WS1" type="StaticBody3D" parent="."]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -13, 1.5, 11)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_WS1"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_WS1"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_WS2" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, -7, 1.5, 20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_WS2"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_WS2"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_EN1" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, 7, 1.5, -20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_EN1"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_EN1"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_EN2" type="StaticBody3D" parent="."]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 13, 1.5, -11)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_EN2"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_EN2"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_EMid" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 4, 1.5, 3)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_EMid"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_EMid"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_ES1" type="StaticBody3D" parent="."]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 13, 1.5, 11)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_ES1"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_ES1"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Wall_ES2" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, 7, 1.5, 20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_ES2"]
+shape = SubResource("Shape_Wall")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Wall_ES2"]
+mesh = SubResource("Mesh_Wall")
+
+[node name="Pillar_West" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 3, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Pillar_West"]
+shape = SubResource("Shape_Pillar")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Pillar_West"]
+mesh = SubResource("Mesh_Pillar")
+
+[node name="Pillar_East" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 3, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Pillar_East"]
+shape = SubResource("Shape_Pillar")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Pillar_East"]
+mesh = SubResource("Mesh_Pillar")

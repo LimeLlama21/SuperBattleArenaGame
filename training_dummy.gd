@@ -13,6 +13,7 @@ var home_position: Vector3 = Vector3.ZERO
 
 func _setup_character_kit() -> void:
 	character_name = "Training Dummy"
+	display_name = "Training Dummy"
 	team_id = 2
 	max_health = 10000.0
 	current_health = 10000.0
@@ -77,17 +78,11 @@ func _on_damage_taken_hook(amount: float, _attacker_id: int, action_type: int) -
 func die() -> void:
 	if is_dead:
 		return
-	is_dead = true
-	cleanse_cc()
+	super.die()
 	
 	# Death shrink animation
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	
-	# Automatic Respawn after 0.6s
-	get_tree().create_timer(0.6).timeout.connect(func():
-		respawn()
-	)
 
 func respawn() -> void:
 	global_position = home_position

@@ -61,12 +61,18 @@ const CRASH_RADIUS: float = 6.0
 # Hold-to-aim Indicators
 var shoot_hold_timer: float = 0.0
 const LMB_HOLD_THRESHOLD: float = 0.18
+var is_holding_shoot: bool = false
+var is_holding_dash: bool = false
 var is_holding_rmb: bool = false
 var is_holding_q: bool = false
+var is_holding_e: bool = false
+var is_holding_r: bool = false
 
 var ind_attack: Node3D = null
 var ind_rmb: Node3D = null
 var ind_q: Node3D = null
+var ind_e: Node3D = null
+var ind_r: Node3D = null
 var ind_crash_circle: Node3D = null
 
 @onready var melee_visual: Node3D = get_node_or_null("MeleeVisual")
@@ -74,21 +80,9 @@ var ind_crash_circle: Node3D = null
 @onready var block_visual: Node3D = get_node_or_null("BlockVisual")
 @onready var crash_visual: Node3D = get_node_or_null("CrashVisual")
 
-var abilities: Dictionary = {}
-
 func _setup_character_kit() -> void:
-	character_name = "Dive"
 	var data = DiveData.create()
-	max_health = data.max_health
-	current_health = data.max_health
-	max_move_speed = data.max_move_speed
-	ground_acceleration = data.ground_acceleration
-	ground_friction = data.ground_friction
-	if "intentional_movement_friction" in data:
-		intentional_movement_friction = data.intentional_movement_friction
-	air_acceleration = data.air_acceleration
-	air_drag = data.air_drag
-	jump_velocity = data.jump_velocity
+	load_character_data(data)
 
 	dash_impulse = data.passive_data.get("dash_impulse", 26.0)
 	max_dash_charges = data.passive_data.get("max_dash_charges", 1)
@@ -97,7 +91,6 @@ func _setup_character_kit() -> void:
 	dash_recharge_time = data.passive_data.get("dash_recharge_time", 5.0)
 	wall_bounce_ratio = data.passive_data.get("wall_bounce_ratio", 0.55)
 
-	abilities = data.abilities
 	_setup_local_indicators()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
@@ -244,72 +237,113 @@ func _handle_character_input(_delta: float) -> void:
 			return
 
 	# --- Normal Dash (SHIFT) ---
-	if Input.is_action_just_pressed("dash") and not is_rooted() and not is_grounded():
-		if current_dash_charges > 0 and dash_lockout_timer <= 0.0:
-			_execute_dive_dash()
+	if is_cast_on_press("dash"):
+		if Input.is_action_just_pressed("dash") and not is_rooted() and not is_grounded():
+			if current_dash_charges > 0 and dash_lockout_timer <= 0.0:
+				_execute_dive_dash()
+	else:
+		if Input.is_action_just_pressed("dash") and not is_rooted() and not is_grounded():
+			if current_dash_charges > 0 and dash_lockout_timer <= 0.0:
+				is_holding_dash = true
+		if Input.is_action_just_released("dash") and is_holding_dash:
+			is_holding_dash = false
+			if current_dash_charges > 0 and dash_lockout_timer <= 0.0 and not is_rooted() and not is_grounded():
+				_execute_dive_dash()
 
 	# --- Primary Fire (LMB): Slash ---
-	if Input.is_action_just_pressed("shoot"):
-		shoot_hold_timer = 0.0
-		if attack_timer <= 0.0:
-			_perform_slash()
-	elif Input.is_action_pressed("shoot"):
-		shoot_hold_timer += _delta
-		if shoot_hold_timer >= LMB_HOLD_THRESHOLD:
-			if ind_attack and not ind_attack.visible:
-				AbilityIndicator.reset_indicator(ind_attack)
-				ind_attack.show()
-	if Input.is_action_just_released("shoot"):
-		if ind_attack and ind_attack.visible:
-			ind_attack.hide()
+	if is_cast_on_press("shoot"):
+		if Input.is_action_just_pressed("shoot") or (Input.is_action_pressed("shoot") and attack_timer <= 0.0):
 			if attack_timer <= 0.0:
 				_perform_slash()
-		shoot_hold_timer = 0.0
+	else:
+		if Input.is_action_just_pressed("shoot"):
+			is_holding_shoot = true
+			if ind_attack:
+				AbilityIndicator.reset_indicator(ind_attack)
+				ind_attack.show()
+		if Input.is_action_just_released("shoot") and is_holding_shoot:
+			is_holding_shoot = false
+			if ind_attack: ind_attack.hide()
+			if attack_timer <= 0.0:
+				_perform_slash()
 
 	# --- Ability 1 (RMB): Heavy Cleave ---
-	if Input.is_action_just_pressed("ability_one") and not is_silenced():
-		is_holding_rmb = true
-		if ind_rmb:
-			AbilityIndicator.reset_indicator(ind_rmb)
-			ind_rmb.show()
-	if Input.is_action_just_released("ability_one") and is_holding_rmb:
-		is_holding_rmb = false
-		if ind_rmb: ind_rmb.hide()
-		if rmb_timer <= 0.0 and not is_silenced():
+	if is_cast_on_press("ability_one"):
+		if Input.is_action_just_pressed("ability_one") and rmb_timer <= 0.0 and not is_silenced():
 			_perform_heavy_cleave()
+	else:
+		if Input.is_action_just_pressed("ability_one") and not is_silenced():
+			if rmb_timer <= 0.0:
+				is_holding_rmb = true
+				if ind_rmb:
+					AbilityIndicator.reset_indicator(ind_rmb)
+					ind_rmb.show()
+		if Input.is_action_just_released("ability_one") and is_holding_rmb:
+			is_holding_rmb = false
+			if ind_rmb: ind_rmb.hide()
+			if rmb_timer <= 0.0 and not is_silenced():
+				_perform_heavy_cleave()
 
 	# --- Ability 2 (Q): Earth Tremor ---
-	if Input.is_action_just_pressed("ability_two") and not is_silenced():
-		is_holding_q = true
-		if ind_q:
-			AbilityIndicator.reset_indicator(ind_q)
-			ind_q.show()
-	if Input.is_action_just_released("ability_two") and is_holding_q:
-		is_holding_q = false
-		if q_timer <= 0.0 and not is_silenced():
+	if is_cast_on_press("ability_two"):
+		if Input.is_action_just_pressed("ability_two") and q_timer <= 0.0 and not is_silenced():
 			_perform_earth_tremor()
-		else:
-			if ind_q: ind_q.hide()
+	else:
+		if Input.is_action_just_pressed("ability_two") and not is_silenced():
+			if q_timer <= 0.0:
+				is_holding_q = true
+				if ind_q:
+					AbilityIndicator.reset_indicator(ind_q)
+					ind_q.show()
+		if Input.is_action_just_released("ability_two") and is_holding_q:
+			is_holding_q = false
+			if q_timer <= 0.0 and not is_silenced():
+				_perform_earth_tremor()
+			else:
+				if ind_q: ind_q.hide()
 
 	# --- Ability 3 (E): Deflecting Guard ---
-	if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced():
-		_perform_deflecting_guard()
+	if is_cast_on_press("ability_three"):
+		if Input.is_action_just_pressed("ability_three") and e_timer <= 0.0 and not is_silenced():
+			_perform_deflecting_guard()
+	else:
+		if Input.is_action_just_pressed("ability_three") and not is_silenced():
+			if e_timer <= 0.0:
+				is_holding_e = true
+				if ind_e:
+					AbilityIndicator.reset_indicator(ind_e)
+					ind_e.show()
+		if Input.is_action_just_released("ability_three") and is_holding_e:
+			is_holding_e = false
+			if ind_e: ind_e.hide()
+			if e_timer <= 0.0 and not is_silenced():
+				_perform_deflecting_guard()
 
 	# --- Ultimate (R): Tectonic Uprising ---
-	if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0:
-		_perform_tectonic_uprising()
+	if is_cast_on_press("ability_four"):
+		if Input.is_action_just_pressed("ability_four") and r_timer <= 0.0:
+			_perform_tectonic_uprising()
+	else:
+		if Input.is_action_just_pressed("ability_four"):
+			if r_timer <= 0.0:
+				is_holding_r = true
+				if ind_r:
+					AbilityIndicator.reset_indicator(ind_r)
+					ind_r.show()
+		if Input.is_action_just_released("ability_four") and is_holding_r:
+			is_holding_r = false
+			if ind_r: ind_r.hide()
+			if r_timer <= 0.0:
+				_perform_tectonic_uprising()
 
 func _execute_dive_dash() -> void:
 	current_dash_charges -= 1
 	dash_lockout_timer = dash_lockout
-	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var target_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
-	var dash_dir = target_dir if target_dir != Vector3.ZERO else -global_transform.basis.z.normalized()
-	dash_dir.y = 0.0
-	dash_dir = dash_dir.normalized()
+	var dash_dir = get_dash_direction()
 	dive_dash_dir = dash_dir
 	dash_wall_bounce_timer = 0.65
-	apply_velocity_impulse(Vector3(dash_dir.x * dash_impulse, 0, dash_dir.z * dash_impulse), true)
+	var effective_impulse = get_effective_dash_impulse(dash_impulse)
+	apply_velocity_impulse(Vector3(dash_dir.x * effective_impulse, 0, dash_dir.z * effective_impulse), true)
 	_check_dive_wall_bounce()
 
 func _check_dive_wall_bounce() -> void:
@@ -350,7 +384,7 @@ func _trigger_wall_bounce() -> void:
 	wall_launch_air_time = 0.0
 	# Convert horizontal momentum to vertical momentum with the reduced ratio
 	var horiz_speed = Vector2(velocity.x, velocity.z).length()
-	var base_speed = max(horiz_speed, dash_impulse * 0.8)
+	var base_speed = max(horiz_speed, get_effective_dash_impulse(dash_impulse) * 0.8)
 	velocity.x = 0.0
 	velocity.z = 0.0
 	velocity.y = base_speed * wall_bounce_ratio
@@ -606,3 +640,39 @@ func _update_character_hud() -> void:
 			slot_dash.slot_name = "Dash"
 			var cd_ratio = (dash_recharge_time - dash_recharge_timer) if current_dash_charges < max_dash_charges else dash_lockout_timer
 			slot_dash.update_cooldown(cd_ratio, dash_recharge_time, current_dash_charges, max_dash_charges, is_rooted() or is_grounded())
+
+func is_in_cast_lockout() -> bool:
+	return super.is_in_cast_lockout() or dash_lockout_timer > 0.0
+
+func execute_ability_slot(slot_key: String) -> bool:
+	if is_dead or is_stunned():
+		return false
+	match slot_key.to_upper():
+		"LMB", "SHOOT":
+			if is_holding_space and current_float_stamina > 0.0 and dive_vertical_state == 2:
+				_perform_crash_down()
+				return true
+			elif attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
+				_perform_slash()
+				return true
+		"RMB", "ABILITY_ONE":
+			if rmb_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("RMB"):
+				_perform_heavy_cleave()
+				return true
+		"Q", "ABILITY_TWO":
+			if q_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("Q"):
+				_perform_earth_tremor()
+				return true
+		"E", "ABILITY_THREE":
+			if e_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("E"):
+				_perform_deflecting_guard()
+				return true
+		"R", "ABILITY_FOUR":
+			if r_timer <= 0.0 and can_cast_ability_slot("R"):
+				_perform_tectonic_uprising()
+				return true
+		"SHIFT", "DASH":
+			if current_dash_charges > 0 and dash_lockout_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+				_execute_dive_dash()
+				return true
+	return false

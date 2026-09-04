@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://cyureap6xm6a"]
 
 [ext_resource type="Script" path="res://characters/reaper/reaper.gd" id="1_reaper"]
-[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.38
@@ -113,8 +114,9 @@ collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_reaper")
 character_name = "Reaper"
-max_health = 100.0
-current_health = 100.0
+display_name = "Keres"
+max_health = 200.0
+current_health = 200.0
 max_move_speed = 10.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
@@ -193,86 +195,4 @@ billboard = 1
 double_sided = false
 no_depth_test = true
 
-[node name="PlayerHUD" type="CanvasLayer" parent="."]
-layer = 10
-
-[node name="HUDContainer" type="VBoxContainer" parent="PlayerHUD"]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -170.0
-offset_top = -105.0
-offset_right = 170.0
-offset_bottom = -25.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="StatusCCLabel" type="Label" parent="PlayerHUD/HUDContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-horizontal_alignment = 1
-
-[node name="AbilityBar" type="HBoxContainer" parent="PlayerHUD/HUDContainer"]
-layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="SlotRMB" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "RMB"
-slot_name = "Ability 1"
-
-[node name="SlotQ" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "Q"
-slot_name = "Ability 2"
-
-[node name="SlotE" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "E"
-slot_name = "Ability 3"
-
-[node name="SlotR" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "R"
-slot_name = "Ultimate"
-
-[node name="SlotShift" type="PanelContainer" parent="PlayerHUD/HUDContainer/AbilityBar"]
-custom_minimum_size = Vector2(56, 56)
-layout_mode = 2
-script = ExtResource("2_ability_slot")
-key_bind_text = "SHIFT"
-slot_name = "Dash"
-
-[node name="SpectatorPanel" type="PanelContainer" parent="PlayerHUD"]
-visible = false
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -175.0
-offset_top = 20.0
-offset_right = 175.0
-offset_bottom = 76.0
-grow_horizontal = 2
-
-[node name="VBox" type="VBoxContainer" parent="PlayerHUD/SpectatorPanel"]
-layout_mode = 2
-
-[node name="SpectatorLabel" type="Label" parent="PlayerHUD/SpectatorPanel/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "SPECTATING: Player
-[LMB / RMB to Cycle]"
-horizontal_alignment = 1
+[node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]

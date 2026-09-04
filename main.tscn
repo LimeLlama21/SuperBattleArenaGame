@@ -58,16 +58,23 @@ size = Vector3(3.5, 3.0, 3.5)
 [sub_resource type="BoxShape3D" id="BoxShape3D_quad_pillar"]
 size = Vector3(3.5, 3.0, 3.5)
 
+[sub_resource type="BoxMesh" id="BoxMesh_high_pillar"]
+material = SubResource("StandardMaterial3D_obstacle")
+size = Vector3(3.5, 6.0, 3.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_high_pillar"]
+size = Vector3(3.5, 6.0, 3.5)
+
 [sub_resource type="BoxMesh" id="BoxMesh_side_cover"]
 material = SubResource("StandardMaterial3D_obstacle")
-size = Vector3(2.5, 2.4, 2.5)
+size = Vector3(3.5, 3.0, 3.0)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_side_cover"]
-size = Vector3(2.5, 2.4, 2.5)
+size = Vector3(3.5, 3.0, 3.0)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_small_cone"]
 material = SubResource("StandardMaterial3D_center_cone")
-top_radius = 0.0
+top_radius = 2.0
 bottom_radius = 2.2
 height = 3.0
 radial_segments = 24
@@ -139,26 +146,26 @@ mesh = SubResource("BoxMesh_quad_pillar")
 shape = SubResource("BoxShape3D_quad_pillar")
 
 [node name="Obstacle_NE" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.5, -12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 3, -12)
 collision_layer = 1
 collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_NE"]
-mesh = SubResource("BoxMesh_quad_pillar")
+mesh = SubResource("BoxMesh_high_pillar")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_NE"]
-shape = SubResource("BoxShape3D_quad_pillar")
+shape = SubResource("BoxShape3D_high_pillar")
 
 [node name="Obstacle_SW" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 1.5, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 3, 12)
 collision_layer = 1
 collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_SW"]
-mesh = SubResource("BoxMesh_quad_pillar")
+mesh = SubResource("BoxMesh_high_pillar")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_SW"]
-shape = SubResource("BoxShape3D_quad_pillar")
+shape = SubResource("BoxShape3D_high_pillar")
 
 [node name="Obstacle_SE" type="StaticBody3D" parent="Arena/DefaultMap"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.5, 12)
@@ -194,7 +201,7 @@ mesh = SubResource("CylinderMesh_small_cone")
 shape = SubResource("CylinderShape3D_small_cone")
 
 [node name="Obstacle_LeftMid" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 1.5, 0)
 collision_layer = 1
 collision_mask = 0
 
@@ -205,7 +212,7 @@ mesh = SubResource("BoxMesh_side_cover")
 shape = SubResource("BoxShape3D_side_cover")
 
 [node name="Obstacle_RightMid" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 1.5, 0)
 collision_layer = 1
 collision_mask = 0
 
@@ -234,24 +241,36 @@ mesh = SubResource("CylinderMesh_training_floor")
 [node name="Team1_Spawns" type="Node3D" parent="SpawnPoints"]
 
 [node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -10)
 
 [node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -5)
 
 [node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 0)
+
+[node name="Spawn4" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 5)
+
+[node name="Spawn5" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 10)
 
 [node name="Team2_Spawns" type="Node3D" parent="SpawnPoints"]
 
 [node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -10)
 
 [node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -5)
 
 [node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 0)
+
+[node name="Spawn4" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 5)
+
+[node name="Spawn5" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 10)
 
 [node name="Players" type="Node3D" parent="."]
 
@@ -383,14 +402,22 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
 theme_override_font_sizes/font_size = 12
-text = "Enter the Host's IP address to join:"
+text = "Enter Room Code, 'localhost', or IP:"
 horizontal_alignment = 1
 
 [node name="HostIPInput" type="LineEdit" parent="UI/JoinDialog/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-placeholder_text = "e.g. 192.168.1.50 or 127.0.0.1"
+placeholder_text = "e.g. ABC123 or localhost"
 alignment = 1
+
+[node name="JoinStatusLabel" type="Label" parent="UI/JoinDialog/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "Connecting..."
+horizontal_alignment = 1
 
 [node name="HBox" type="HBoxContainer" parent="UI/JoinDialog/VBox"]
 layout_mode = 2
@@ -415,10 +442,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -320.0
-offset_top = -240.0
-offset_right = 320.0
-offset_bottom = 240.0
+offset_left = -330.0
+offset_top = -275.0
+offset_right = 330.0
+offset_bottom = 275.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -426,11 +453,36 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="HostIPDisplay" type="Label" parent="UI/LobbyRoom/VBox"]
+[node name="HBoxRoomCode" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HostIPDisplay" type="Label" parent="UI/LobbyRoom/VBox/HBoxRoomCode"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
-text = "HOST IP: 127.0.0.1"
+text = "ROOM CODE: ABC123"
 horizontal_alignment = 1
+
+[node name="CopyCodeButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxRoomCode"]
+custom_minimum_size = Vector2(80, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "📋 Copy"
+
+[node name="HBoxGameMode" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="GameModeLabel" type="Label" parent="UI/LobbyRoom/VBox/HBoxGameMode"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Game Mode:"
+
+[node name="GameModeOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxGameMode"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
 
 [node name="SelectHeader" type="Label" parent="UI/LobbyRoom/VBox"]
 layout_mode = 2
@@ -446,25 +498,25 @@ theme_override_constants/separation = 10
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "★ Poke (Selected)"
+text = "★ Arash (Selected)"
 
 [node name="SelectCrush" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Crush (Select)"
+text = "Heracles (Select)"
 
 [node name="SelectDive" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Dive (Select)"
+text = "Daughter of Gaia (Select)"
 
 [node name="SelectReaper" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Reaper (Select)"
+text = "Keres (Select)"
 
 [node name="SelectMorrigan" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
 custom_minimum_size = Vector2(0, 38)
@@ -477,7 +529,7 @@ custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 11
-text = "POKE: Agile Ranged Scout. Fast skillshot blasters (22 dmg), Dash Cooldown: 4.0s (80 HP)."
+text = "ARASH: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
 autowrap_mode = 2
 
 [node name="TeamSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox"]
@@ -487,7 +539,7 @@ theme_override_constants/separation = 6
 [node name="TeamHeader" type="Label" parent="UI/LobbyRoom/VBox/TeamSection"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "2. Select Team & Slot (3v3 Max):"
+text = "2. Select Team & Slot (4v4 Max):"
 horizontal_alignment = 1
 
 [node name="HBoxTeams" type="HBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection"]
@@ -521,6 +573,16 @@ custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
+[node name="T1Slot3" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 4 : Open ]"
+
+[node name="T1Slot4" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 5 : Open ]"
+
 [node name="VBoxTeam2" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -547,6 +609,16 @@ text = "[ Slot 2 : Open ]"
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
+
+[node name="T2Slot3" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 4 : Open ]"
+
+[node name="T2Slot4" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 5 : Open ]"
 
 [node name="HBoxLobbyActions" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
 layout_mode = 2
@@ -661,27 +733,27 @@ horizontal_alignment = 1
 [node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "🏹 Poke (Sniper - 80 HP)"
+text = "🏹 Arash (Sniper - 160 HP)"
 
 [node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "🛡 Crush (Juggernaut - 160 HP)"
+text = "🛡 Heracles (Juggernaut - 320 HP)"
 
 [node name="SwitchDive" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "💥 Dive (Brawler - 120 HP)"
+text = "💥 Daughter of Gaia (Striker - 240 HP)"
 
 [node name="SwitchReaper" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "💀 Reaper (Assassin - 90 HP)"
+text = "💀 Keres (Assassin - 200 HP)"
 
 [node name="SwitchMorrigan" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "🔮 Morrigan (Mage - 90 HP)"
+text = "🔮 Morrigan (Mage - 180 HP)"
 
 [node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 layout_mode = 2

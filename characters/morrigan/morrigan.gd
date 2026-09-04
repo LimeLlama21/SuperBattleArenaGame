@@ -2,7 +2,6 @@ class_name Morrigan
 extends BasePlayer
 
 # Ability Cooldowns & Timers
-var abilities: Dictionary = {}
 var attack_timer: float = 0.0
 var rmb_timer: float = 0.0
 var q_timer: float = 0.0
@@ -94,8 +93,12 @@ var ind_rmb: Node3D = null
 var ind_q: Node3D = null
 var ind_e: Node3D = null
 var ind_r: Node3D = null
-var is_holding_e: bool = false
+var is_holding_shoot: bool = false
+var is_holding_dash: bool = false
+var is_holding_rmb: bool = false
 var is_holding_q: bool = false
+var is_holding_e: bool = false
+var is_holding_r: bool = false
 
 # Visual nodes
 @onready var crow_container: Node3D = get_node_or_null("CrowContainer")
@@ -105,23 +108,12 @@ var is_holding_q: bool = false
 @onready var crowstorm_mesh: MeshInstance3D = get_node_or_null("CrowstormMesh")
 @onready var char_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D")
 
-const CAMERA_MORTAR_OFFSET = Vector3(0, 24.0, 13.5)
+const CAMERA_MORTAR_OFFSET = Vector3(0, 26.0, 6.97) # 15 degrees from vertical zoomed mortar mode
 
 func _setup_character_kit() -> void:
-	character_name = "Morrigan"
 	var data = MorriganData.create()
-	max_health = data.max_health
-	current_health = data.max_health
-	max_move_speed = data.max_move_speed
-	ground_acceleration = data.ground_acceleration
-	ground_friction = data.ground_friction
-	if "intentional_movement_friction" in data:
-		intentional_movement_friction = data.intentional_movement_friction
-	air_acceleration = data.air_acceleration
-	air_drag = data.air_drag
-	jump_velocity = data.jump_velocity
+	load_character_data(data)
 	
-	abilities = data.abilities
 	_setup_local_indicators()
 	_setup_tether_visual()
 
@@ -288,57 +280,110 @@ func _handle_character_input(delta: float) -> void:
 		return
 
 	# --- Dash (SHIFT): Crowstorm ---
-	if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
-		_execute_crowstorm_dash()
+	if is_cast_on_press("dash"):
+		if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
+			_execute_crowstorm_dash()
+	else:
+		if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
+			is_holding_dash = true
+		if Input.is_action_just_released("dash") and is_holding_dash:
+			is_holding_dash = false
+			if dash_timer <= 0.0 and not is_rooted() and not is_grounded():
+				_execute_crowstorm_dash()
 
 	# --- Primary Fire (LMB): Black Plumage (Chargeable) ---
-	if Input.is_action_just_pressed("shoot") and attack_timer <= 0.0:
-		lmb_charging = true
-		lmb_charge_timer = 0.0
-		if ind_attack:
-			AbilityIndicator.reset_indicator(ind_attack)
-			ind_attack.show()
-	elif Input.is_action_pressed("shoot") and lmb_charging:
-		lmb_charge_timer += delta
-	if Input.is_action_just_released("shoot") and lmb_charging:
-		lmb_charging = false
-		if ind_attack: ind_attack.hide()
-		_release_black_plumage()
+	if is_cast_on_press("shoot"):
+		if Input.is_action_just_pressed("shoot") and attack_timer <= 0.0:
+			lmb_charging = true
+			lmb_charge_timer = 0.0
+		elif Input.is_action_pressed("shoot") and lmb_charging:
+			lmb_charge_timer += delta
+		if Input.is_action_just_released("shoot") and lmb_charging:
+			lmb_charging = false
+			if ind_attack: ind_attack.hide()
+			_release_black_plumage()
+	else:
+		if Input.is_action_just_pressed("shoot") and attack_timer <= 0.0:
+			lmb_charging = true
+			lmb_charge_timer = 0.0
+			if ind_attack:
+				AbilityIndicator.reset_indicator(ind_attack)
+				ind_attack.show()
+		elif Input.is_action_pressed("shoot") and lmb_charging:
+			lmb_charge_timer += delta
+		if Input.is_action_just_released("shoot") and lmb_charging:
+			lmb_charging = false
+			if ind_attack: ind_attack.hide()
+			_release_black_plumage()
 
 	# --- Ability 1 (RMB): Omen of Death (Mortar Charge) ---
-	if Input.is_action_just_pressed("ability_one") and not is_silenced() and current_mortar_charges > 0 and rmb_timer <= 0.0:
-		mortar_charging = true
-		mortar_charge_timer = 0.0
-		if ind_rmb:
-			AbilityIndicator.reset_indicator(ind_rmb)
-			ind_rmb.show()
-	elif Input.is_action_pressed("ability_one") and mortar_charging:
-		mortar_charge_timer += delta
-		_update_mortar_indicator()
-	if Input.is_action_just_released("ability_one") and mortar_charging:
-		mortar_charging = false
-		if ind_rmb: ind_rmb.hide()
-		_release_omen_of_death()
+	if is_cast_on_press("ability_one"):
+		if Input.is_action_just_pressed("ability_one") and not is_silenced() and current_mortar_charges > 0 and rmb_timer <= 0.0:
+			mortar_charging = false
+			mortar_charge_timer = 0.0
+			_release_omen_of_death()
+	else:
+		if Input.is_action_just_pressed("ability_one") and not is_silenced() and current_mortar_charges > 0 and rmb_timer <= 0.0:
+			mortar_charging = true
+			mortar_charge_timer = 0.0
+			if ind_rmb:
+				AbilityIndicator.reset_indicator(ind_rmb)
+				ind_rmb.show()
+		elif Input.is_action_pressed("ability_one") and mortar_charging:
+			mortar_charge_timer += delta
+			_update_mortar_indicator()
+		if Input.is_action_just_released("ability_one") and mortar_charging:
+			mortar_charging = false
+			if ind_rmb: ind_rmb.hide()
+			_release_omen_of_death()
 
 	# --- Ability 2 (Q): Inescapable Ends (Dual-Cast Tether) ---
-	if Input.is_action_just_pressed("ability_two") and not is_silenced() and q_timer <= 0.0:
-		_perform_tether_cast()
+	if is_cast_on_press("ability_two"):
+		if Input.is_action_just_pressed("ability_two") and not is_silenced() and q_timer <= 0.0:
+			_perform_tether_cast()
+	else:
+		if Input.is_action_just_pressed("ability_two") and not is_silenced() and q_timer <= 0.0:
+			is_holding_q = true
+			if ind_q:
+				AbilityIndicator.reset_indicator(ind_q)
+				ind_q.show()
+		if Input.is_action_just_released("ability_two") and is_holding_q:
+			is_holding_q = false
+			if ind_q: ind_q.hide()
+			if not is_silenced() and q_timer <= 0.0:
+				_perform_tether_cast()
 
 	# --- Ability 3 (E): Cry of the Banshee ---
-	if Input.is_action_just_pressed("ability_three") and not is_silenced() and e_timer <= 0.0:
-		is_holding_e = true
-		if ind_e:
-			AbilityIndicator.reset_indicator(ind_e)
-			ind_e.show()
-	if Input.is_action_just_released("ability_three") and is_holding_e:
-		is_holding_e = false
-		if ind_e: ind_e.hide()
-		if e_timer <= 0.0 and not is_silenced():
+	if is_cast_on_press("ability_three"):
+		if Input.is_action_just_pressed("ability_three") and not is_silenced() and e_timer <= 0.0:
 			_perform_banshee_cry()
+	else:
+		if Input.is_action_just_pressed("ability_three") and not is_silenced() and e_timer <= 0.0:
+			is_holding_e = true
+			if ind_e:
+				AbilityIndicator.reset_indicator(ind_e)
+				ind_e.show()
+		if Input.is_action_just_released("ability_three") and is_holding_e:
+			is_holding_e = false
+			if ind_e: ind_e.hide()
+			if e_timer <= 0.0 and not is_silenced():
+				_perform_banshee_cry()
 
 	# --- Ultimate (R): Born of Blood, Return to Blood ---
-	if Input.is_action_just_pressed("ability_four") and not is_silenced() and r_timer <= 0.0:
-		_perform_born_of_blood()
+	if is_cast_on_press("ability_four"):
+		if Input.is_action_just_pressed("ability_four") and not is_silenced() and r_timer <= 0.0:
+			_perform_born_of_blood()
+	else:
+		if Input.is_action_just_pressed("ability_four") and not is_silenced() and r_timer <= 0.0:
+			is_holding_r = true
+			if ind_r:
+				AbilityIndicator.reset_indicator(ind_r)
+				ind_r.show()
+		if Input.is_action_just_released("ability_four") and is_holding_r:
+			is_holding_r = false
+			if ind_r: ind_r.hide()
+			if not is_silenced() and r_timer <= 0.0:
+				_perform_born_of_blood()
 
 # --- Passive Crows Implementation ---
 func _update_crow_orbit_visuals() -> void:
@@ -717,13 +762,89 @@ func request_banshee_cry(origin_pos: Vector3, forward_dir: Vector3) -> void:
 	_execute_banshee_cry(origin_pos, forward_dir, sender_id)
 
 # --- Ultimate: Born of Blood, Return to Blood ---
+var blood_wave_charging_visual: Node3D = null
+
 func _perform_born_of_blood() -> void:
 	var def = abilities.get("R")
 	r_timer = def.cooldown if def else 30.0
 	ability_cast.emit("Born of Blood", "R")
 	start_channel(ULT_CHANNEL_TIME, _on_born_of_blood_complete)
+	if is_multiplayer_match():
+		sync_blood_wave_charge_visual.rpc(true)
+	else:
+		_show_blood_wave_charging_visual(true)
+
+func _cleanup_blood_wave_charging_visual() -> void:
+	if blood_wave_charging_visual and is_instance_valid(blood_wave_charging_visual):
+		blood_wave_charging_visual.queue_free()
+	blood_wave_charging_visual = null
+
+func _show_blood_wave_charging_visual(show: bool) -> void:
+	_cleanup_blood_wave_charging_visual()
+	if not show:
+		return
+	
+	blood_wave_charging_visual = Node3D.new()
+	blood_wave_charging_visual.name = "BloodWaveChargingVisual"
+	# Position in front of Morrigan along local -Z axis (ground level Y=0.0, Z=-2.5)
+	blood_wave_charging_visual.position = Vector3(0.0, 0.0, -2.5)
+	
+	# Pure visual preview of the tidal wave - NO hitbox / collision shape
+	var wave_mesh = MeshInstance3D.new()
+	var bmesh = BoxMesh.new()
+	bmesh.size = Vector3(12.0, 3.2, 0.8)
+	wave_mesh.mesh = bmesh
+	wave_mesh.position = Vector3(0.0, 1.6, 0.0)
+	
+	var mat_wave = StandardMaterial3D.new()
+	mat_wave.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_wave.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat_wave.albedo_color = Color(0.75, 0.05, 0.1, 0.7)
+	mat_wave.emission_enabled = true
+	mat_wave.emission = Color(0.9, 0.08, 0.12, 1.0)
+	mat_wave.emission_energy_multiplier = 4.5
+	wave_mesh.material_override = mat_wave
+	blood_wave_charging_visual.add_child(wave_mesh)
+	
+	var crest_mesh = MeshInstance3D.new()
+	var cmesh = BoxMesh.new()
+	cmesh.size = Vector3(12.6, 0.4, 1.2)
+	crest_mesh.mesh = cmesh
+	crest_mesh.position = Vector3(0.0, 3.3, 0.0)
+	
+	var mat_crest = StandardMaterial3D.new()
+	mat_crest.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_crest.albedo_color = Color(1.0, 0.25, 0.3, 0.85)
+	mat_crest.emission_enabled = true
+	mat_crest.emission = Color(1.0, 0.2, 0.25, 1.0)
+	mat_crest.emission_energy_multiplier = 5.0
+	crest_mesh.material_override = mat_crest
+	blood_wave_charging_visual.add_child(crest_mesh)
+	
+	add_child(blood_wave_charging_visual)
+	
+	# Rising / surging wave animation over ULT_CHANNEL_TIME without hitbox
+	blood_wave_charging_visual.scale = Vector3(0.2, 0.05, 0.2)
+	var tween = create_tween()
+	tween.tween_property(blood_wave_charging_visual, "scale", Vector3(1.0, 1.0, 1.0), ULT_CHANNEL_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_blood_wave_charge_visual(active: bool) -> void:
+	_show_blood_wave_charging_visual(active)
+
+func _on_channel_cancelled() -> void:
+	super._on_channel_cancelled()
+	if is_multiplayer_match():
+		sync_blood_wave_charge_visual.rpc(false)
+	else:
+		_show_blood_wave_charging_visual(false)
 
 func _on_born_of_blood_complete() -> void:
+	if is_multiplayer_match():
+		sync_blood_wave_charge_visual.rpc(false)
+	else:
+		_show_blood_wave_charging_visual(false)
+	
 	var facing_dir = -global_transform.basis.z.normalized()
 	var spawn_pos = global_position + Vector3(0, 0.4, 0) + facing_dir * 1.5
 	if not is_multiplayer_match() or multiplayer.is_server():
@@ -745,12 +866,7 @@ func request_blood_wave(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
 
 # --- Dash: Crowstorm ---
 func _execute_crowstorm_dash() -> void:
-	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	crowstorm_dir = Vector3(input_dir.x, 0, input_dir.y).normalized() if input_dir != Vector2.ZERO else -global_transform.basis.z.normalized()
-	crowstorm_dir.y = 0.0
-	if crowstorm_dir.length_squared() < 0.001:
-		crowstorm_dir = Vector3.FORWARD
-	crowstorm_dir = crowstorm_dir.normalized()
+	crowstorm_dir = get_dash_direction()
 	crowstorm_turn_velocity = 0.0
 	
 	is_crowstorm_active = true
@@ -765,9 +881,10 @@ func _process_crowstorm(delta: float) -> void:
 		var new_angle = current_angle + crowstorm_turn_velocity * delta
 		crowstorm_dir = Vector3(cos(new_angle), 0, sin(new_angle)).normalized()
 
-	# Fixed speed applied along current heading direction
-	velocity.x = crowstorm_dir.x * CROWSTORM_FIXED_SPEED
-	velocity.z = crowstorm_dir.z * CROWSTORM_FIXED_SPEED
+	# Fixed speed applied along current heading direction (reduced by slows)
+	var effective_speed = get_effective_dash_impulse(CROWSTORM_FIXED_SPEED)
+	velocity.x = crowstorm_dir.x * effective_speed
+	velocity.z = crowstorm_dir.z * effective_speed
 	if not is_on_floor():
 		velocity.y -= gravity * delta * 0.4
 	else:
@@ -810,3 +927,33 @@ func _update_character_hud() -> void:
 	if slot_dash and def_shift:
 		slot_dash.update_cooldown(dash_timer, def_shift.cooldown, 1, 1, is_rooted() or is_grounded())
 		slot_dash.set_active_state(is_crowstorm_active)
+
+func execute_ability_slot(slot_key: String) -> bool:
+	if is_dead or is_stunned():
+		return false
+	match slot_key.to_upper():
+		"LMB", "SHOOT":
+			if attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
+				_release_black_plumage()
+				return true
+		"RMB", "ABILITY_ONE":
+			if current_mortar_charges > 0 and rmb_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("RMB"):
+				_release_omen_of_death()
+				return true
+		"Q", "ABILITY_TWO":
+			if q_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("Q"):
+				_perform_tether_cast()
+				return true
+		"E", "ABILITY_THREE":
+			if e_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("E"):
+				_perform_banshee_cry()
+				return true
+		"R", "ABILITY_FOUR":
+			if r_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("R"):
+				_perform_born_of_blood()
+				return true
+		"SHIFT", "DASH":
+			if dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+				_execute_crowstorm_dash()
+				return true
+	return false

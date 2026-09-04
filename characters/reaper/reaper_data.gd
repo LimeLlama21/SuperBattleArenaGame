@@ -4,13 +4,13 @@ extends RefCounted
 static func create() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Reaper"
-	data.display_name = "Reaper"
+	data.display_name = "Keres"
 	data.archetype = "Reaper"
-	data.max_health = 100.0
+	data.max_health = 200.0
 	data.max_move_speed = 10.0
 	data.ground_acceleration = 80.0
 	data.ground_friction = 40.0
-	data.air_acceleration = 25.0
+	data.air_acceleration = 8.0
 	data.air_drag = 3.5
 	data.jump_velocity = 9.5
 	data.ability_slots = {
@@ -32,9 +32,7 @@ static func create() -> CharacterData:
 		"melee_angle_deg": 110.0,
 		"melee_damage": 36.0,
 		"melee_windup_time": 0.18,
-		"tether_min_range": 6.0,
-		"tether_max_range": 24.0,
-		"tether_charge_duration": 1.0,
+		"tether_range": 24.0,
 		"tether_duration": 1.75,
 		"tether_break_dist": 22.0,
 		"tether_root_duration": 1.50,
@@ -58,6 +56,8 @@ static func create() -> CharacterData:
 		{
 			"id": "reaper_slash",
 			"name": "Reaper's Scythe",
+			"icon": "🗡",
+			"description": "Sweeps a deadly scythe in a 110-degree arc dealing 36.0 damage and stealing 15% movement speed from struck enemies for 2.5s.",
 			"slot": "LMB",
 			"cooldown": 0.45,
 			"effect": {
@@ -79,6 +79,8 @@ static func create() -> CharacterData:
 		{
 			"id": "reaper_tether",
 			"name": "Spectral Tether",
+			"icon": "⛓",
+			"description": "Throws a ghostly tether that deals 25 damage, grounds, and progressively slows the victim. If unbroken, roots and prevents all movement.",
 			"slot": "RMB",
 			"cooldown": 7.0,
 			"effect": {
@@ -101,6 +103,8 @@ static func create() -> CharacterData:
 		{
 			"id": "reaper_cull_the_weak",
 			"name": "Cull the Weak",
+			"icon": "🌀",
+			"description": "Winds up a 360-degree scythe spin. Enemies caught in the sweet-spot outer ring take 65 damage and are crippled for 2.5s.",
 			"slot": "Q",
 			"cooldown": 7.5,
 			"effect": {
@@ -123,6 +127,8 @@ static func create() -> CharacterData:
 		{
 			"id": "reaper_nightmare",
 			"name": "Nightmare",
+			"icon": "🌑",
+			"description": "Melts into an ethereal shadow pool for 1.8s, becoming completely untargetable and immune while damaging and slowing enemies standing in it.",
 			"slot": "E",
 			"cooldown": 12.0,
 			"effect": {
@@ -143,6 +149,8 @@ static func create() -> CharacterData:
 		{
 			"id": "reaper_one_with_death",
 			"name": "One with Death",
+			"icon": "☠",
+			"description": "Enters a bloodthirsty combat trance for 8.0s, gaining +45% Movement Speed, +50% Cooldown Reduction, and +30% Outgoing Damage.",
 			"slot": "R",
 			"cooldown": 25.0,
 			"effect": {
@@ -158,6 +166,8 @@ static func create() -> CharacterData:
 		{
 			"id": "ethereal_dash",
 			"name": "Ethereal Dash",
+			"icon": "👻",
+			"description": "Dashes forward while phasing into the spirit realm, gaining complete ethereal invulnerability for 0.45s.",
 			"slot": "SHIFT",
 			"cooldown": 5.0,
 			"effect": {

@@ -4,83 +4,120 @@ extends RefCounted
 static func create() -> CharacterData:
 	var data = CharacterData.new()
 	data.character_name = "Poke"
-	data.display_name = "Poke"
+	data.display_name = "Arash"
 	data.archetype = "Sharpshooter"
-	data.max_health = 80.0
+	data.max_health = 160.0
 	data.max_move_speed = 11.5
 	data.ground_acceleration = 70.0
 	data.ground_friction = 40.0
-	data.air_acceleration = 25.0
+	data.air_acceleration = 8.0
 	data.air_drag = 3.5
 	data.jump_velocity = 9.5
 	data.ability_slots = {
 		"LMB": "poke_rail_shot",
-		"RMB": "poke_repulsor_bolt",
-		"Q": "poke_ion_fence",
-		"E": "poke_recon_flare",
-		"R": "poke_overcharge",
+		"RMB": "poke_sniper_stance",
+		"Q": "poke_overcharge",
+		"E": "poke_ion_fence",
+		"R": "poke_orbital_hyperbeam",
 		"SHIFT": "poke_dash"
 	}
 	data.passive_data = {
-		"fleet_foot_duration": 2.5,
-		"fleet_foot_ms_percent": 0.15,
+		"takedown_as_duration": 4.0,
+		"takedown_as_percent": 0.60,
 		"dash_impulse": 28.0,
 		"dash_cooldown": 4.0,
-		"repulsor_knockback": 22.0,
-		"repulsor_wall_stun_duration": 1.0
+		"rapid_shot_damage": 3.2,
+		"rapid_shot_cooldown": 0.11,
+		"rapid_shot_range": 15.5,
+		"rapid_shot_speed": 85.0,
+		"sniper_base_damage": 35.0,
+		"sniper_max_damage": 70.0,
+		"sniper_charge_time": 2.0,
+		"sniper_range": 70.0,
+		"sniper_speed": 120.0,
+		"sniper_attack_cooldown": 1.0,
+		"sniper_ms_penalty": 0.30,
+		"rmb_flat_cooldown": 2.0,
+		"overcharge_bonus_damage": 30.0,
+		"overcharge_cooldown": 20.0,
+		"hyperbeam_channel_time": 2.0,
+		"hyperbeam_damage": 70.0,
+		"hyperbeam_speed": 120.0,
+		"hyperbeam_range": 70.0,
+		"hyperbeam_cooldown": 25.0,
+		"hyperbeam_trail_dps": 30.0,
+		"hyperbeam_trail_slow_percent": 0.20,
+		"hyperbeam_trail_duration": 5.0
 	}
 
 	data.define_abilities([
-		# Primary Fire (LMB): Rail Shot
+		# Primary Fire (LMB): Rapid Pulse Shot (High firerate, low damage, subpar DPS)
 		{
 			"id": "poke_rail_shot",
-			"name": "Rail Shot",
+			"name": "Rapid Pulse Shot",
+			"icon": "⚡",
+			"description": "Fires a continuous stream of high-velocity pulse rounds with rapid cadence (9 shots/sec). Tight spread with subpar overall DPS.",
 			"slot": "LMB",
-			"cooldown": 0.6,
-			"effect": {
-				"type": AbilityPipeline.EffectType.PROJECTILE,
-				"speed": 90.0,
-				"range": 50.0,
-				"size": 0.35
-			},
-			"hitbox": {
-				"shape": AbilityPipeline.HitboxShape.LINE,
-				"length": 50.0,
-				"width": 0.35
-			},
-			"riders": [
-				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 20.0},
-				{"type": AbilityPipeline.RiderType.SPEED_BOOST, "duration": 2.5, "intensity": 0.15}
-			]
-		},
-		# Ability 1 (RMB): Repulsor Bolt
-		{
-			"id": "poke_repulsor_bolt",
-			"name": "Repulsor Bolt",
-			"slot": "RMB",
-			"cooldown": 6.5,
+			"cooldown": 0.11,
 			"effect": {
 				"type": AbilityPipeline.EffectType.PROJECTILE,
 				"speed": 85.0,
-				"range": 60.0,
-				"size": 0.35
+				"range": 15.5,
+				"size": 0.25
 			},
 			"hitbox": {
 				"shape": AbilityPipeline.HitboxShape.LINE,
-				"length": 60.0,
-				"width": 0.7
+				"length": 15.5,
+				"width": 0.25
 			},
 			"riders": [
-				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 0.0},
-				{"type": AbilityPipeline.RiderType.KNOCKBACK, "amount": 36.0},
-				{"type": AbilityPipeline.RiderType.STUN, "duration": 1.0}
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 3.2}
 			]
 		},
-		# Ability 2 (Q): Ion Fence
+		# Ability 1 (RMB): Sniper Stance (2-Second Full Charge)
+		{
+			"id": "poke_sniper_stance",
+			"name": "Sniper Stance",
+			"icon": "🎯",
+			"description": "Hold RMB to enter an elevated sniper zoom stance. Hold LMB to charge up to 2.0s, unleashing a piercing laser beam dealing 35.0 to 70.0 damage across 70m.",
+			"slot": "RMB",
+			"cooldown": 2.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.PROJECTILE,
+				"speed": 120.0,
+				"range": 70.0,
+				"size": 0.45,
+				"chargeable": true
+			},
+			"hitbox": {
+				"shape": AbilityPipeline.HitboxShape.LINE,
+				"length": 70.0,
+				"width": 0.45
+			},
+			"riders": [
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 70.0}
+			]
+		},
+		# Ability 2 (Q): Overcharged Rounds (Empowers RMB, only during Sniper Stance)
+		{
+			"id": "poke_overcharge",
+			"name": "Overcharged Rounds",
+			"icon": "🔮",
+			"description": "Can only be cast while in Sniper Stance. Empowers sniper shots with +30.0 flat bonus damage and electric magenta bolts. Persists until a shot misses or stance is released (20s CD).",
+			"slot": "Q",
+			"cooldown": 20.0,
+			"effect": {
+				"type": AbilityPipeline.EffectType.BUFF,
+				"duration": 999.0
+			}
+		},
+		# Ability 3 (E): Ion Fence (Moved from Q to E)
 		{
 			"id": "poke_ion_fence",
 			"name": "Ion Fence",
-			"slot": "Q",
+			"icon": "🚧",
+			"description": "Deploys an 8m stationary energy barrier that blocks passage, grounds targets, and applies a heavy 70% slow for 1.5s.",
+			"slot": "E",
 			"cooldown": 8.0,
 			"effect": {
 				"type": AbilityPipeline.EffectType.AREA_ZONE,
@@ -98,51 +135,35 @@ static func create() -> CharacterData:
 				{"type": AbilityPipeline.RiderType.SLOW, "duration": 1.5, "intensity": 0.70}
 			]
 		},
-		# Ability 3 (E): Recon Flare
+		# Ultimate (R): Orbital Hyperbeam (2-Second Channel, Pierces Terrain & Enemies)
 		{
-			"id": "poke_recon_flare",
-			"name": "Recon Flare",
-			"slot": "E",
-			"cooldown": 11.0,
-			"effect": {
-				"type": AbilityPipeline.EffectType.PROJECTILE,
-				"speed": 45.0,
-				"range": 65.0,
-				"size": 0.8
-			},
-			"hitbox": {
-				"shape": AbilityPipeline.HitboxShape.CIRCLE,
-				"radius": 12.0
-			},
-			"riders": [
-				{"type": AbilityPipeline.RiderType.VISION_REVEAL, "duration": 5.0, "amount": 12.0}
-			]
-		},
-		# Ultimate (R): Overcharge
-		{
-			"id": "poke_overcharge",
-			"name": "Overcharge",
+			"id": "poke_orbital_hyperbeam",
+			"name": "Orbital Hyperbeam",
+			"icon": "☄",
+			"description": "Channels for 2.0s, then fires a colossal orbital beam that pierces walls and enemies for 70.0 damage. Leaves behind a 5.0s corridor zone that deals 30 DPS, slows by 20%, and reveals vision.",
 			"slot": "R",
-			"cooldown": 24.0,
+			"cooldown": 25.0,
 			"effect": {
 				"type": AbilityPipeline.EffectType.PROJECTILE,
-				"speed": 110.0,
-				"range": 95.0,
-				"size": 1.3
+				"speed": 120.0,
+				"range": 70.0,
+				"size": 1.6
 			},
 			"hitbox": {
 				"shape": AbilityPipeline.HitboxShape.LINE,
-				"length": 95.0,
-				"width": 1.3
+				"length": 70.0,
+				"width": 1.6
 			},
 			"riders": [
-				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 50.0}
+				{"type": AbilityPipeline.RiderType.DAMAGE, "amount": 70.0}
 			]
 		},
-		# Dash (SHIFT): Poke Dash
+		# Dash (SHIFT): Poke Dash (Resets on takedown)
 		{
 			"id": "poke_dash",
 			"name": "Dash",
+			"icon": "💨",
+			"description": "Tactical slide in your movement direction. Cooldown resets to 0 instantly upon scoring a takedown!",
 			"slot": "SHIFT",
 			"cooldown": 4.0,
 			"effect": {

@@ -1,0 +1,307 @@
+[gd_scene format=3 uid="uid://map_islands_archipelago_scene"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_IslandFloor"]
+albedo_color = Color(0.2, 0.25, 0.3, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Mat_CenterHighGround"]
+albedo_color = Color(0.28, 0.36, 0.42, 1)
+roughness = 0.65
+
+[sub_resource type="StandardMaterial3D" id="Mat_LowGround"]
+albedo_color = Color(0.14, 0.17, 0.22, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_Obstacle"]
+albedo_color = Color(0.35, 0.42, 0.48, 1)
+metallic = 0.2
+roughness = 0.45
+
+[sub_resource type="BoxShape3D" id="Shape_BaseIsland"]
+size = Vector3(22, 1, 28)
+
+[sub_resource type="BoxMesh" id="Mesh_BaseIsland"]
+material = SubResource("Mat_IslandFloor")
+size = Vector3(22, 1, 28)
+
+[sub_resource type="BoxShape3D" id="Shape_CenterIsland"]
+size = Vector3(18, 1, 18)
+
+[sub_resource type="BoxMesh" id="Mesh_CenterIsland"]
+material = SubResource("Mat_CenterHighGround")
+size = Vector3(18, 1, 18)
+
+[sub_resource type="BoxShape3D" id="Shape_FlankHighIsland"]
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_FlankHighIsland"]
+material = SubResource("Mat_CenterHighGround")
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_FlankLowIsland"]
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_FlankLowIsland"]
+material = SubResource("Mat_LowGround")
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_SteppingHigh"]
+size = Vector3(8, 1, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_SteppingHigh"]
+material = SubResource("Mat_CenterHighGround")
+size = Vector3(8, 1, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_SteppingLow"]
+size = Vector3(8, 1, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_SteppingLow"]
+material = SubResource("Mat_LowGround")
+size = Vector3(8, 1, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_MidConnector"]
+size = Vector3(8, 1, 10)
+
+[sub_resource type="BoxMesh" id="Mesh_MidConnector"]
+material = SubResource("Mat_IslandFloor")
+size = Vector3(8, 1, 10)
+
+[sub_resource type="BoxShape3D" id="Shape_IslandCover"]
+size = Vector3(3.5, 3.0, 1.2)
+
+[sub_resource type="BoxMesh" id="Mesh_IslandCover"]
+material = SubResource("Mat_Obstacle")
+size = Vector3(3.5, 3.0, 1.2)
+
+[sub_resource type="CylinderShape3D" id="Shape_CenterMonument"]
+height = 3.0
+radius = 2.0
+
+[sub_resource type="CylinderMesh" id="Mesh_CenterMonument"]
+material = SubResource("Mat_Obstacle")
+top_radius = 2.0
+bottom_radius = 2.2
+height = 3.0
+radial_segments = 16
+
+[node name="MapIslands" type="Node3D"]
+
+[node name="Island_WestBase" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_WestBase"]
+shape = SubResource("Shape_BaseIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_WestBase"]
+mesh = SubResource("Mesh_BaseIsland")
+
+[node name="Island_EastBase" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, -0.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_EastBase"]
+shape = SubResource("Shape_BaseIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_EastBase"]
+mesh = SubResource("Mesh_BaseIsland")
+
+[node name="Island_Center" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_Center"]
+shape = SubResource("Shape_CenterIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_Center"]
+mesh = SubResource("Mesh_CenterIsland")
+
+[node name="Island_NorthWest" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 2.5, -20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_NorthWest"]
+shape = SubResource("Shape_FlankHighIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_NorthWest"]
+mesh = SubResource("Mesh_FlankHighIsland")
+
+[node name="Island_NorthEast" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 2.5, -20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_NorthEast"]
+shape = SubResource("Shape_FlankHighIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_NorthEast"]
+mesh = SubResource("Mesh_FlankHighIsland")
+
+[node name="Island_SouthWest" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 2.5, 20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SouthWest"]
+shape = SubResource("Shape_FlankLowIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SouthWest"]
+mesh = SubResource("Mesh_FlankLowIsland")
+
+[node name="Island_SouthEast" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 2.5, 20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SouthEast"]
+shape = SubResource("Shape_FlankLowIsland")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SouthEast"]
+mesh = SubResource("Mesh_FlankLowIsland")
+
+[node name="Island_NorthStep" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -24)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_NorthStep"]
+shape = SubResource("Shape_SteppingHigh")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_NorthStep"]
+mesh = SubResource("Mesh_SteppingHigh")
+
+[node name="Island_SouthStep" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 24)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SouthStep"]
+shape = SubResource("Shape_SteppingLow")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SouthStep"]
+mesh = SubResource("Mesh_SteppingLow")
+
+[node name="Island_WestMidConn" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 2.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_WestMidConn"]
+shape = SubResource("Shape_MidConnector")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_WestMidConn"]
+mesh = SubResource("Mesh_MidConnector")
+
+[node name="Island_EastMidConn" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 2.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_EastMidConn"]
+shape = SubResource("Shape_MidConnector")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_EastMidConn"]
+mesh = SubResource("Mesh_MidConnector")
+
+[node name="CenterMonument" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.5, 0)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CenterMonument"]
+shape = SubResource("Shape_CenterMonument")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CenterMonument"]
+mesh = SubResource("Mesh_CenterMonument")
+
+[node name="Cover_NW" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -11, 4.5, -20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_NW"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_NW"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_NE" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 11, 4.5, -20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_NE"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_NE"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_SW" type="StaticBody3D" parent="."]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -11, 4.5, 20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_SW"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_SW"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_SE" type="StaticBody3D" parent="."]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 11, 4.5, 20)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_SE"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_SE"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_WestBaseN" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 1.5, -8)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_WestBaseN"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_WestBaseN"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_WestBaseS" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 1.5, 8)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_WestBaseS"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_WestBaseS"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_EastBaseN" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 1.5, -8)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_EastBaseN"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_EastBaseN"]
+mesh = SubResource("Mesh_IslandCover")
+
+[node name="Cover_EastBaseS" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 1.5, 8)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Cover_EastBaseS"]
+shape = SubResource("Shape_IslandCover")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Cover_EastBaseS"]
+mesh = SubResource("Mesh_IslandCover")

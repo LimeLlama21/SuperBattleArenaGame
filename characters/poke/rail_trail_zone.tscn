@@ -1,0 +1,55 @@
+[gd_scene format=3 uid="uid://dr4amh4yqg8du"]
+
+[ext_resource type="Script" path="res://characters/poke/rail_trail_zone.gd" id="1_rail_script"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rail"]
+size = Vector3(3.2, 3.5, 70)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+transparency = 1
+albedo_color = Color(0.15, 0.85, 1, 0.35)
+emission_enabled = true
+emission = Color(0.1, 0.75, 1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector3(3.2, 0.15, 70)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_edge"]
+transparency = 1
+albedo_color = Color(0.4, 0.95, 1, 0.55)
+emission_enabled = true
+emission = Color(0.2, 0.9, 1, 1)
+emission_energy_multiplier = 5.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_edge"]
+material = SubResource("StandardMaterial3D_edge")
+size = Vector3(0.15, 0.8, 70)
+
+[node name="RailTrailZone" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_rail_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
+shape = SubResource("BoxShape3D_rail")
+
+[node name="GroundMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+mesh = SubResource("BoxMesh_floor")
+
+[node name="EdgeLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 0.4, 0)
+mesh = SubResource("BoxMesh_edge")
+
+[node name="EdgeRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 0.4, 0)
+mesh = SubResource("BoxMesh_edge")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+light_color = Color(0.2, 0.85, 1, 1)
+light_energy = 3.5
+omni_range = 15.0
