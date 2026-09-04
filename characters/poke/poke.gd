@@ -20,7 +20,7 @@ var is_in_sniper_stance: bool = false
 var sniper_charge_timer: float = 0.0
 const SNIPER_MAX_CHARGE_TIME: float = 2.0 # 2.0s full charge
 const SNIPER_ATTACK_COOLDOWN: float = 1.0
-const SNIPER_CAMERA_OFFSET: Vector3 = Vector3(0, 26.0, 6.97) # 15 degrees zoomed out
+const SNIPER_CAMERA_OFFSET: Vector3 = Vector3(0, 28.5, 7.64) # 15 degrees zoomed out (~50% higher altitude)
 const RMB_FLAT_COOLDOWN: float = 2.0
 const SNIPER_CONE_RADIUS: float = 45.0
 const SNIPER_CONE_HALF_ANGLE_DEG: float = 16.0
@@ -102,12 +102,6 @@ func _process_character_kit(delta: float) -> void:
 		_handle_character_input(delta)
 		_update_character_hud()
 
-	# Smooth camera transition when zooming in/out of Sniper Stance
-	var target_offset = SNIPER_CAMERA_OFFSET if is_in_sniper_stance else CAMERA_OFFSET
-	current_camera_offset = current_camera_offset.lerp(target_offset, 8.0 * delta)
-	if camera:
-		camera.position = current_camera_offset
-
 	# Dynamic Sniper Stance vision geometry
 	if is_in_sniper_stance:
 		forward_vision_range = SNIPER_CONE_RADIUS
@@ -115,6 +109,14 @@ func _process_character_kit(delta: float) -> void:
 	else:
 		forward_vision_range = PlayerVision.CONE_RADIUS_M
 		forward_vision_angle = PlayerVision.CONE_HALF_ANGLE_DEG
+
+func _process_camera(delta: float) -> void:
+	if not camera:
+		return
+	var target_offset = SNIPER_CAMERA_OFFSET if is_in_sniper_stance else CAMERA_OFFSET
+	current_camera_offset = current_camera_offset.lerp(target_offset, 6.0 * delta)
+	camera.global_position = global_position + current_camera_offset
+	camera.look_at(global_position, Vector3.UP)
 
 func get_attack_speed_bonus() -> float:
 	var bonus = 0.0
@@ -224,7 +226,7 @@ func _handle_character_input(_delta: float) -> void:
 
 	# --- Primary Fire (LMB): Rapid Pulse Shot (Auto-fire, high firerate, low damage) ---
 	if Input.is_action_pressed("shoot"):
-		if shoot_timer <= 0.0 and not is_silenced():
+		if shoot_timer <= 0.0:
 			_perform_rapid_shot()
 
 	# --- Ability 3 (E): Ion Fence (Moved from Q to E) ---
@@ -535,7 +537,7 @@ func execute_ability_slot(slot_key: String) -> bool:
 					_perform_sniper_laser(final_dmg, is_overcharge_active)
 					shoot_timer = SNIPER_ATTACK_COOLDOWN / as_mult
 					return true
-			elif shoot_timer <= 0.0 and not is_silenced() and can_cast_ability_slot("LMB"):
+			elif shoot_timer <= 0.0 and can_cast_ability_slot("LMB"):
 				_perform_rapid_shot()
 				return true
 		"RMB", "ABILITY_ONE":

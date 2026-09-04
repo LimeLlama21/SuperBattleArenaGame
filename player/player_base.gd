@@ -63,8 +63,12 @@ var ability_lockout_timer: float = 0.0
 var current_lockout_ability_id: String = ""
 
 # --- Ability Buffering System ---
-var buffered_ability_slot: String = ""
-var buffered_ability_timer: float = 0.0
+var buffered_ability_slot: String:
+	get: return ability_buffer.buffered_slot if ability_buffer else ""
+	set(value): if ability_buffer: ability_buffer.buffered_slot = value
+var buffered_ability_timer: float:
+	get: return ability_buffer.buffer_timer if ability_buffer else 0.0
+	set(value): if ability_buffer: ability_buffer.buffer_timer = value
 const ABILITY_BUFFER_WINDOW: float = 0.65
 
 # --- Ability Hitbox & Telegraph Pipeline State ---
@@ -177,15 +181,13 @@ func _physics_process(delta: float) -> void:
 		if ability_lockout_timer <= 0.0:
 			ability_lockout_timer = 0.0
 			current_lockout_ability_id = ""
+			_try_resolve_buffered_ability()
 
-	# Buffered ability timer decrement
-	if buffered_ability_timer > 0.0:
-		buffered_ability_timer -= delta
-		if buffered_ability_timer <= 0.0:
-			buffered_ability_slot = ""
-			buffered_ability_timer = 0.0
+	# Update unified ability buffer
+	if ability_buffer:
+		ability_buffer.update(delta)
 
-	# Process input buffering during cast lockout
+	# Process input buffering during active commitments (lockouts and channels)
 	if is_local_player() and not is_dead and not is_stunned():
 		if is_in_cast_lockout():
 			if Input.is_action_just_pressed("shoot") and not can_cast_ability_slot("LMB"):
@@ -200,7 +202,7 @@ func _physics_process(delta: float) -> void:
 				buffer_ability("R")
 			elif Input.is_action_just_pressed("dash") and not can_cast_ability_slot("SHIFT"):
 				buffer_ability("SHIFT")
-		elif buffered_ability_slot != "":
+		elif has_buffered_ability():
 			_try_resolve_buffered_ability()
 
 	# Process Character-specific kit logic (both server and clients)
@@ -241,7 +243,7 @@ func _physics_process(delta: float) -> void:
 		aim_at_mouse()
 
 	# Delegate Character-specific inputs (LMB, RMB, Q, E, R, SHIFT)
-	if not is_stunned():
+	if not is_stunned() or can_cast_ability_slot("R"):
 		_handle_character_input(delta)
 
 	# Execute Physics Move & Slide via PlayerPhysics
@@ -913,38 +915,46 @@ func trigger_ability_lockout(duration: float, ability_id: String = "") -> void:
 	ability_lockout_timer = max(ability_lockout_timer, duration)
 	current_lockout_ability_id = ability_id
 
+func get_remaining_action_time() -> float:
+	var rem: float = 0.0
+	if ability_lockout_timer > 0.0:
+		rem = max(rem, ability_lockout_timer)
+	if is_channeling and channel_timer > 0.0:
+		rem = max(rem, channel_timer)
+	return rem
+
 func buffer_ability(slot_key: String) -> void:
 	if is_dead or is_stunned():
 		return
-	buffered_ability_slot = slot_key
-	buffered_ability_timer = max(ABILITY_BUFFER_WINDOW, ability_lockout_timer + 0.1)
-
-func clear_buffered_ability() -> void:
-	buffered_ability_slot = ""
-	buffered_ability_timer = 0.0
+	var src = AbilityBuffer.ActionSource.CHANNEL if is_channeling else (AbilityBuffer.ActionSource.LOCKOUT if is_in_ability_lockout() else AbilityBuffer.ActionSource.NONE)
+	var rem_time = get_remaining_action_time()
+	ability_buffer.buffer_ability(slot_key, rem_time, src, ABILITY_BUFFER_WINDOW)
 
 func execute_ability_slot(_slot_key: String) -> bool:
 	return false
 
 func _try_resolve_buffered_ability() -> void:
-	if buffered_ability_slot == "" or is_dead or is_stunned() or is_in_cast_lockout():
+	if not has_buffered_ability() or is_dead or is_stunned() or is_in_cast_lockout():
 		return
-	var slot_to_execute = buffered_ability_slot
-	clear_buffered_ability()
+	var slot_to_execute = ability_buffer.pop_buffered_ability()
 	execute_ability_slot(slot_to_execute)
 
 func can_cast_ability_slot(slot_key: String, char_abilities: Dictionary = {}) -> bool:
-	if is_dead or is_stunned():
+	if is_dead:
 		return false
-	if not is_in_cast_lockout():
-		return true
 	var source_abilities = char_abilities if not char_abilities.is_empty() else abilities
 	var def = source_abilities.get(slot_key)
 	if not def and ability_slots.has(slot_key):
 		def = source_abilities.get(ability_slots[slot_key])
-	if def and def.can_cast_during_lockout:
+	if is_stunned():
+		if def and def.can_cast_while_stunned:
+			return true
+		return false
+	if is_channeling:
+		return false
+	if not is_in_cast_lockout():
 		return true
-	if slot_key == "SHIFT" or slot_key == "dash":
+	if def and def.can_cast_during_lockout:
 		return true
 	return false
 

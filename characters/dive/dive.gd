@@ -197,30 +197,39 @@ func _process_character_kit(delta: float) -> void:
 				is_wall_launched = false
 				wall_launch_air_time = 0.0
 				end_float_state()
+				_try_resolve_buffered_ability()
 
 func get_effective_max_speed(current_speed: float) -> float:
 	if dive_ult_buff_timer > 0.0:
 		return current_speed * (1.0 + DIVE_ULT_SPEED_MULT)
 	return current_speed
 
+func is_in_airborne_state() -> bool:
+	return is_wall_launched or is_crashing_down
+
 func get_status_text() -> String:
 	if is_blocking:
 		return "✦ DEFLECTING GUARD (75%% DR) (%.1fs) ✦" % block_timer
 	elif dive_ult_buff_timer > 0.0:
 		return "✦ TECTONIC UPRISING (+35%% MS / +40%% AS) (%.1fs) ✦" % dive_ult_buff_timer
+	elif is_in_airborne_state():
+		if is_crashing_down:
+			return "✦ CRASHING DOWN ✦"
+		elif can_crash_down():
+			return "✦ WALL LAUNCHED (SHIFT: CRASH) ✦"
 	return ""
 
 func can_crash_down() -> bool:
 	return is_wall_launched and not is_crashing_down
 
 func _handle_character_input(_delta: float) -> void:
-	if is_crashing_down or is_channeling:
+	if is_channeling:
 		return
 
 	# Update indicators
 	var can_crash = can_crash_down()
 	if ind_crash_circle:
-		if can_crash and not is_stunned() and not is_silenced():
+		if can_crash and not is_stunned():
 			var hit_pos = get_mouse_ground_intersection()
 			if hit_pos != null:
 				AbilityIndicator.update_discrete_location(ind_crash_circle, hit_pos)
@@ -230,11 +239,28 @@ func _handle_character_input(_delta: float) -> void:
 		else:
 			ind_crash_circle.hide()
 
-	# --- Aerial Crash Down (LMB or SHIFT while wall-launched) ---
-	if can_crash:
-		if (Input.is_action_just_pressed("dash") or Input.is_action_just_pressed("shoot")) and not is_rooted() and not is_grounded():
-			_perform_crash_down()
-			return
+	# --- Airborne State: Only Crash Down via Dash (SHIFT) is permitted ---
+	if is_in_airborne_state():
+		if is_holding_shoot:
+			is_holding_shoot = false
+			if ind_attack: ind_attack.hide()
+		if is_holding_rmb:
+			is_holding_rmb = false
+			if ind_rmb: ind_rmb.hide()
+		if is_holding_q:
+			is_holding_q = false
+			if ind_q: ind_q.hide()
+		if is_holding_e:
+			is_holding_e = false
+			if ind_e: ind_e.hide()
+		if is_holding_r:
+			is_holding_r = false
+			if ind_r: ind_r.hide()
+
+		if can_crash and not is_rooted() and not is_grounded():
+			if Input.is_action_just_pressed("dash"):
+				_perform_crash_down()
+		return
 
 	# --- Normal Dash (SHIFT) ---
 	if is_cast_on_press("dash"):
@@ -390,6 +416,18 @@ func _trigger_wall_bounce() -> void:
 	velocity.y = base_speed * wall_bounce_ratio
 	start_float_state()
 
+	# Clear any active holding state or indicators upon launching airborne
+	is_holding_shoot = false
+	is_holding_rmb = false
+	is_holding_q = false
+	is_holding_e = false
+	is_holding_r = false
+	if ind_attack: ind_attack.hide()
+	if ind_rmb: ind_rmb.hide()
+	if ind_q: ind_q.hide()
+	if ind_e: ind_e.hide()
+	if ind_r: ind_r.hide()
+
 func _perform_crash_down() -> void:
 	var hit_pos = get_mouse_ground_intersection()
 	var target = Vector3(hit_pos.x, 0.0, hit_pos.z) if hit_pos != null else (global_position - global_transform.basis.z * 5.0)
@@ -426,6 +464,7 @@ func _execute_crash_impact() -> void:
 		_execute_crash_damage(impact_pos, 1)
 	else:
 		request_crash_impact.rpc_id(1, impact_pos)
+	_try_resolve_buffered_ability()
 
 func _execute_crash_damage(impact_pos: Vector3, attacker_id: int) -> void:
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
@@ -616,43 +655,56 @@ func sync_dive_ult(duration: float) -> void:
 	dive_ult_buff_timer = duration
 
 func _update_character_hud() -> void:
+	var def_lmb = abilities.get("LMB")
 	var def_rmb = abilities.get("RMB")
 	var def_q = abilities.get("Q")
 	var def_e = abilities.get("E")
 	var def_r = abilities.get("R")
 
+	var airborne = is_in_airborne_state()
+
+	if slot_lmb and def_lmb:
+		slot_lmb.update_cooldown(attack_timer, def_lmb.cooldown, 1, 1, airborne)
 	if slot_ability_one and def_rmb:
-		slot_ability_one.update_cooldown(rmb_timer, def_rmb.cooldown, 1, 1, is_silenced())
+		slot_ability_one.update_cooldown(rmb_timer, def_rmb.cooldown, 1, 1, is_silenced() or airborne)
 	if slot_ability_two and def_q:
-		slot_ability_two.update_cooldown(q_timer, def_q.cooldown, 1, 1, is_silenced())
+		slot_ability_two.update_cooldown(q_timer, def_q.cooldown, 1, 1, is_silenced() or airborne)
 	if slot_ability_three and def_e:
-		slot_ability_three.update_cooldown(e_timer, def_e.cooldown, 1, 1, is_silenced())
+		slot_ability_three.update_cooldown(e_timer, def_e.cooldown, 1, 1, is_silenced() or airborne)
 		slot_ability_three.set_active_state(is_blocking)
 	if slot_ability_four and def_r:
-		slot_ability_four.update_cooldown(r_timer, def_r.cooldown, 1, 1, false)
+		slot_ability_four.update_cooldown(r_timer, def_r.cooldown, 1, 1, airborne)
 		slot_ability_four.set_active_state(dive_ult_buff_timer > 0.0)
 	if slot_dash:
 		var can_crash = can_crash_down()
 		if can_crash:
 			slot_dash.slot_name = "Crash"
-			slot_dash.update_cooldown(0.0, 1.0, 1, 1, is_silenced())
+			slot_dash.update_cooldown(0.0, 1.0, 1, 1, is_rooted() or is_grounded())
 		else:
 			slot_dash.slot_name = "Dash"
 			var cd_ratio = (dash_recharge_time - dash_recharge_timer) if current_dash_charges < max_dash_charges else dash_lockout_timer
-			slot_dash.update_cooldown(cd_ratio, dash_recharge_time, current_dash_charges, max_dash_charges, is_rooted() or is_grounded())
+			slot_dash.update_cooldown(cd_ratio, dash_recharge_time, current_dash_charges, max_dash_charges, is_rooted() or is_grounded() or (airborne and not can_crash))
 
 func is_in_cast_lockout() -> bool:
-	return super.is_in_cast_lockout() or dash_lockout_timer > 0.0
+	return super.is_in_cast_lockout() or dash_lockout_timer > 0.0 or is_in_airborne_state()
+
+func can_cast_ability_slot(slot_key: String, char_abilities: Dictionary = {}) -> bool:
+	var key = slot_key.to_upper()
+	if is_in_airborne_state():
+		if key == "SHIFT" or key == "DASH":
+			return can_crash_down() and not is_rooted() and not is_grounded() and not is_stunned()
+		return false
+	return super.can_cast_ability_slot(slot_key, char_abilities)
 
 func execute_ability_slot(slot_key: String) -> bool:
-	if is_dead or is_stunned():
+	if is_dead:
 		return false
-	match slot_key.to_upper():
+	var key = slot_key.to_upper()
+	if is_stunned() and key != "R" and key != "ABILITY_FOUR":
+		return false
+	match key:
 		"LMB", "SHOOT":
-			if is_holding_space and current_float_stamina > 0.0 and dive_vertical_state == 2:
-				_perform_crash_down()
-				return true
-			elif attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
+			if attack_timer <= 0.0 and can_cast_ability_slot("LMB"):
 				_perform_slash()
 				return true
 		"RMB", "ABILITY_ONE":
@@ -672,7 +724,10 @@ func execute_ability_slot(slot_key: String) -> bool:
 				_perform_tectonic_uprising()
 				return true
 		"SHIFT", "DASH":
-			if current_dash_charges > 0 and dash_lockout_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+			if can_crash_down() and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
+				_perform_crash_down()
+				return true
+			elif current_dash_charges > 0 and dash_lockout_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
 				_execute_dive_dash()
 				return true
 	return false

@@ -593,6 +593,6 @@ func execute_ability_slot(slot_key: String) -> bool:
 				return true
 		"SHIFT", "DASH":
 			if dash_timer <= 0.0 and not is_rooted() and not is_grounded() and can_cast_ability_slot("SHIFT"):
-				_execute_reaper_dash()
+				_execute_ethereal_dash()
 				return true
 	return false

@@ -25,10 +25,11 @@ const FLOAT_TOTAL_DURATION: float = 2.2
 const FLOAT_SLOWDOWN_TIME: float = 0.7
 const FLOAT_HOVER_TIME: float = 1.4
 
-# --- Universal Channeling ---
+# --- Universal Channeling & Input Buffering ---
 var is_channeling: bool = false
 var channel_timer: float = 0.0
 var channel_complete_callback: Callable = Callable()
+var ability_buffer: AbilityBuffer = AbilityBuffer.new()
 
 # --- Status Query Helpers ---
 func is_stunned() -> bool:
@@ -73,12 +74,23 @@ func cancel_channel() -> void:
 	channel_timer = 0.0
 	channel_complete_callback = Callable()
 	_on_channel_cancelled()
+	clear_buffered_ability()
 
 func _on_channel_cancelled() -> void:
 	pass
 
-func clear_buffered_ability() -> void:
+func _on_channel_completed() -> void:
+	_try_resolve_buffered_ability()
+
+func _try_resolve_buffered_ability() -> void:
 	pass
+
+func clear_buffered_ability() -> void:
+	if ability_buffer:
+		ability_buffer.clear()
+
+func has_buffered_ability() -> bool:
+	return ability_buffer != null and ability_buffer.has_buffered_ability()
 
 # --- Status Application & Network Sync ---
 func apply_stun(duration: float) -> void:
@@ -242,6 +254,7 @@ func _process_status_timers(delta: float) -> void:
 				var cb = channel_complete_callback
 				channel_complete_callback = Callable()
 				cb.call()
+			_on_channel_completed()
 
 	# CC Timers
 	if stun_timer > 0.0:
