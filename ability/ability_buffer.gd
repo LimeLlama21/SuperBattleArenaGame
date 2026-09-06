@@ -1,4 +1,3 @@
-3
 class_name AbilityBuffer
 extends RefCounted
 

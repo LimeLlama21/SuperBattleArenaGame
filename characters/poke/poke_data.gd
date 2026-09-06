@@ -7,12 +7,13 @@ static func create() -> CharacterData:
 	data.display_name = "Arash"
 	data.archetype = "Sharpshooter"
 	data.max_health = 160.0
-	data.max_move_speed = 11.5
+	data.max_move_speed = 6.9
 	data.ground_acceleration = 70.0
 	data.ground_friction = 40.0
 	data.air_acceleration = 8.0
-	data.air_drag = 3.5
+	data.air_drag = 16.0
 	data.jump_velocity = 9.5
+	data.jump_horizontal_impulse = 2.0
 	data.ability_slots = {
 		"LMB": "poke_rail_shot",
 		"RMB": "poke_sniper_stance",

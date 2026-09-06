@@ -417,6 +417,8 @@ func end_reaper_tether_server(completed: bool, target_node: Node = null) -> void
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_reaper_tether_state(active: bool, target_id: int) -> void:
+	if not _is_sender_host():
+		return
 	reaper_tether_active = active
 	reaper_tether_target_id = target_id
 	if not active:

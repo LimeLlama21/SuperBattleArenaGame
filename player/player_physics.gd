@@ -2,13 +2,14 @@ class_name PlayerPhysics
 extends PlayerStatus
 
 # --- Movement Parameters ---
-@export var max_move_speed: float = 10.0
+@export var max_move_speed: float = 6.0
 @export var ground_acceleration: float = 65.0
 @export var ground_friction: float = 40.0
 @export var intentional_movement_friction: float = 110.0
 @export var air_acceleration: float = 8.0
-@export var air_drag: float = 8.5
+@export var air_drag: float = 16.0
 @export var jump_velocity: float = 11.2
+@export var jump_horizontal_impulse: float = 2.0
 
 var is_intentional_movement: bool = false
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 13.0)
@@ -37,13 +38,17 @@ func is_enemy(_other: Node) -> bool:
 func apply_knockback(impulse_vec: Vector3, _is_external: bool = true, wall_stun: float = 0.0) -> void:
 	if is_cc_immune:
 		return
-	if is_multiplayer_match() and multiplayer.is_server():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_knockback.rpc(impulse_vec, _is_external, wall_stun)
 	else:
 		_process_apply_knockback(impulse_vec, wall_stun)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_knockback(impulse_vec: Vector3, _is_external: bool = true, wall_stun: float = 0.0) -> void:
+	if not _is_sender_host():
+		return
 	_process_apply_knockback(impulse_vec, wall_stun)
 
 func _process_apply_knockback(impulse_vec: Vector3, wall_stun: float = 0.0) -> void:
@@ -252,6 +257,23 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	if not stunned and not rooted and not grounded and not is_channeling_active:
 		if Input.is_action_just_pressed("jump") and on_floor:
 			velocity.y = jump_velocity
+			
+			var jump_input = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+			var jump_h_dir := Vector3.ZERO
+			if jump_input.length_squared() > 0.001:
+				jump_h_dir = Vector3(jump_input.x, 0.0, jump_input.y).normalized()
+			elif Vector2(velocity.x, velocity.z).length_squared() > 0.001:
+				jump_h_dir = Vector3(velocity.x, 0.0, velocity.z).normalized()
+			else:
+				jump_h_dir = -global_transform.basis.z
+				jump_h_dir.y = 0.0
+				if jump_h_dir.length_squared() > 0.001:
+					jump_h_dir = jump_h_dir.normalized()
+				else:
+					jump_h_dir = Vector3.FORWARD
+			
+			velocity.x += jump_h_dir.x * jump_horizontal_impulse
+			velocity.z += jump_h_dir.z * jump_horizontal_impulse
 
 	# Movement Vector
 	var input_dir := Vector2.ZERO
@@ -290,6 +312,19 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 			cur_speed = current_horizontal.length()
 			if cur_speed > effective_max_speed:
 				var excess_bleed = min(effective_friction * delta, cur_speed - effective_max_speed)
+				current_horizontal -= current_horizontal.normalized() * excess_bleed
+				if current_horizontal.length() <= effective_max_speed:
+					is_intentional_movement = false
+		else:
+			# Air resistance: only applies when not on solid ground and only influences horizontal movement
+			var lateral_vel = current_horizontal - wish_dir * current_speed_along_wish
+			if lateral_vel.length_squared() > 0.001:
+				lateral_vel = lateral_vel.move_toward(Vector2.ZERO, air_drag * delta)
+				current_horizontal = wish_dir * current_speed_along_wish + lateral_vel
+			
+			cur_speed = current_horizontal.length()
+			if cur_speed > effective_max_speed:
+				var excess_bleed = min(air_drag * delta, cur_speed - effective_max_speed)
 				current_horizontal -= current_horizontal.normalized() * excess_bleed
 				if current_horizontal.length() <= effective_max_speed:
 					is_intentional_movement = false

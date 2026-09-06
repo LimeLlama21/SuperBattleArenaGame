@@ -98,6 +98,27 @@ func _ready() -> void:
 			cap_shape.height = 6.0
 			col_shape.shape = cap_shape
 			col_shape.rotation.x = deg_to_rad(90.0)
+	elif effect_type == "morrigan_feather":
+		var mesh_inst = get_node_or_null("MeshInstance3D") as MeshInstance3D
+		var col_shape = get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if mesh_inst:
+			var cap = CapsuleMesh.new()
+			cap.radius = 0.16
+			cap.height = 0.85
+			mesh_inst.mesh = cap
+			mesh_inst.rotation.x = deg_to_rad(90.0)
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = Color(0.2, 0.02, 0.35, 1.0)
+			mat.emission_enabled = true
+			mat.emission = Color(0.75, 0.15, 0.95, 1.0)
+			mat.emission_energy_multiplier = 5.0
+			mesh_inst.material_override = mat
+		if col_shape:
+			var cap_shape = CapsuleShape3D.new()
+			cap_shape.radius = 0.22
+			cap_shape.height = 0.85
+			col_shape.shape = cap_shape
+			col_shape.rotation.x = deg_to_rad(90.0)
 
 	if max_range <= 0.0:
 		if speed > 0.0 and lifetime > 0.0:

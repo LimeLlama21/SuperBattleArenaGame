@@ -77,6 +77,8 @@ func _on_body_entered(body: Node) -> void:
 	_apply_to_body(body, 0.0)
 
 func _apply_corridor_effects() -> void:
+	if not is_server_authority():
+		return
 	var bodies = get_overlapping_bodies()
 	for b in bodies:
 		_apply_to_body(b, dps * TICK_INTERVAL)

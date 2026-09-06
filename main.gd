@@ -69,11 +69,15 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var host_ip_input: LineEdit = $UI/JoinDialog/VBox/HostIPInput
 @onready var join_status_label: Label = get_node_or_null("UI/JoinDialog/VBox/JoinStatusLabel")
 @onready var cancel_join_button: Button = $UI/JoinDialog/VBox/HBox/CancelButton
+@onready var join_local_button: Button = get_node_or_null("UI/JoinDialog/VBox/HBox/JoinLocalButton")
 @onready var confirm_join_button: Button = $UI/JoinDialog/VBox/HBox/ConfirmJoinButton
 
 @onready var lobby_ip_label: Label = $UI/LobbyRoom/VBox/HBoxRoomCode/HostIPDisplay
 @onready var copy_code_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxRoomCode/CopyCodeButton")
 @onready var game_mode_option: OptionButton = get_node_or_null("UI/LobbyRoom/VBox/HBoxGameMode/GameModeOption")
+@onready var hbox_game_mode: HBoxContainer = get_node_or_null("UI/LobbyRoom/VBox/HBoxGameMode")
+@onready var map_option: OptionButton = get_node_or_null("UI/LobbyRoom/VBox/HBoxMap/MapOption")
+@onready var hbox_map: HBoxContainer = get_node_or_null("UI/LobbyRoom/VBox/HBoxMap")
 @onready var select_poke_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectPoke
 @onready var select_crush_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectCrush
 @onready var select_dive_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectDive
@@ -98,6 +102,11 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var switch_dive_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDive"
 @onready var switch_reaper_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchReaper")
 @onready var switch_morrigan_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMorrigan")
+
+@onready var switch_map_standard: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapStandard")
+@onready var switch_map_colosseum: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapColosseum")
+@onready var switch_map_chasm: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapChasm")
+@onready var switch_map_islands: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapIslands")
 
 @onready var settings_panel: PanelContainer = $UI/SettingsMenu
 
@@ -184,8 +193,17 @@ func _check_team_player_deficits() -> bool:
 			t2_count += 1
 	return (t1_count == 0 or t2_count == 0)
 
+func _is_sender_host() -> bool:
+	if not multiplayer or not multiplayer.has_multiplayer_peer():
+		return true
+	if multiplayer.is_server():
+		return true
+	return multiplayer.get_remote_sender_id() == 1
+
 @rpc("any_peer", "call_local", "reliable")
 func sync_pending_disconnects(disconnected_ids: Array) -> void:
+	if not _is_sender_host():
+		return
 	pending_disconnect_peers.clear()
 	for id in disconnected_ids:
 		pending_disconnect_peers[int(id)] = true
@@ -211,6 +229,8 @@ func _sync_all_kda() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_player_kda(kda_dict: Dictionary) -> void:
+	if not _is_sender_host():
+		return
 	for pid in kda_dict.keys():
 		for k in connected_players.keys():
 			if str(k) == str(pid):
@@ -241,6 +261,8 @@ const MAP_ISLANDS_SCENE: PackedScene = preload("res://maps/map_islands.tscn")
 
 var arena_maps: Array[Node3D] = []
 var current_map_id: int = -1
+var training_selected_map: int = -1 # -1: Standard Training Map, 0: Colosseum, 1: The Jagged Chasm, 2: Shattered Archipelago
+var selected_custom_map: int = -1 # -1: Random Map, 0: Colosseum, etc.
 const MAP_NAMES = ["Colosseum", "The Jagged Chasm", "Shattered Archipelago"]
 var map_banner_label: Label = null
 
@@ -282,6 +304,11 @@ func _ready() -> void:
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
 	cancel_join_button.pressed.connect(func(): join_dialog.hide())
+	if join_local_button:
+		join_local_button.pressed.connect(func():
+			current_room_code = ""
+			_join_direct_ip("127.0.0.1")
+		)
 	confirm_join_button.pressed.connect(_on_confirm_join_pressed)
 	host_ip_input.text_submitted.connect(func(_t): _on_confirm_join_pressed())
 	training_button.pressed.connect(_on_training_pressed)
@@ -322,6 +349,17 @@ func _ready() -> void:
 		switch_reaper_btn.pressed.connect(func(): _switch_training_character("reaper"))
 	if switch_morrigan_btn:
 		switch_morrigan_btn.pressed.connect(func(): _switch_training_character("morrigan"))
+	
+	if map_option:
+		map_option.item_selected.connect(_on_map_option_selected)
+	if switch_map_standard:
+		switch_map_standard.pressed.connect(func(): _switch_training_map(-1))
+	if switch_map_colosseum:
+		switch_map_colosseum.pressed.connect(func(): _switch_training_map(0))
+	if switch_map_chasm:
+		switch_map_chasm.pressed.connect(func(): _switch_training_map(1))
+	if switch_map_islands:
+		switch_map_islands.pressed.connect(func(): _switch_training_map(2))
 	
 	if settings_panel and settings_panel.has_signal("settings_closed"):
 		settings_panel.settings_closed.connect(_on_settings_closed)
@@ -539,7 +577,7 @@ func _register_room_backend(code: String, ip: String, port: int) -> void:
 	http_request_host.cancel_request()
 	var url = "%s/api/create-room" % NetworkUtils.BACKEND_URL
 	var headers = ["Content-Type: application/json"]
-	var body = JSON.stringify({"code": code, "ip": ip, "port": port})
+	var body = JSON.stringify({"code": code, "ip": ip, "localIp": ip, "port": port})
 	var err = http_request_host.request(url, headers, HTTPClient.METHOD_POST, body)
 	if err != OK:
 		print("Backend room registration failed: ", err)
@@ -557,15 +595,16 @@ func _on_join_pressed() -> void:
 	if join_status_label:
 		join_status_label.hide()
 	confirm_join_button.disabled = false
+	if join_local_button:
+		join_local_button.disabled = false
 	host_ip_input.text = ""
 	host_ip_input.grab_focus()
 
 func _on_confirm_join_pressed() -> void:
 	var raw_input = host_ip_input.text.strip_edges()
 	if raw_input.is_empty():
-		if join_status_label:
-			join_status_label.text = "Please enter a Room Code."
-			join_status_label.show()
+		current_room_code = ""
+		_join_direct_ip("127.0.0.1")
 		return
 	
 	if NetworkUtils.is_direct_ip_or_localhost(raw_input):
@@ -576,8 +615,11 @@ func _on_confirm_join_pressed() -> void:
 	# Query Render matchmaking backend
 	if join_status_label:
 		join_status_label.text = "Connecting to matchmaking server..."
+		join_status_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
 		join_status_label.show()
 	confirm_join_button.disabled = true
+	if join_local_button:
+		join_local_button.disabled = true
 	
 	var clean_code = raw_input.to_upper()
 	current_room_code = clean_code
@@ -587,13 +629,19 @@ func _on_confirm_join_pressed() -> void:
 	if err != OK:
 		if join_status_label:
 			join_status_label.text = "Could not reach matchmaking server."
+			join_status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 		confirm_join_button.disabled = false
+		if join_local_button:
+			join_local_button.disabled = false
 
 func _on_backend_join_room_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	confirm_join_button.disabled = false
+	if join_local_button:
+		join_local_button.disabled = false
 	if result != HTTPRequest.RESULT_SUCCESS:
 		if join_status_label:
 			join_status_label.text = "Lobby does not exist or server is unreachable."
+			join_status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 			join_status_label.show()
 		return
 	
@@ -604,26 +652,43 @@ func _on_backend_join_room_completed(result: int, response_code: int, _headers: 
 		var parsed = NetworkUtils.parse_host_address(host_addr_str, PORT)
 		var target_ip = parsed["ip"]
 		var target_port = parsed["port"]
-		_connect_client_to_host(target_ip, target_port)
+		var fallback_ip = ""
+		
+		if json.has("localAddress") and not str(json["localAddress"]).is_empty():
+			var local_parsed = NetworkUtils.parse_host_address(str(json["localAddress"]), target_port)
+			fallback_ip = local_parsed["ip"]
+		elif json.has("localIp") and not str(json["localIp"]).is_empty():
+			fallback_ip = str(json["localIp"])
+			
+		# If the room backend signaled isLocal, or if target_ip is an unroutable Render internal IP (10.x.x.x), use fallback
+		if (json.get("isLocal", false) == true or target_ip.begins_with("10.")) and not fallback_ip.is_empty():
+			var temp = target_ip
+			target_ip = fallback_ip
+			fallback_ip = temp
+			
+		_connect_client_to_host(target_ip, target_port, fallback_ip)
 	else:
 		var err_msg = "Lobby does not exist. Check code and try again."
 		if json is Dictionary and json.has("error"):
 			err_msg = "Lobby does not exist: %s" % str(json["error"])
 		if join_status_label:
 			join_status_label.text = err_msg
+			join_status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 			join_status_label.show()
 
 func _join_direct_ip(raw_ip: String) -> void:
 	var target_ip = NetworkUtils.clean_host_ip(raw_ip)
 	_connect_client_to_host(target_ip, PORT)
 
-func _connect_client_to_host(target_ip: String, target_port: int) -> void:
+func _connect_client_to_host(target_ip: String, target_port: int, fallback_ip: String = "") -> void:
 	is_training_mode = false
 	if join_status_label:
 		join_status_label.text = "Connecting to %s:%d..." % [target_ip, target_port]
 		join_status_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
 		join_status_label.show()
 	confirm_join_button.disabled = true
+	if join_local_button:
+		join_local_button.disabled = true
 	
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_client(target_ip, target_port)
@@ -633,19 +698,32 @@ func _connect_client_to_host(target_ip: String, target_port: int) -> void:
 			join_status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 			join_status_label.show()
 		confirm_join_button.disabled = false
+		if join_local_button:
+			join_local_button.disabled = false
 		print("Failed client connection: ", error)
 		return
 
 	multiplayer.multiplayer_peer = peer
 	
 	# Timeout timer if UDP handshake cannot reach the host
-	var timer = get_tree().create_timer(6.5)
+	var timer = get_tree().create_timer(4.5)
 	timer.timeout.connect(func():
 		if multiplayer.multiplayer_peer and not multiplayer.is_server() and not lobby_panel.visible:
+			if not fallback_ip.is_empty() and fallback_ip != target_ip:
+				print("Primary connection to ", target_ip, " timed out, attempting LAN fallback to ", fallback_ip)
+				if join_status_label:
+					join_status_label.text = "Retrying connection via LAN (%s)..." % fallback_ip
+					join_status_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+				multiplayer.multiplayer_peer = null
+				_connect_client_to_host(fallback_ip, target_port, "")
+				return
+				
 			multiplayer.multiplayer_peer = null
 			confirm_join_button.disabled = false
+			if join_local_button:
+				join_local_button.disabled = false
 			if join_status_label:
-				join_status_label.text = "Connection timed out. If testing locally, join with 'localhost' or '127.0.0.1'. If across internet, ensure UDP port %d is forwarded." % target_port
+				join_status_label.text = "Connection timed out. If testing on this PC, click 'Localhost'."
 				join_status_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
 				join_status_label.show()
 	)
@@ -798,6 +876,8 @@ func update_player_character(char_key: String) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_lobby_state(players_dict: Dictionary, mode_str: String = "tdm") -> void:
+	if not _is_sender_host():
+		return
 	connected_players = players_dict
 	game_mode = mode_str
 	if not match_in_progress:
@@ -809,6 +889,9 @@ func _refresh_lobby_ui() -> void:
 	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
 	var is_server = multiplayer.is_server() if (multiplayer and multiplayer.has_multiplayer_peer()) else true
 	
+	if hbox_game_mode:
+		hbox_game_mode.visible = not is_training_mode
+
 	if game_mode_option:
 		game_mode_option.disabled = not is_server or is_training_mode
 		var sel_idx = 0
@@ -817,6 +900,27 @@ func _refresh_lobby_ui() -> void:
 		elif game_mode == "bo5":
 			sel_idx = 2
 		game_mode_option.select(sel_idx)
+
+	if map_option:
+		map_option.clear()
+		if is_training_mode:
+			map_option.disabled = false
+			map_option.add_item("🎯 Standard Training Map", -1)
+			for i in range(MAP_NAMES.size()):
+				map_option.add_item("⚔ " + MAP_NAMES[i], i)
+			var sel_idx = 0
+			if training_selected_map >= 0 and training_selected_map < MAP_NAMES.size():
+				sel_idx = training_selected_map + 1
+			map_option.select(sel_idx)
+		else:
+			map_option.disabled = not is_server
+			map_option.add_item("🎲 Random Map", -1)
+			for i in range(MAP_NAMES.size()):
+				map_option.add_item("⚔ " + MAP_NAMES[i], i)
+			var sel_idx = 0
+			if selected_custom_map >= 0 and selected_custom_map < MAP_NAMES.size():
+				sel_idx = selected_custom_map + 1
+			map_option.select(sel_idx)
 
 	if is_training_mode:
 		if team_section:
@@ -937,6 +1041,28 @@ func _refresh_lobby_ui() -> void:
 		else:
 			start_match_button.text = "CANNOT START (Need 1+ player on each team)"
 
+func _on_map_option_selected(index: int) -> void:
+	if not map_option:
+		return
+	var item_id = map_option.get_item_id(index)
+	if is_training_mode:
+		training_selected_map = item_id
+	else:
+		selected_custom_map = item_id
+		if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+			sync_lobby_map.rpc(selected_custom_map)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_lobby_map(map_id: int) -> void:
+	if not _is_sender_host():
+		return
+	selected_custom_map = map_id
+	if map_option and not is_training_mode:
+		var sel_idx = 0
+		if selected_custom_map >= 0 and selected_custom_map < MAP_NAMES.size():
+			sel_idx = selected_custom_map + 1
+		map_option.select(sel_idx)
+
 func _on_start_match_pressed() -> void:
 	if is_training_mode:
 		start_game()
@@ -996,6 +1122,8 @@ func get_player_team(peer_id: int) -> int:
 
 @rpc("any_peer", "call_local", "reliable")
 func start_game() -> void:
+	if not _is_sender_host():
+		return
 	match_in_progress = true
 	lobby_panel.hide()
 	match_over_panel.hide()
@@ -1015,7 +1143,7 @@ func start_game() -> void:
 			else:
 				sync_active_map(next_map)
 		else:
-			sync_active_map(0)
+			sync_active_map(training_selected_map)
 	
 	if not is_multiplayer_match() or multiplayer.is_server():
 		for c in players_container.get_children():
@@ -1033,11 +1161,36 @@ func start_game() -> void:
 			training_kills = 0
 			training_deaths = 0
 			training_assists = 0
-			# Spawn Training Dummy in center (Team 2)
+			
+			var dummy_pos = Vector3(0.0, 0.0, 0.0)
+			var dummy_rot_y = 0.0
+			var player_pos = Vector3(-8.0, 0.1, 0.0)
+			var player_rot_y = 0.0
+			
+			if training_selected_map != -1:
+				var t2_spawns = spawn_points.get_node_or_null("Team2_Spawns")
+				if t2_spawns:
+					var sp_center = t2_spawns.get_node_or_null("Spawn3")
+					dummy_pos = sp_center.global_position if sp_center else (t2_spawns.get_child(0).global_position if t2_spawns.get_child_count() > 0 else Vector3(24.0, 0.1, 0.0))
+				else:
+					dummy_pos = Vector3(24.0, 0.1, 0.0)
+				dummy_rot_y = PI
+				
+				var t1_spawns = spawn_points.get_node_or_null("Team1_Spawns")
+				if t1_spawns:
+					var sp_center = t1_spawns.get_node_or_null("Spawn3")
+					player_pos = sp_center.global_position if sp_center else (t1_spawns.get_child(0).global_position if t1_spawns.get_child_count() > 0 else Vector3(-24.0, 0.1, 0.0))
+				else:
+					player_pos = Vector3(-24.0, 0.1, 0.0)
+				player_rot_y = 0.0
+			
+			# Spawn Training Dummy (Team 2)
 			var dummy = training_dummy_scene.instantiate()
 			dummy.name = "TrainingDummy"
 			dummy.team_id = 2
-			dummy.global_position = Vector3(0.0, 0.0, 0.0)
+			dummy.global_position = dummy_pos
+			dummy.rotation.y = dummy_rot_y
+			dummy.set("home_position", dummy_pos)
 			players_container.add_child(dummy)
 			
 			# Spawn Local Player directly as child
@@ -1046,8 +1199,8 @@ func start_game() -> void:
 			var player_instance = packed_scene.instantiate()
 			player_instance.name = "1"
 			player_instance.team_id = 1
-			player_instance.position = Vector3(-8.0, 0.1, 0.0)
-			player_instance.rotation.y = 0.0
+			player_instance.position = player_pos
+			player_instance.rotation.y = player_rot_y
 			player_instance.gold = p_info.get("gold", 999999)
 			var raw_training_items = p_info.get("items", [])
 			player_instance.item_slots.clear()
@@ -1314,6 +1467,8 @@ func _handle_bo5_round_end(round_winner: String) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func end_round(round_winner: String, score1: int, score2: int) -> void:
+	if not _is_sender_host():
+		return
 	match_in_progress = false
 	bo5_score_t1 = score1
 	bo5_score_t2 = score2
@@ -1400,6 +1555,8 @@ func display_damage_number(amount: float, pos: Vector3, action_type: int = 0) ->
 
 @rpc("any_peer", "call_local", "reliable")
 func end_match(winner_name: String) -> void:
+	if not _is_sender_host():
+		return
 	match_in_progress = false
 	_bo5_round_transition_active = false
 	if game_mode == "bo5" and winner_name != "DRAW":
@@ -1444,6 +1601,8 @@ func end_match(winner_name: String) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func terminate_match(reason: String = "A team has no remaining players.") -> void:
+	if not _is_sender_host():
+		return
 	match_in_progress = false
 	_bo5_round_transition_active = false
 	bo5_score_t1 = 0
@@ -2192,7 +2351,8 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if is_training_mode:
 		if scoreboard_team_container: scoreboard_team_container.visible = true
 		if scoreboard_dm_container: scoreboard_dm_container.visible = false
-		scoreboard_status_label.text = "TRAINING ARENA SESSION"
+		var map_str = ("  •  MAP: " + MAP_NAMES[current_map_id].to_upper()) if (current_map_id >= 0 and current_map_id < MAP_NAMES.size()) else "  •  MAP: STANDARD TRAINING"
+		scoreboard_status_label.text = "TRAINING ARENA SESSION" + map_str
 		var p_node = players_container.get_node_or_null(str(my_id))
 		var row = _create_scoreboard_player_row(my_id, "Player (YOU)", selected_character, p_node, true, training_kills, training_deaths, training_assists, false)
 		if scoreboard_t1_list:
@@ -2459,6 +2619,8 @@ func _setup_map_banner_ui() -> void:
 	ui_node.add_child(map_banner_label)
 
 func _pick_next_random_map() -> int:
+	if selected_custom_map >= 0 and selected_custom_map < arena_maps.size():
+		return selected_custom_map
 	if arena_maps.is_empty():
 		return 0
 	var choices: Array[int] = []
@@ -2472,25 +2634,36 @@ func _pick_next_random_map() -> int:
 @rpc("authority", "call_local", "reliable")
 func sync_active_map(map_id: int) -> void:
 	current_map_id = map_id
+	var show_training_arena = is_training_mode and (map_id == -1)
+
 	for i in range(arena_maps.size()):
 		var m = arena_maps[i]
 		if is_instance_valid(m):
-			var active = (i == map_id) and not is_training_mode
+			var active = (i == map_id) and not show_training_arena
 			m.visible = active
 			m.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 	
 	if training_map:
-		training_map.visible = is_training_mode
-		training_map.process_mode = Node.PROCESS_MODE_INHERIT if is_training_mode else Node.PROCESS_MODE_DISABLED
+		training_map.visible = show_training_arena
+		training_map.process_mode = Node.PROCESS_MODE_INHERIT if show_training_arena else Node.PROCESS_MODE_DISABLED
 	
-	if map_banner_label and not is_training_mode and map_id >= 0 and map_id < MAP_NAMES.size():
-		map_banner_label.text = "⚔ ARENA: %s ⚔" % MAP_NAMES[map_id].to_upper()
-		map_banner_label.modulate.a = 1.0
-		map_banner_label.visible = true
-		var tween = create_tween()
-		tween.tween_interval(3.0)
-		tween.tween_property(map_banner_label, "modulate:a", 0.0, 0.8)
-		tween.tween_callback(func(): if map_banner_label: map_banner_label.visible = false)
+	if map_banner_label:
+		if map_id >= 0 and map_id < MAP_NAMES.size():
+			map_banner_label.text = "⚔ ARENA: %s ⚔" % MAP_NAMES[map_id].to_upper()
+			map_banner_label.modulate.a = 1.0
+			map_banner_label.visible = true
+			var tween = create_tween()
+			tween.tween_interval(3.0)
+			tween.tween_property(map_banner_label, "modulate:a", 0.0, 0.8)
+			tween.tween_callback(func(): if map_banner_label: map_banner_label.visible = false)
+		elif show_training_arena:
+			map_banner_label.text = "🎯 ARENA: STANDARD TRAINING 🎯"
+			map_banner_label.modulate.a = 1.0
+			map_banner_label.visible = true
+			var tween = create_tween()
+			tween.tween_interval(2.5)
+			tween.tween_property(map_banner_label, "modulate:a", 0.0, 0.8)
+			tween.tween_callback(func(): if map_banner_label: map_banner_label.visible = false)
 
 func _setup_shop_ui() -> void:
 	var ui_node = get_node_or_null("UI")
@@ -2851,6 +3024,7 @@ func _open_escape_menu() -> void:
 	escape_panel.show()
 	if escape_tab_container:
 		escape_tab_container.set_tab_hidden(1, not is_training_mode)
+		escape_tab_container.set_tab_hidden(2, not is_training_mode)
 		escape_tab_container.current_tab = 0
 	if is_training_mode:
 		escape_title_label.text = "TRAINING SESSION"
@@ -2887,6 +3061,59 @@ func _switch_training_character(new_char_key: String) -> void:
 	
 	escape_panel.hide()
 	display_damage_number(0, current_pos + Vector3(0, 0.5, 0), 1)
+
+func _switch_training_map(new_map_id: int) -> void:
+	if not is_training_mode:
+		return
+	training_selected_map = new_map_id
+	sync_active_map(new_map_id)
+	
+	for proj in projectiles_container.get_children():
+		proj.queue_free()
+	for terr in terrain_container.get_children():
+		terr.queue_free()
+	for v in vision_container.get_children():
+		v.queue_free()
+	for h in hazard_container.get_children():
+		h.queue_free()
+
+	var dummy_pos = Vector3(0.0, 0.0, 0.0)
+	var dummy_rot_y = 0.0
+	var player_pos = Vector3(-8.0, 0.1, 0.0)
+	var player_rot_y = 0.0
+
+	if new_map_id != -1:
+		var t2_spawns = spawn_points.get_node_or_null("Team2_Spawns")
+		if t2_spawns:
+			var sp_center = t2_spawns.get_node_or_null("Spawn3")
+			dummy_pos = sp_center.global_position if sp_center else (t2_spawns.get_child(0).global_position if t2_spawns.get_child_count() > 0 else Vector3(24.0, 0.1, 0.0))
+		else:
+			dummy_pos = Vector3(24.0, 0.1, 0.0)
+		dummy_rot_y = PI
+
+		var t1_spawns = spawn_points.get_node_or_null("Team1_Spawns")
+		if t1_spawns:
+			var sp_center = t1_spawns.get_node_or_null("Spawn3")
+			player_pos = sp_center.global_position if sp_center else (t1_spawns.get_child(0).global_position if t1_spawns.get_child_count() > 0 else Vector3(-24.0, 0.1, 0.0))
+		else:
+			player_pos = Vector3(-24.0, 0.1, 0.0)
+		player_rot_y = 0.0
+
+	var dummy_node = players_container.get_node_or_null("TrainingDummy")
+	if dummy_node:
+		dummy_node.global_position = dummy_pos
+		dummy_node.rotation.y = dummy_rot_y
+		dummy_node.set("home_position", dummy_pos)
+		dummy_node.respawn()
+
+	var player_node = players_container.get_node_or_null("1")
+	if player_node:
+		player_node.global_position = player_pos
+		player_node.rotation.y = player_rot_y
+		player_node.velocity = Vector3.ZERO
+		player_node.knockback_velocity = Vector3.ZERO
+
+	escape_panel.hide()
 
 func _open_settings_menu() -> void:
 	if escape_panel:
@@ -2927,6 +3154,8 @@ func request_return_to_lobby() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func return_to_lobby() -> void:
+	if not _is_sender_host():
+		return
 	match_in_progress = false
 	_bo5_round_transition_active = false
 	bo5_score_t1 = 0
@@ -2967,8 +3196,9 @@ func return_to_lobby() -> void:
 			m.visible = active
 			m.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 	if training_map:
-		training_map.visible = is_training_mode
-		training_map.process_mode = Node.PROCESS_MODE_INHERIT if is_training_mode else Node.PROCESS_MODE_DISABLED
+		var show_tr = is_training_mode and (training_selected_map == -1)
+		training_map.visible = show_tr
+		training_map.process_mode = Node.PROCESS_MODE_INHERIT if show_tr else Node.PROCESS_MODE_DISABLED
 
 func _on_leave_match_pressed() -> void:
 	_leave_to_main_menu()

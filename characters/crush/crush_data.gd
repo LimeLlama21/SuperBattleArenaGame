@@ -7,12 +7,13 @@ static func create() -> CharacterData:
 	data.display_name = "Heracles"
 	data.archetype = "Juggernaut"
 	data.max_health = 320.0
-	data.max_move_speed = 8.5
+	data.max_move_speed = 5.1
 	data.ground_acceleration = 60.0
 	data.ground_friction = 40.0
 	data.air_acceleration = 6.5
-	data.air_drag = 3.5
+	data.air_drag = 16.0
 	data.jump_velocity = 9.5
+	data.jump_horizontal_impulse = 2.0
 	data.ability_slots = {
 		"LMB": "crush_slam",
 		"RMB": "crush_fan_stun",

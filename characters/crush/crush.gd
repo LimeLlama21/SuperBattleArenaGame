@@ -140,6 +140,8 @@ func _on_damage_taken_hook(amount: float, _attacker_id: int, _action_type: int) 
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_gray_health(new_val: float) -> void:
+	if not _is_sender_host():
+		return
 	gray_health = new_val
 
 func _handle_character_input(_delta: float) -> void:

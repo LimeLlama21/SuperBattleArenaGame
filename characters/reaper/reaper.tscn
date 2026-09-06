@@ -117,7 +117,7 @@ character_name = "Reaper"
 display_name = "Keres"
 max_health = 200.0
 current_health = 200.0
-max_move_speed = 10.0
+max_move_speed = 6.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

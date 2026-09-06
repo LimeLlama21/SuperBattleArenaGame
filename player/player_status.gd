@@ -1,5 +1,5 @@
 class_name PlayerStatus
-extends PlayerNetwork
+extends PlayerAuthority
 
 # --- Universal Status Effects & CC ---
 var stun_timer: float = 0.0
@@ -92,17 +92,28 @@ func clear_buffered_ability() -> void:
 func has_buffered_ability() -> bool:
 	return ability_buffer != null and ability_buffer.has_buffered_ability()
 
-# --- Status Application & Network Sync ---
+# --- Status Application & Authority / Replication Sync ---
+func _is_sender_host() -> bool:
+	if not is_multiplayer_match():
+		return true
+	if multiplayer.is_server():
+		return true
+	return multiplayer.get_remote_sender_id() == 1
+
 func apply_stun(duration: float) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_stun.rpc(duration)
 	else:
 		sync_apply_stun(duration)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_stun(duration: float) -> void:
+	if not _is_sender_host():
+		return
 	stun_timer = max(stun_timer, duration)
 	cancel_channel()
 	clear_buffered_ability()
@@ -110,13 +121,17 @@ func sync_apply_stun(duration: float) -> void:
 func apply_slow(duration: float, percent: float) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_slow.rpc(duration, percent)
 	else:
 		sync_apply_slow(duration, percent)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_slow(duration: float, percent: float) -> void:
+	if not _is_sender_host():
+		return
 	slow_timer = max(slow_timer, duration)
 	slow_initial_duration = max(slow_initial_duration, duration)
 	slow_initial_percent = max(slow_initial_percent, percent)
@@ -125,13 +140,17 @@ func sync_apply_slow(duration: float, percent: float) -> void:
 func apply_silence(duration: float) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_silence.rpc(duration)
 	else:
 		sync_apply_silence(duration)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_silence(duration: float) -> void:
+	if not _is_sender_host():
+		return
 	silence_timer = max(silence_timer, duration)
 	cancel_channel()
 	clear_buffered_ability()
@@ -139,71 +158,95 @@ func sync_apply_silence(duration: float) -> void:
 func apply_root(duration: float) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_root.rpc(duration)
 	else:
 		sync_apply_root(duration)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_root(duration: float) -> void:
+	if not _is_sender_host():
+		return
 	root_timer = max(root_timer, duration)
 
 func apply_grounded(duration: float) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_grounded.rpc(duration)
 	else:
 		sync_apply_grounded(duration)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_grounded(duration: float) -> void:
+	if not _is_sender_host():
+		return
 	grounded_timer = max(grounded_timer, duration)
 
 func apply_cripple(duration: float, intensity: float = 0.35) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_cripple.rpc(duration, intensity)
 	else:
 		sync_apply_cripple(duration, intensity)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_cripple(duration: float, intensity: float = 0.35) -> void:
+	if not _is_sender_host():
+		return
 	cripple_timer = max(cripple_timer, duration)
 	cripple_intensity = intensity
 
 func apply_ethereal(duration: float) -> void:
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_ethereal.rpc(duration)
 	else:
 		sync_apply_ethereal(duration)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_ethereal(duration: float) -> void:
+	if not _is_sender_host():
+		return
 	ethereal_timer = max(ethereal_timer, duration)
 
 func apply_speed_boost(duration: float, percent: float) -> void:
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_speed_boost.rpc(duration, percent)
 	else:
 		sync_apply_speed_boost(duration, percent)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_speed_boost(duration: float, percent: float) -> void:
+	if not _is_sender_host():
+		return
 	speed_boost_timer = max(speed_boost_timer, duration)
 	speed_boost_percent = max(speed_boost_percent, percent)
 
 func apply_float(duration: float = FLOAT_TOTAL_DURATION) -> void:
 	if is_cc_immune or is_ethereal_active():
 		return
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_apply_float.rpc(duration)
 	else:
 		sync_apply_float(duration)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_float(duration: float) -> void:
+	if not _is_sender_host():
+		return
 	is_floating = true
 	float_timer = duration
 
@@ -214,23 +257,31 @@ func end_float_state() -> void:
 	is_floating = false
 	float_timer = 0.0
 	current_gravity_mult = 1.0
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_end_float_state.rpc()
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_end_float_state() -> void:
+	if not _is_sender_host():
+		return
 	is_floating = false
 	float_timer = 0.0
 	current_gravity_mult = 1.0
 
 func cleanse_cc() -> void:
-	if is_multiplayer_match() and is_server_authoritative():
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
 		sync_cleanse_cc.rpc()
 	else:
 		sync_cleanse_cc()
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_cleanse_cc() -> void:
+	if not _is_sender_host():
+		return
 	stun_timer = 0.0
 	slow_timer = 0.0
 	slow_percent = 0.0

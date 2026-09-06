@@ -7,12 +7,13 @@ static func create() -> CharacterData:
 	data.display_name = "Morrigan"
 	data.archetype = "Mage"
 	data.max_health = 180.0
-	data.max_move_speed = 9.5
+	data.max_move_speed = 5.7
 	data.ground_acceleration = 65.0
 	data.ground_friction = 40.0
 	data.air_acceleration = 8.0
-	data.air_drag = 3.5
+	data.air_drag = 16.0
 	data.jump_velocity = 9.5
+	data.jump_horizontal_impulse = 2.0
 	data.ability_slots = {
 		"LMB": "morrigan_black_plumage",
 		"RMB": "morrigan_omen_of_death",
@@ -62,7 +63,7 @@ static func create() -> CharacterData:
 			"id": "morrigan_black_plumage",
 			"name": "Black Plumage",
 			"icon": "🪶",
-			"description": "Fires a rapid stream of necrotic black feathers dealing 9 damage and applying lingering decay to targets.",
+			"description": "Hold to charge up to 5 necrotic feathers. Release to fire a rapid stream dealing 9 damage per feather.",
 			"slot": "LMB",
 			"cooldown": 0.25,
 			"effect": {

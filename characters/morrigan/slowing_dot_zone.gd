@@ -59,6 +59,8 @@ func _on_body_entered(body: Node) -> void:
 	_apply_effect_to_body(body)
 
 func _apply_zone_effects() -> void:
+	if not is_server_authority():
+		return
 	for body in get_overlapping_bodies():
 		_apply_effect_to_body(body)
 

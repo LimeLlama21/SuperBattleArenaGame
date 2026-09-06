@@ -69,7 +69,7 @@ character_name = "Murder"
 display_name = "Morrigan"
 max_health = 180.0
 current_health = 180.0
-max_move_speed = 9.5
+max_move_speed = 5.7
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1604146957]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

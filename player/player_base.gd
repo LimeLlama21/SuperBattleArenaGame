@@ -47,7 +47,7 @@ var item_slots: Array[String] = []
 var gold: int = 0
 
 var base_max_health: float = 200.0
-var base_max_move_speed: float = 10.0
+var base_max_move_speed: float = 6.0
 var item_damage_percent: float = 0.0
 var item_health_bonus: float = 0.0
 var item_move_speed_bonus: float = 0.0
@@ -347,6 +347,8 @@ func apply_shield(amount: float, duration: float = 5.0) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_shield(new_shield: float) -> void:
+	if not _is_sender_host():
+		return
 	current_shield = new_shield
 
 func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK) -> void:
@@ -412,6 +414,8 @@ func heal(amount: float) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_health(new_health: float) -> void:
+	if not _is_sender_host():
+		return
 	current_health = new_health
 	if current_health <= 0.0 and not is_dead:
 		is_dead = true
@@ -516,6 +520,8 @@ func update_health_bar() -> void:
 
 # --- Alive / Dead State & Respawn Lifecycle ---
 func die() -> void:
+	if is_multiplayer_match() and not multiplayer.is_server():
+		return
 	if is_dead:
 		return
 	is_dead = true
@@ -560,6 +566,8 @@ func die() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_death_state(dead: bool) -> void:
+	if not _is_sender_host():
+		return
 	is_dead = dead
 	_update_death_state(dead)
 
@@ -594,6 +602,18 @@ func respawn() -> void:
 		if spawn_points and spawn_points.get_child_count() > 0:
 			var idx = randi() % spawn_points.get_child_count()
 			spawn_pos = spawn_points.get_child(idx).global_position
+	elif main_node and main_node.get("training_selected_map") != null and main_node.get("training_selected_map") != -1:
+		var t1_spawns = get_tree().root.get_node_or_null("Main/SpawnPoints/Team1_Spawns")
+		if t1_spawns:
+			var sp_center = t1_spawns.get_node_or_null("Spawn3")
+			if sp_center:
+				spawn_pos = sp_center.global_position
+			elif t1_spawns.get_child_count() > 0:
+				spawn_pos = t1_spawns.get_child(0).global_position
+			else:
+				spawn_pos = Vector3(-24.0, 0.1, 0.0)
+		else:
+			spawn_pos = Vector3(-24.0, 0.1, 0.0)
 
 	if is_multiplayer_match() and multiplayer.is_server():
 		sync_respawn.rpc(spawn_pos)
@@ -602,6 +622,8 @@ func respawn() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_respawn(spawn_pos: Vector3) -> void:
+	if not _is_sender_host():
+		return
 	is_dead = false
 	current_health = max_health
 	current_shield = 0.0
@@ -746,6 +768,8 @@ func load_character_data(data: CharacterData) -> void:
 	air_acceleration = data.air_acceleration
 	air_drag = data.air_drag
 	jump_velocity = data.jump_velocity
+	if "jump_horizontal_impulse" in data:
+		jump_horizontal_impulse = data.jump_horizontal_impulse
 	abilities = data.abilities
 	ability_slots = data.ability_slots
 	apply_all_items()
@@ -870,6 +894,8 @@ func request_sell_item(item_id: String) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_inventory(items_arr: Array, gold_val: int) -> void:
+	if not _is_sender_host():
+		return
 	item_slots.clear()
 	for it in items_arr:
 		item_slots.append(str(it))

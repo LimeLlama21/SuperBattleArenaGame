@@ -15,13 +15,14 @@ var crit_chance: float = 0.0
 var crit_multiplier: float = AbilityPipeline.CRIT_DAMAGE_MULTIPLIER
 
 # Movement Mechanics
-var max_move_speed: float = 10.0
+var max_move_speed: float = 6.0
 var ground_acceleration: float = 65.0
 var ground_friction: float = 40.0
 var intentional_movement_friction: float = 110.0
 var air_acceleration: float = 8.0
-var air_drag: float = 3.5
+var air_drag: float = 16.0
 var jump_velocity: float = 9.5
+var jump_horizontal_impulse: float = 2.0
 
 # Assigned Abilities Pipeline IDs
 var ability_slots: Dictionary = {

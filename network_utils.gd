@@ -48,7 +48,7 @@ static func parse_host_address(raw_address: String, default_port: int = DEFAULT_
 
 static func is_direct_ip_or_localhost(input: String) -> bool:
 	var text = input.strip_edges().to_lower()
-	if text == "localhost" or text == "127.0.0.1":
+	if text == "" or text == "localhost" or text == "127.0.0.1" or text == "local":
 		return true
 	if text.count(".") == 3:
 		var parts = text.split(".")
@@ -63,6 +63,6 @@ static func is_direct_ip_or_localhost(input: String) -> bool:
 
 static func clean_host_ip(input: String) -> String:
 	var text = input.strip_edges()
-	if text.is_empty() or text.to_lower() == "localhost" or text == "127.0.0.1":
+	if text.is_empty() or text.to_lower() in ["localhost", "127.0.0.1", "local"]:
 		return "127.0.0.1"
 	return text

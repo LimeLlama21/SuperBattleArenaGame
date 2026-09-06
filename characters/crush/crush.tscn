@@ -95,7 +95,7 @@ character_name = "Crush"
 display_name = "Heracles"
 max_health = 320.0
 current_health = 320.0
-max_move_speed = 8.5
+max_move_speed = 5.1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=968471939]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)

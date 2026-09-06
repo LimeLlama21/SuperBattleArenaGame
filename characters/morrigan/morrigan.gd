@@ -30,6 +30,7 @@ const LMB_FIRST_CHARGE: float = 0.35
 const LMB_SUBSEQUENT_CHARGE: float = 0.18
 const LMB_MAX_FEATHERS: int = 5
 const LMB_FEATHER_DAMAGE: float = 9.0
+const LMB_MAX_CHARGE_TIME: float = LMB_FIRST_CHARGE + float(LMB_MAX_FEATHERS - 2) * LMB_SUBSEQUENT_CHARGE
 var lmb_burst_queue: int = 0
 var lmb_burst_timer: float = 0.0
 var lmb_burst_dir: Vector3 = Vector3.FORWARD
@@ -128,7 +129,7 @@ func _setup_local_indicators() -> void:
 		
 	var lmb_def = abilities.get("LMB")
 	if lmb_def and lmb_def.hitbox:
-		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, AbilityIndicator.EMPTY_FILL, AbilityIndicator.WHITE_OUTLINE)
+		ind_attack = AbilityIndicator.create_emanating_indicator(lmb_def.hitbox, Color(0.3, 0.05, 0.45, 0.2), Color(0.85, 0.25, 1.0, 0.92))
 		add_child(ind_attack)
 		ind_attack.hide()
 	
@@ -184,13 +185,25 @@ func _process_character_kit(delta: float) -> void:
 		elif passive_crows_count > 0:
 			_check_passive_crow_seek()
 			
+	# Cancel LMB charge or burst queue on incapacitation
+	if is_dead or is_stunned():
+		if lmb_charging:
+			lmb_charging = false
+			lmb_charge_timer = 0.0
+			if ind_attack: ind_attack.hide()
+		lmb_burst_queue = 0
+
 	# LMB Burst firing queue
 	if lmb_burst_queue > 0:
 		lmb_burst_timer -= delta
 		if lmb_burst_timer <= 0.0:
 			lmb_burst_timer = 0.06
 			lmb_burst_queue -= 1
-			_fire_single_feather(lmb_burst_dir)
+			var facing_dir = -global_transform.basis.z.normalized()
+			facing_dir.y = 0.0
+			var spawn_pos = global_position + Vector3(0, 1.0, 0) + facing_dir * 0.8
+			var current_aim = get_ranged_aim_direction(spawn_pos)
+			_fire_single_feather(current_aim)
 
 	# Mortar recharge charges
 	if current_mortar_charges < max_mortar_charges:
@@ -249,6 +262,11 @@ func has_custom_movement_control() -> bool:
 func get_status_text() -> String:
 	if is_crowstorm_active:
 		return "✦ CROWSTORM (17.5 m/s / 50%% DR) (%.1fs) ✦" % crowstorm_timer
+	if lmb_charging:
+		var count = _calculate_lmb_feather_count()
+		if count >= LMB_MAX_FEATHERS:
+			return "✦ CHARGING PLUMAGE (5 / 5 FEATHERS) [MAX] ✦"
+		return "✦ CHARGING PLUMAGE (%d / %d FEATHERS) ✦" % [count, LMB_MAX_FEATHERS]
 	return ""
 
 func _handle_character_input(delta: float) -> void:
@@ -292,29 +310,26 @@ func _handle_character_input(delta: float) -> void:
 				_execute_crowstorm_dash()
 
 	# --- Primary Fire (LMB): Black Plumage (Chargeable) ---
-	if is_cast_on_press("shoot"):
-		if Input.is_action_just_pressed("shoot") and attack_timer <= 0.0:
-			lmb_charging = true
-			lmb_charge_timer = 0.0
-		elif Input.is_action_pressed("shoot") and lmb_charging:
-			lmb_charge_timer += delta
-		if Input.is_action_just_released("shoot") and lmb_charging:
-			lmb_charging = false
-			if ind_attack: ind_attack.hide()
-			_release_black_plumage()
-	else:
-		if Input.is_action_just_pressed("shoot") and attack_timer <= 0.0:
-			lmb_charging = true
-			lmb_charge_timer = 0.0
+	if Input.is_action_pressed("shoot"):
+		if not lmb_charging:
+			if attack_timer <= 0.0 and lmb_burst_queue <= 0 and can_cast_ability_slot("LMB"):
+				lmb_charging = true
+				lmb_charge_timer = 0.0
+				if ind_attack:
+					AbilityIndicator.reset_indicator(ind_attack)
+					ind_attack.show()
+		else:
+			lmb_charge_timer = min(LMB_MAX_CHARGE_TIME, lmb_charge_timer + delta)
 			if ind_attack:
-				AbilityIndicator.reset_indicator(ind_attack)
-				ind_attack.show()
-		elif Input.is_action_pressed("shoot") and lmb_charging:
-			lmb_charge_timer += delta
-		if Input.is_action_just_released("shoot") and lmb_charging:
-			lmb_charging = false
-			if ind_attack: ind_attack.hide()
-			_release_black_plumage()
+				var facing_dir = -global_transform.basis.z.normalized()
+				facing_dir.y = 0.0
+				var aim_angle = atan2(facing_dir.x, -facing_dir.z)
+				AbilityIndicator.update_emanating_angle(ind_attack, aim_angle)
+
+	if Input.is_action_just_released("shoot") and lmb_charging:
+		_release_black_plumage()
+	elif not Input.is_action_pressed("shoot") and lmb_charging:
+		_release_black_plumage()
 
 	# --- Ability 1 (RMB): Omen of Death (Mortar Charge) ---
 	if is_cast_on_press("ability_one"):
@@ -458,9 +473,14 @@ func _calculate_lmb_feather_count() -> int:
 		return 1
 	var extra_time = lmb_charge_timer - LMB_FIRST_CHARGE
 	var extra_feathers = int(extra_time / LMB_SUBSEQUENT_CHARGE)
-	return clamp(1 + extra_feathers, 1, LMB_MAX_FEATHERS)
+	return clamp(2 + extra_feathers, 1, LMB_MAX_FEATHERS)
 
 func _release_black_plumage() -> void:
+	if not can_cast_ability_slot("LMB") and attack_timer > 0.0:
+		lmb_charging = false
+		lmb_charge_timer = 0.0
+		if ind_attack: ind_attack.hide()
+		return
 	var def = abilities.get("LMB")
 	attack_timer = def.cooldown if def else 0.25
 	var facing_dir = -global_transform.basis.z.normalized()
@@ -471,16 +491,36 @@ func _release_black_plumage() -> void:
 	var feather_count = _calculate_lmb_feather_count()
 	
 	attack_performed.emit("Black Plumage (%d)" % feather_count)
-	lmb_burst_queue = feather_count
-	lmb_burst_dir = shoot_dir
-	lmb_burst_timer = 0.0
-
-func _fire_single_feather(dir: Vector3) -> void:
-	var spawn_pos = global_position + Vector3(0, 1.0, 0) + dir * 0.8
-	if multiplayer.is_server():
-		_spawn_feather(spawn_pos, dir, name.to_int())
+	
+	# Fire first feather immediately for instant responsiveness
+	_fire_single_feather(shoot_dir)
+	
+	# Queue remaining burst feathers
+	if feather_count > 1:
+		lmb_burst_queue = feather_count - 1
+		lmb_burst_dir = shoot_dir
+		lmb_burst_timer = 0.06
 	else:
-		request_feather_fire.rpc_id(1, spawn_pos, dir)
+		lmb_burst_queue = 0
+		
+	lmb_charging = false
+	lmb_charge_timer = 0.0
+	if ind_attack:
+		ind_attack.hide()
+
+func _fire_single_feather(dir: Vector3 = Vector3.ZERO) -> void:
+	var facing_dir = -global_transform.basis.z.normalized()
+	facing_dir.y = 0.0
+	facing_dir = facing_dir.normalized()
+	var spawn_pos = global_position + Vector3(0, 1.0, 0) + facing_dir * 0.8
+	var shoot_dir = dir
+	if shoot_dir == Vector3.ZERO or shoot_dir.length_squared() < 0.001:
+		shoot_dir = get_ranged_aim_direction(spawn_pos)
+	
+	if not is_multiplayer_match() or multiplayer.is_server():
+		_spawn_feather(spawn_pos, shoot_dir, name.to_int())
+	else:
+		request_feather_fire.rpc_id(1, spawn_pos, shoot_dir)
 
 func _spawn_feather(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int) -> void:
 	var main_node = get_tree().root.get_node_or_null("Main")
@@ -493,12 +533,12 @@ func _spawn_feather(spawn_pos: Vector3, shoot_dir: Vector3, sender_id: int) -> v
 			70.0,
 			0.4,
 			35.0 / 70.0,
-			"",
+			"morrigan_feather",
 			0.0,
 			0.0,
 			false,
 			false,
-			0,
+			team_id,
 			ActionType.ATTACK,
 			35.0
 		)
@@ -912,6 +952,17 @@ func _update_character_hud() -> void:
 	var def_e = abilities.get("E")
 	var def_r = abilities.get("R")
 	var def_shift = abilities.get("SHIFT")
+
+	if slot_lmb:
+		if lmb_charging:
+			var count = _calculate_lmb_feather_count()
+			slot_lmb.set_firing_state(true)
+			slot_lmb.update_cooldown(0.0, 0.25, count, LMB_MAX_FEATHERS, false, "%d/5" % count)
+		else:
+			var def_lmb = abilities.get("LMB")
+			var cd = def_lmb.cooldown if def_lmb else 0.25
+			slot_lmb.set_firing_state(lmb_burst_queue > 0)
+			slot_lmb.update_cooldown(attack_timer, cd, 1, 1, false)
 
 	if slot_ability_one and def_rmb:
 		var cd = (MORTAR_RECHARGE_TIME - mortar_recharge_timer) if current_mortar_charges < max_mortar_charges else rmb_timer

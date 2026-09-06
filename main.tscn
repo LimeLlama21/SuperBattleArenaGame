@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
 [ext_resource type="Script" path="res://settings_ui.gd" id="3_settings_script"]
 [ext_resource type="Shader" path="res://fog_of_war.gdshader" id="4_fow_shader"]
+[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/Tree1.glb" id="5_tree"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fow"]
 shader = ExtResource("4_fow_shader")
@@ -30,58 +31,6 @@ albedo_color = Color(0.18, 0.21, 0.25, 1)
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
 material = SubResource("StandardMaterial3D_floor")
 size = Vector3(70, 1, 70)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_center_cone"]
-albedo_color = Color(0.32, 0.38, 0.46, 1)
-metallic = 0.25
-roughness = 0.35
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_center_cone"]
-material = SubResource("StandardMaterial3D_center_cone")
-top_radius = 0.0
-bottom_radius = 6.0
-height = 7.0
-radial_segments = 32
-
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_center_cone"]
-height = 7.0
-radius = 5.5
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_obstacle"]
-albedo_color = Color(0.72, 0.5, 0.28, 1)
-roughness = 0.5
-
-[sub_resource type="BoxMesh" id="BoxMesh_quad_pillar"]
-material = SubResource("StandardMaterial3D_obstacle")
-size = Vector3(3.5, 3.0, 3.5)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_quad_pillar"]
-size = Vector3(3.5, 3.0, 3.5)
-
-[sub_resource type="BoxMesh" id="BoxMesh_high_pillar"]
-material = SubResource("StandardMaterial3D_obstacle")
-size = Vector3(3.5, 6.0, 3.5)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_high_pillar"]
-size = Vector3(3.5, 6.0, 3.5)
-
-[sub_resource type="BoxMesh" id="BoxMesh_side_cover"]
-material = SubResource("StandardMaterial3D_obstacle")
-size = Vector3(3.5, 3.0, 3.0)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_side_cover"]
-size = Vector3(3.5, 3.0, 3.0)
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_small_cone"]
-material = SubResource("StandardMaterial3D_center_cone")
-top_radius = 2.0
-bottom_radius = 2.2
-height = 3.0
-radial_segments = 24
-
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_small_cone"]
-height = 3.0
-radius = 2.0
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_training_floor"]
 height = 1.0
@@ -123,104 +72,32 @@ shape = SubResource("BoxShape3D_floor")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Floor"]
 mesh = SubResource("BoxMesh_floor")
 
-[node name="CenterCone" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
-collision_layer = 1
-collision_mask = 0
+[node name="Tree_Center" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/CenterCone"]
-mesh = SubResource("CylinderMesh_center_cone")
+[node name="Tree_NW" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -12)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/CenterCone"]
-shape = SubResource("CylinderShape3D_center_cone")
+[node name="Tree_NE" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -12)
 
-[node name="Obstacle_NW" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 1.5, -12)
-collision_layer = 1
-collision_mask = 0
+[node name="Tree_SW" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 12)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_NW"]
-mesh = SubResource("BoxMesh_quad_pillar")
+[node name="Tree_SE" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 12)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_NW"]
-shape = SubResource("BoxShape3D_quad_pillar")
+[node name="Tree_North" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -18)
 
-[node name="Obstacle_NE" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 3, -12)
-collision_layer = 1
-collision_mask = 0
+[node name="Tree_South" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 18)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_NE"]
-mesh = SubResource("BoxMesh_high_pillar")
+[node name="Tree_LeftMid" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_NE"]
-shape = SubResource("BoxShape3D_high_pillar")
-
-[node name="Obstacle_SW" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 3, 12)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_SW"]
-mesh = SubResource("BoxMesh_high_pillar")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_SW"]
-shape = SubResource("BoxShape3D_high_pillar")
-
-[node name="Obstacle_SE" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.5, 12)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_SE"]
-mesh = SubResource("BoxMesh_quad_pillar")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_SE"]
-shape = SubResource("BoxShape3D_quad_pillar")
-
-[node name="Obstacle_North" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -18)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_North"]
-mesh = SubResource("CylinderMesh_small_cone")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_North"]
-shape = SubResource("CylinderShape3D_small_cone")
-
-[node name="Obstacle_South" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 18)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_South"]
-mesh = SubResource("CylinderMesh_small_cone")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_South"]
-shape = SubResource("CylinderShape3D_small_cone")
-
-[node name="Obstacle_LeftMid" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 1.5, 0)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_LeftMid"]
-mesh = SubResource("BoxMesh_side_cover")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_LeftMid"]
-shape = SubResource("BoxShape3D_side_cover")
-
-[node name="Obstacle_RightMid" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 1.5, 0)
-collision_layer = 1
-collision_mask = 0
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Obstacle_RightMid"]
-mesh = SubResource("BoxMesh_side_cover")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Obstacle_RightMid"]
-shape = SubResource("BoxShape3D_side_cover")
+[node name="Tree_RightMid" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 0)
 
 [node name="TrainingMap" type="Node3D" parent="Arena"]
 visible = false
@@ -381,9 +258,9 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -170.0
+offset_left = -195.0
 offset_top = -100.0
-offset_right = 170.0
+offset_right = 195.0
 offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -408,7 +285,7 @@ horizontal_alignment = 1
 [node name="HostIPInput" type="LineEdit" parent="UI/JoinDialog/VBox"]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-placeholder_text = "e.g. ABC123 or localhost"
+placeholder_text = "Room Code or click Localhost"
 alignment = 1
 
 [node name="JoinStatusLabel" type="Label" parent="UI/JoinDialog/VBox"]
@@ -428,6 +305,12 @@ custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Cancel"
+
+[node name="JoinLocalButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Localhost"
 
 [node name="ConfirmJoinButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
 custom_minimum_size = Vector2(0, 34)
@@ -481,6 +364,20 @@ theme_override_font_sizes/font_size = 13
 text = "Game Mode:"
 
 [node name="GameModeOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxGameMode"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
+
+[node name="HBoxMap" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="MapLabel" type="Label" parent="UI/LobbyRoom/VBox/HBoxMap"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Map:"
+
+[node name="MapOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxMap"]
 custom_minimum_size = Vector2(250, 34)
 layout_mode = 2
 
@@ -762,6 +659,37 @@ theme_override_font_sizes/font_size = 11
 text = "Swaps your character immediately at your current position with full health."
 autowrap_mode = 2
 horizontal_alignment = 1
+
+[node name="Switch Map" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SwitchMapHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Select Map to Load Instantly:"
+horizontal_alignment = 1
+
+[node name="SwitchMapStandard" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "🎯 Standard Training Map"
+
+[node name="SwitchMapColosseum" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "⚔ Colosseum"
+
+[node name="SwitchMapChasm" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "⚔ The Jagged Chasm"
+
+[node name="SwitchMapIslands" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "⚔ Shattered Archipelago"
 
 [node name="SettingsMenu" type="PanelContainer" parent="UI"]
 visible = false
