@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dmy_aerial_crash_01"]
+
+[ext_resource type="Script" path="res://ability/effects/aerial_crash_effect.gd" id="1_script"]
+
+[node name="AerialCrashEffect" type="Node"]
+script = ExtResource("1_script")
+effect_name = "AerialCrash"
+crash_radius = 4.0

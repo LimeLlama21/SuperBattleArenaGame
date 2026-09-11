@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://dmy_charge_slam_01"]
+
+[ext_resource type="Script" path="res://ability/effects/charge_slam_effect.gd" id="1_script"]
+
+[node name="ChargeSlamEffect" type="Node"]
+script = ExtResource("1_script")
+effect_name = "ChargeSlam"
+charge_speed = 28.0
+charge_duration = 1.0

@@ -14,6 +14,8 @@ extends CanvasLayer
 @onready var shield_bar: ProgressBar = $HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack/ShieldBar
 @onready var gray_health_bar: ProgressBar = $HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack/GrayHealthBar
 @onready var health_label: Label = $HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack/HealthLabel
+@onready var mana_bar: ProgressBar = get_node_or_null("HUDContainer/MainBar/HealthContainer/Margin/VBox/ManaBarStack/ManaBar")
+@onready var mana_label: Label = get_node_or_null("HUDContainer/MainBar/HealthContainer/Margin/VBox/ManaBarStack/ManaLabel")
 
 @onready var slot_lmb: AbilitySlot = $HUDContainer/MainBar/AbilityBar/SlotLMB
 @onready var slot_rmb: AbilitySlot = $HUDContainer/MainBar/AbilityBar/SlotRMB
@@ -84,6 +86,17 @@ func update_health(current: float, max_val: float, shield: float = 0.0, gray_hea
 			health_label.text = "%d / %d HP (+%d)" % [int(ceil(current)), int(ceil(max_val)), int(ceil(shield))]
 		else:
 			health_label.text = "%d / %d HP" % [int(ceil(current)), int(ceil(max_val))]
+
+func update_mana(current: float, max_val: float) -> void:
+	if not mana_bar:
+		mana_bar = get_node_or_null("HUDContainer/MainBar/HealthContainer/Margin/VBox/ManaBarStack/ManaBar")
+	if not mana_label:
+		mana_label = get_node_or_null("HUDContainer/MainBar/HealthContainer/Margin/VBox/ManaBarStack/ManaLabel")
+	if mana_bar:
+		mana_bar.max_value = max_val
+		mana_bar.value = current
+	if mana_label:
+		mana_label.text = "%d / %d MP" % [int(ceil(current)), int(ceil(max_val))]
 
 func set_firing_indicator(is_firing: bool) -> void:
 	if firing_box:

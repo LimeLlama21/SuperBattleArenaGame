@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://dmy_dash_effect_01"]
+
+[ext_resource type="Script" path="res://ability/effects/dash_effect.gd" id="1_script"]
+
+[node name="DashEffect" type="Node"]
+script = ExtResource("1_script")
+effect_name = "Dash"
+impulse = 24.0
+cast_lockout = false
+move_lockout = false
+bypass_lockout = true

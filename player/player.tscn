@@ -90,3 +90,5 @@ double_sided = false
 no_depth_test = true
 
 [node name="PlayerHUD" parent="." instance=ExtResource("2_player_hud")]
+
+[node name="Abilities" type="Node" parent="."]

@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://dmy_buff_effect_01"]
+
+[ext_resource type="Script" path="res://ability/effects/buff_effect.gd" id="1_script"]
+
+[node name="BuffEffect" type="Node"]
+script = ExtResource("1_script")
+effect_name = "Buff"

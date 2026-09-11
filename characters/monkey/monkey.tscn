@@ -1,0 +1,201 @@
+[gd_scene format=3 uid="uid://c_monkey_king_scene_01"]
+
+[ext_resource type="Script" path="res://characters/monkey/monkey.gd" id="1_monkey"]
+[ext_resource type="Script" path="res://ability/ability_slot.gd" id="2_ability_slot"]
+[ext_resource type="PackedScene" path="res://player/player_hud.tscn" id="3_player_hud"]
+[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
+[ext_resource type="PackedScene" path="res://ability/effects/charge_slam_effect.tscn" id="ext_eff_charge"]
+[ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" path="res://ability/effects/transformation_effect.tscn" id="ext_eff_transf"]
+[ext_resource type="PackedScene" path="res://ability/effects/area_zone_effect.tscn" id="ext_eff_area"]
+[ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.38
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_monkey"]
+albedo_color = Color(0.88, 0.45, 0.12, 1)
+metallic = 0.45
+roughness = 0.35
+emission_enabled = true
+emission = Color(0.9, 0.55, 0.1, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+material = SubResource("StandardMaterial3D_monkey")
+radius = 0.38
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gold"]
+albedo_color = Color(1.0, 0.85, 0.2, 1)
+metallic = 0.8
+roughness = 0.2
+emission_enabled = true
+emission = Color(1.0, 0.8, 0.15, 1)
+emission_energy_multiplier = 2.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_staff"]
+material = SubResource("StandardMaterial3D_gold")
+top_radius = 0.06
+bottom_radius = 0.06
+height = 2.2
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
+bg_color = Color(0.95, 0.65, 0.15, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="Monkey" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_monkey")
+character_name = "Monkey"
+display_name = "The Great Sage"
+max_health = 160.0
+current_health = 160.0
+max_move_speed = 6.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_1")
+
+[node name="FacingIndicator" type="MeshInstance3D" parent="."]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0.45, 1.1, -0.2)
+mesh = SubResource("CylinderMesh_staff")
+
+[node name="TransformedPropContainer" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
+current = false
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_1")
+
+[node name="HealthBarViewport" type="SubViewport" parent="."]
+disable_3d = true
+transparent_bg = true
+size = Vector2i(220, 28)
+render_target_update_mode = 4
+
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+custom_minimum_size = Vector2(220, 28)
+offset_right = 220.0
+offset_bottom = 28.0
+theme_override_styles/background = SubResource("StyleBoxFlat_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
+value = 100.0
+max_value = 100.0
+show_percentage = false
+
+[node name="HealthBarSprite" type="Sprite3D" parent="."]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, 2.5, 0)
+billboard = 1
+double_sided = false
+no_depth_test = true
+
+[node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]
+
+[node name="Abilities" type="Node" parent="."]
+
+[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "LMB"
+ability_id = "monkey_pillar"
+ability_name = "Heavenly Pillar"
+icon_symbol = "🥢"
+description = "Fast forward staff bonk dealing 36.0 damage with a golden flash."
+cooldown = 0.45
+windup_time = 0.12
+hitbox_type = 5
+hitbox_length = 5.5
+hitbox_width = 1.2
+hitbox_height = 2.0
+damage_amount = 36.0
+mana_cost = 0.0
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "RMB"
+ability_id = "monkey_enlarge"
+ability_name = "Enlarge"
+icon_symbol = "🌟"
+description = "Charges up to release dash, damage, and stun with a center sweet spot."
+cooldown = 7.5
+cast_on_press = false
+hold_to_charge = true
+charge_time = 1.5
+max_charge_time = 1.5
+charge_move_speed_multiplier = 0.65
+hitbox_type = 3
+hitbox_length = 6.5
+hitbox_width = 3.2
+hitbox_height = 2.4
+damage_amount = 45.0
+mana_cost = 10.0
+
+[node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
+slot_key = "SHIFT"
+ability_id = "monkey_somersault"
+ability_name = "Cloud Somersault"
+icon_symbol = "☁️"
+description = "Performs an agile somersault dash forward."
+cooldown = 5.0
+impulse = 26.0
+mana_cost = 0.0
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_transf")]
+slot_key = "Q"
+ability_id = "monkey_72_forms"
+ability_name = "72 Forms"
+icon_symbol = "🎭"
+description = "Transforms into an object. Broken by taking damage, attacking, or recasting."
+cooldown = 22.0
+default_prop_type = "tree"
+can_move = true
+can_dash = true
+break_on_attack = true
+break_on_damage = true
+mana_cost = 10.0
+
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_area")]
+slot_key = "E"
+ability_id = "monkey_sages_mockery"
+ability_name = "Sage's Mockery"
+icon_symbol = "🐒"
+description = "Taunts nearby enemies in a circle, forcing them towards you with reduced damage."
+cooldown = 12.0
+hitbox_type = 6
+hitbox_radius = 6.5
+mana_cost = 10.0
+
+[node name="R" parent="Abilities" instance=ExtResource("ext_eff_buff")]
+slot_key = "R"
+ability_id = "monkey_ultimate"
+ability_name = "Shadow Rush Flurry"
+icon_symbol = "🌪️"
+description = "Stealths and dashes forward. Recast to rush and strike along path in a golden flurry."
+cooldown = 28.0
+buff_name = "MonkeyInvis"
+buff_duration = 3.0
+mana_cost = 30.0

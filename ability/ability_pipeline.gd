@@ -54,17 +54,19 @@ enum RiderType {
 	VISION_REVEAL,
 	TETHER,
 	ROOT,
+	SILENCE,
 	GROUND,
 	CRIPPLE,
 	ETHEREAL,
-	MS_STEAL
+	MS_STEAL,
+	BOUND
 }
 
 # --- Critical Hit Constants ---
 const CRIT_DAMAGE_MULTIPLIER: float = 2.0 # Standard critical strike deals double damage (200%)
 
 # --- Pipeline Component Classes ---
-class AbilityEffect extends RefCounted:
+class PipelineEffect extends RefCounted:
 	var effect_type: EffectType = EffectType.PROJECTILE
 	var speed: float = 0.0
 	var max_range: float = 0.0
@@ -78,7 +80,7 @@ class AbilityEffect extends RefCounted:
 	var can_crit: bool = true
 	var custom_params: Dictionary = {}
 
-class AbilityHitbox extends RefCounted:
+class PipelineHitbox extends RefCounted:
 	var shape: HitboxShape = HitboxShape.NONE
 	var radius: float = 0.0
 	var length: float = 0.0
@@ -86,11 +88,11 @@ class AbilityHitbox extends RefCounted:
 	var height: float = 2.0
 	var angle_deg: float = 0.0
 
-class AbilityTrigger extends RefCounted:
+class PipelineTrigger extends RefCounted:
 	var trigger_type: TriggerType = TriggerType.ON_HIT_ENEMY
 	var rider_ids: Array = [] # Names or indices of riders to execute
 
-class AbilityRider extends RefCounted:
+class PipelineRider extends RefCounted:
 	var rider_type: RiderType = RiderType.DAMAGE
 	var amount: float = 0.0
 	var duration: float = 0.0
@@ -123,8 +125,8 @@ class AbilityDefinition extends RefCounted:
 	# Pipeline Stages
 	var icon: Variant = null
 	var description: String = ""
-	var effect: AbilityEffect = null
-	var hitbox: AbilityHitbox = null # Skippable / optional
+	var effect: PipelineEffect = null
+	var hitbox: PipelineHitbox = null # Skippable / optional
 	var triggers: Array = []
 	var riders: Array = []
 
@@ -137,9 +139,7 @@ class AbilityDefinition extends RefCounted:
 		if effect:
 			if effect.windup_time > 0.0:
 				return effect.windup_time
-			if effect.duration > 0.0 and effect.effect_type in [EffectType.CHARGE_SLAM, EffectType.CHANNEL]:
-				return effect.duration
-		return 0.25
+		return 0.0
 
 # --- Declarative Helper / Factory Functions ---
 
@@ -147,30 +147,23 @@ static func create_ability(cfg: Dictionary) -> AbilityDefinition:
 	var def = AbilityDefinition.new()
 	def.id = cfg.get("id", "")
 	def.name = cfg.get("name", def.id)
-	def.icon = cfg.get("icon", null)
+	def.slot_key = cfg.get("slot_key", cfg.get("slot", "LMB"))
 	def.description = cfg.get("description", "")
-	def.slot_key = cfg.get("slot_key", cfg.get("slot", ""))
+	def.icon = cfg.get("icon", null)
 	def.cooldown = cfg.get("cooldown", 0.0)
 	def.charges = cfg.get("charges", 1)
 	def.recharge_time = cfg.get("recharge_time", 0.0)
+	def.is_lockout = cfg.get("is_lockout", false)
+	def.lockout_duration = cfg.get("lockout_duration", cfg.get("lockout", 0.0))
 	def.can_cast_while_stunned = cfg.get("can_cast_while_stunned", false)
 	def.can_cast_while_silenced = cfg.get("can_cast_while_silenced", false)
-
-	# Lockout properties & tags
-	def.tags = cfg.get("tags", [])
-	def.is_lockout = cfg.get("is_lockout", false) or ("lockout" in def.tags)
-	var is_dash = def.slot_key == "SHIFT" or ("dash" in def.tags) or def.id.to_lower().contains("dash")
-	def.can_cast_during_lockout = cfg.get("can_cast_during_lockout", is_dash or ("can_cast_during_lockout" in def.tags))
-	def.lockout_duration = cfg.get("lockout_duration", cfg.get("lockout_time", 0.0))
-
-	# Critical strike properties
 	def.can_crit = cfg.get("can_crit", true)
 	def.crit_multiplier = cfg.get("crit_multiplier", CRIT_DAMAGE_MULTIPLIER)
 	def.crit_chance = cfg.get("crit_chance", 0.0)
 
 	if cfg.has("effect") and cfg["effect"] is Dictionary:
 		def.effect = create_effect(cfg["effect"])
-	elif cfg.has("effect") and cfg["effect"] is AbilityEffect:
+	elif cfg.has("effect") and cfg["effect"] is PipelineEffect:
 		def.effect = cfg["effect"]
 
 	if def.lockout_duration <= 0.0 and def.effect and def.effect.windup_time > 0.0:
@@ -180,30 +173,30 @@ static func create_ability(cfg: Dictionary) -> AbilityDefinition:
 
 	if cfg.has("hitbox") and cfg["hitbox"] is Dictionary:
 		def.hitbox = create_hitbox(cfg["hitbox"])
-	elif cfg.has("hitbox") and cfg["hitbox"] is AbilityHitbox:
+	elif cfg.has("hitbox") and cfg["hitbox"] is PipelineHitbox:
 		def.hitbox = cfg["hitbox"]
 
 	if cfg.has("riders") and cfg["riders"] is Array:
 		for r in cfg["riders"]:
 			if r is Dictionary:
 				def.riders.append(create_rider(r))
-			elif r is AbilityRider:
+			elif r is PipelineRider:
 				def.riders.append(r)
 
 	if cfg.has("triggers") and cfg["triggers"] is Array:
 		for t in cfg["triggers"]:
 			if t is Dictionary:
-				var trig = AbilityTrigger.new()
+				var trig = PipelineTrigger.new()
 				trig.trigger_type = parse_trigger_type(t.get("type", TriggerType.ON_HIT_ENEMY))
 				trig.rider_ids = t.get("riders", [])
 				def.triggers.append(trig)
-			elif t is AbilityTrigger:
+			elif t is PipelineTrigger:
 				def.triggers.append(t)
 
 	return def
 
-static func create_effect(cfg: Dictionary) -> AbilityEffect:
-	var eff = AbilityEffect.new()
+static func create_effect(cfg: Dictionary) -> PipelineEffect:
+	var eff = PipelineEffect.new()
 	eff.effect_type = parse_effect_type(cfg.get("type", cfg.get("effect_type", EffectType.PROJECTILE)))
 	eff.speed = cfg.get("speed", 0.0)
 	eff.max_range = cfg.get("max_range", cfg.get("range", 0.0))
@@ -218,8 +211,8 @@ static func create_effect(cfg: Dictionary) -> AbilityEffect:
 	eff.custom_params = cfg.get("custom_params", {})
 	return eff
 
-static func create_hitbox(cfg: Dictionary) -> AbilityHitbox:
-	var hb = AbilityHitbox.new()
+static func create_hitbox(cfg: Dictionary) -> PipelineHitbox:
+	var hb = PipelineHitbox.new()
 	hb.shape = parse_hitbox_shape(cfg.get("shape", HitboxShape.NONE))
 	hb.radius = cfg.get("radius", 0.0)
 	hb.length = cfg.get("length", 0.0)
@@ -228,8 +221,8 @@ static func create_hitbox(cfg: Dictionary) -> AbilityHitbox:
 	hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", 0.0))
 	return hb
 
-static func create_rider(cfg: Dictionary) -> AbilityRider:
-	var r = AbilityRider.new()
+static func create_rider(cfg: Dictionary) -> PipelineRider:
+	var r = PipelineRider.new()
 	r.rider_type = parse_rider_type(cfg.get("type", cfg.get("rider_type", RiderType.DAMAGE)))
 	r.amount = cfg.get("amount", cfg.get("damage", cfg.get("value", 0.0)))
 	r.duration = cfg.get("duration", 0.0)
@@ -317,10 +310,12 @@ static func parse_rider_type(val: Variant) -> RiderType:
 			"VISION_REVEAL", "REVEAL": return RiderType.VISION_REVEAL
 			"TETHER": return RiderType.TETHER
 			"ROOT": return RiderType.ROOT
+			"SILENCE": return RiderType.SILENCE
 			"GROUND": return RiderType.GROUND
 			"CRIPPLE": return RiderType.CRIPPLE
 			"ETHEREAL": return RiderType.ETHEREAL
 			"MS_STEAL": return RiderType.MS_STEAL
+			"BOUND": return RiderType.BOUND
 	return RiderType.DAMAGE
 
 static func parse_trigger_type(val: Variant) -> TriggerType:

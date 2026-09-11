@@ -13,7 +13,8 @@ var dash_timer: float = 0.0
 var shoot_timer: float = 0.0
 
 func _setup_character_kit() -> void:
-	character_name = "Player"
+	if character_name.is_empty() or character_name == "Character":
+		character_name = "Player"
 
 func _process_character_kit(delta: float) -> void:
 	if dash_timer > 0.0:
@@ -22,6 +23,9 @@ func _process_character_kit(delta: float) -> void:
 		shoot_timer -= delta
 
 func _handle_character_input(_delta: float) -> void:
+	# If abilities are registered into slots, let the AbilityPipeline handle inputs
+	if abilities.has("LMB") or abilities.has("SHIFT"):
+		return
 	# Dash Impulse Injection (Momentum-based, reduced by slows)
 	if Input.is_action_just_pressed("dash") and dash_timer <= 0.0 and not is_rooted() and not is_grounded():
 		dash_timer = dash_cooldown

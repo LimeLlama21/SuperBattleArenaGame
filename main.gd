@@ -2,39 +2,46 @@ extends Node3D
 
 const PORT: int = 7000
 
+const CharacterRegistry = preload("res://characters/character_registry.gd")
+const CharacterData = preload("res://characters/character_data.gd")
+
 const CHARACTERS: Dictionary = {
 	"poke": preload("res://characters/poke/poke.tscn"),
 	"crush": preload("res://characters/crush/crush.tscn"),
-	"dive": preload("res://characters/dive/dive.tscn"),
+	"dive": preload("res://characters/asparsas/asparsas.tscn"),
+	"asparsas": preload("res://characters/asparsas/asparsas.tscn"),
 	"reaper": preload("res://characters/reaper/reaper.tscn"),
 	"morrigan": preload("res://characters/morrigan/morrigan.tscn"),
-	"murder": preload("res://characters/morrigan/morrigan.tscn")
+	"murder": preload("res://characters/morrigan/morrigan.tscn"),
+	"monkey_king": preload("res://characters/monkey/monkey.tscn"),
+	"monkey": preload("res://characters/monkey/monkey.tscn"),
+	"drakaina": preload("res://characters/drakaina/drakaina.tscn")
 }
 
 const CHARACTER_DISPLAY_NAMES: Dictionary = {
 	"poke": "Arash",
 	"crush": "Heracles",
-	"dive": "Daughter of Gaia",
+	"dive": "Urvashi",
+	"asparsas": "Urvashi",
 	"reaper": "Keres",
 	"morrigan": "Morrigan",
 	"murder": "Morrigan",
+	"monkey_king": "The Great Sage",
+	"monkey": "The Great Sage",
+	"drakaina": "Kampé",
 	"dummy": "Training Dummy"
 }
 
 static func get_character_display_name(char_key: String) -> String:
-	return CHARACTER_DISPLAY_NAMES.get(char_key.to_lower(), char_key.capitalize())
+	return CharacterRegistry.get_display_name(char_key)
 
 @export var projectile_scene: PackedScene = preload("res://projectile.tscn")
-@export var mortar_shell_scene: PackedScene = preload("res://characters/morrigan/mortar_shell.tscn")
-@export var blood_wave_scene: PackedScene = preload("res://characters/morrigan/blood_wave.tscn")
-@export var slowing_dot_zone_scene: PackedScene = preload("res://characters/morrigan/slowing_dot_zone.tscn")
-@export var terrain_scene: PackedScene = preload("res://characters/crush/temporary_terrain.tscn")
-@export var vision_flare_scene: PackedScene = preload("res://characters/poke/vision_flare.tscn")
-@export var vision_reveal_zone_scene: PackedScene = preload("res://characters/poke/vision_reveal_zone.tscn")
-@export var fence_zone_scene: PackedScene = preload("res://characters/poke/fence_zone.tscn")
-@export var sticky_grenade_scene: PackedScene = preload("res://characters/poke/sticky_grenade.tscn")
-@export var orbital_laser_zone_scene: PackedScene = preload("res://characters/poke/orbital_laser_zone.tscn")
-@export var rail_trail_zone_scene: PackedScene = preload("res://characters/poke/rail_trail_zone.tscn")
+@export var slowing_dot_zone_scene: PackedScene = preload("res://ability/zones/slowing_dot_zone.tscn")
+@export var terrain_scene: PackedScene = preload("res://maps/temporary_terrain.tscn")
+@export var vision_reveal_zone_scene: PackedScene = preload("res://ability/zones/vision_reveal_zone.tscn")
+@export var fence_zone_scene: PackedScene = preload("res://ability/zones/fence_zone.tscn")
+@export var orbital_laser_zone_scene: PackedScene = preload("res://ability/zones/orbital_laser_zone.tscn")
+@export var rail_trail_zone_scene: PackedScene = preload("res://ability/zones/rail_trail_zone.tscn")
 
 @export var training_dummy_scene: PackedScene = preload("res://training_dummy.tscn")
 
@@ -83,6 +90,8 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var select_dive_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectDive
 @onready var select_reaper_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectReaper")
 @onready var select_morrigan_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMorrigan")
+@onready var select_monkey_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMonkey")
+@onready var select_drakaina_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectDrakaina")
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
 @onready var team_header: Label = get_node_or_null("UI/LobbyRoom/VBox/TeamSection/TeamHeader")
@@ -102,6 +111,8 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var switch_dive_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDive"
 @onready var switch_reaper_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchReaper")
 @onready var switch_morrigan_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMorrigan")
+@onready var switch_monkey_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMonkey")
+@onready var switch_drakaina_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDrakaina")
 
 @onready var switch_map_standard: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapStandard")
 @onready var switch_map_colosseum: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapColosseum")
@@ -173,28 +184,18 @@ func _process_pending_disconnects() -> void:
 func _check_team_player_deficits() -> bool:
 	if is_training_mode:
 		return false
-	if game_mode == "dm":
-		var active_dm = 0
-		for pid in connected_players.keys():
-			if not _is_peer_pending_disconnect(int(pid)):
-				active_dm += 1
-		return active_dm < 2
-	
-	# Team-based modes (TDM, Best of Five)
-	var t1_count = 0
-	var t2_count = 0
-	for pid in connected_players.keys():
-		if _is_peer_pending_disconnect(int(pid)):
-			continue
-		var p = connected_players[pid]
-		if p.get("team", 1) == 1:
-			t1_count += 1
-		elif p.get("team", 1) == 2:
-			t2_count += 1
-	return (t1_count == 0 or t2_count == 0)
+	var current_mode = GameModes.get_mode(game_mode)
+	return current_mode.check_player_deficits(connected_players, _is_peer_pending_disconnect)
+
+func _is_network_active() -> bool:
+	if not multiplayer or not multiplayer.has_multiplayer_peer():
+		return false
+	if multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		return false
+	return multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_DISCONNECTED
 
 func _is_sender_host() -> bool:
-	if not multiplayer or not multiplayer.has_multiplayer_peer():
+	if not _is_network_active():
 		return true
 	if multiplayer.is_server():
 		return true
@@ -256,14 +257,15 @@ var scoreboard_dm_list: VBoxContainer = null
 var _scoreboard_refresh_timer: float = 0.0
 
 # --- Multi-Map Architecture Variables ---
-const MAP_CHASM_SCENE: PackedScene = preload("res://maps/map_chasm.tscn")
-const MAP_ISLANDS_SCENE: PackedScene = preload("res://maps/map_islands.tscn")
+const MAP_COLOSSEUM_SCENE: PackedScene = MapRegistry.MAP_COLOSSEUM_SCENE
+const MAP_CHASM_SCENE: PackedScene = MapRegistry.MAP_CHASM_SCENE
+const MAP_ISLANDS_SCENE: PackedScene = MapRegistry.MAP_ISLANDS_SCENE
+const MAP_NAMES: Array[String] = MapRegistry.MAP_NAMES
 
 var arena_maps: Array[Node3D] = []
 var current_map_id: int = -1
 var training_selected_map: int = -1 # -1: Standard Training Map, 0: Colosseum, 1: The Jagged Chasm, 2: Shattered Archipelago
 var selected_custom_map: int = -1 # -1: Random Map, 0: Colosseum, etc.
-const MAP_NAMES = ["Colosseum", "The Jagged Chasm", "Shattered Archipelago"]
 var map_banner_label: Label = null
 
 # --- Shop UI & Item System Variables ---
@@ -297,9 +299,8 @@ func _ready() -> void:
 	_setup_arena_maps()
 	if game_mode_option:
 		game_mode_option.clear()
-		game_mode_option.add_item("Team Deathmatch (TDM)", 0)
-		game_mode_option.add_item("Deathmatch (Free For All)", 1)
-		game_mode_option.add_item("Best of Five", 2)
+		for opt in GameModes.get_ui_options():
+			game_mode_option.add_item(opt["label"], opt["index"])
 		game_mode_option.item_selected.connect(_on_game_mode_selected)
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
@@ -329,11 +330,26 @@ func _ready() -> void:
 	http_request_join.request_completed.connect(_on_backend_join_room_completed)
 	select_poke_button.pressed.connect(func(): _select_character("poke"))
 	select_crush_button.pressed.connect(func(): _select_character("crush"))
-	select_dive_button.pressed.connect(func(): _select_character("dive"))
+	select_dive_button.pressed.connect(func(): _select_character("asparsas"))
 	if select_reaper_button:
 		select_reaper_button.pressed.connect(func(): _select_character("reaper"))
 	if select_morrigan_button:
 		select_morrigan_button.pressed.connect(func(): _select_character("morrigan"))
+	var hbox_select = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect")
+	if hbox_select and not select_monkey_button:
+		select_monkey_button = Button.new()
+		select_monkey_button.name = "SelectMonkey"
+		select_monkey_button.text = "The Great Sage (Select)"
+		hbox_select.add_child(select_monkey_button)
+	if select_monkey_button:
+		select_monkey_button.pressed.connect(func(): _select_character("monkey"))
+	if hbox_select and not select_drakaina_button:
+		select_drakaina_button = Button.new()
+		select_drakaina_button.name = "SelectDrakaina"
+		select_drakaina_button.text = "Kampé (Select)"
+		hbox_select.add_child(select_drakaina_button)
+	if select_drakaina_button:
+		select_drakaina_button.pressed.connect(func(): _select_character("drakaina"))
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
@@ -344,11 +360,26 @@ func _ready() -> void:
 	
 	switch_poke_btn.pressed.connect(func(): _switch_training_character("poke"))
 	switch_crush_btn.pressed.connect(func(): _switch_training_character("crush"))
-	switch_dive_btn.pressed.connect(func(): _switch_training_character("dive"))
+	switch_dive_btn.pressed.connect(func(): _switch_training_character("asparsas"))
 	if switch_reaper_btn:
 		switch_reaper_btn.pressed.connect(func(): _switch_training_character("reaper"))
 	if switch_morrigan_btn:
 		switch_morrigan_btn.pressed.connect(func(): _switch_training_character("morrigan"))
+	var switch_char_tab = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character")
+	if switch_char_tab and not switch_monkey_btn:
+		switch_monkey_btn = Button.new()
+		switch_monkey_btn.name = "SwitchMonkey"
+		switch_monkey_btn.text = "The Great Sage"
+		switch_char_tab.add_child(switch_monkey_btn)
+	if switch_monkey_btn:
+		switch_monkey_btn.pressed.connect(func(): _switch_training_character("monkey"))
+	if switch_char_tab and not switch_drakaina_btn:
+		switch_drakaina_btn = Button.new()
+		switch_drakaina_btn.name = "SwitchDrakaina"
+		switch_drakaina_btn.text = "Kampé"
+		switch_char_tab.add_child(switch_drakaina_btn)
+	if switch_drakaina_btn:
+		switch_drakaina_btn.pressed.connect(func(): _switch_training_character("drakaina"))
 	
 	if map_option:
 		map_option.item_selected.connect(_on_map_option_selected)
@@ -381,18 +412,28 @@ func _ready() -> void:
 	vision_spawner.spawn_function = _custom_spawn_vision_zone
 	hazard_spawner.spawn_function = _custom_spawn_hazard_zone
 	
+	menu_panel.show()
+	lobby_panel.hide()
+	join_dialog.hide()
 	match_over_panel.hide()
+	escape_panel.hide()
+	if settings_panel:
+		settings_panel.hide()
 	_select_character("poke")
 
 func _select_character(char_key: String) -> void:
 	selected_character = char_key
 	select_poke_button.text = "Arash (Select)"
 	select_crush_button.text = "Heracles (Select)"
-	select_dive_button.text = "Daughter of Gaia (Select)"
+	select_dive_button.text = "Urvashi (Select)"
 	if select_reaper_button:
 		select_reaper_button.text = "Keres (Select)"
 	if select_morrigan_button:
 		select_morrigan_button.text = "Morrigan (Select)"
+	if select_monkey_button:
+		select_monkey_button.text = "The Great Sage (Select)"
+	if select_drakaina_button:
+		select_drakaina_button.text = "Kampé (Select)"
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Arash (Selected)"
@@ -400,9 +441,9 @@ func _select_character(char_key: String) -> void:
 	elif char_key == "crush":
 		select_crush_button.text = "★ Heracles (Selected)"
 		char_desc_label.text = "HERACLES: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
-	elif char_key == "dive":
-		select_dive_button.text = "★ Daughter of Gaia (Selected)"
-		char_desc_label.text = "DAUGHTER OF GAIA: Striker (100 HP). Passive [Rupture Marks]: Stacking burst marks. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
+	elif char_key == "dive" or char_key == "asparsas":
+		select_dive_button.text = "★ Urvashi (Selected)"
+		char_desc_label.text = "URVASHI: Skirmisher (100 HP). Passive [Rupture Marks]: Stacking burst marks. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
 	elif char_key == "reaper":
 		if select_reaper_button:
 			select_reaper_button.text = "★ Keres (Selected)"
@@ -411,30 +452,37 @@ func _select_character(char_key: String) -> void:
 		if select_morrigan_button:
 			select_morrigan_button.text = "★ Morrigan (Selected)"
 		char_desc_label.text = "MORRIGAN: Mage (90 HP). Passive [Harbinger of Doom]: Ability hits spawn orbiting crows that seek nearby enemies (20 dmg + 35% slow). [LMB]: Black Plumage (Chargeable up to 5 rapid burst feathers). [RMB]: Omen of Death (Parabolic mortar shell). [Q]: Inescapable Ends (Dual-cast magnetic tether). [E]: Cry of the Banshee (Large cone shriek + 1.4s silence). [R]: Born of Blood (1s channel -> massive 45m piercing wave + stun). [Shift]: Crowstorm (Steered flight + 60% MS + 50% DR)."
+	elif char_key == "monkey_king" or char_key == "monkey":
+		if select_monkey_button:
+			select_monkey_button.text = "★ The Great Sage (Selected)"
+		char_desc_label.text = "THE GREAT SAGE: Trickster (160 HP). Passive [Stone Monkey]: Critical health (30%) triggers 3s stone invulnerability + displacement immunity + 30% missing HP heal. [LMB]: Heavenly Pillar (Fast staff bonk). [RMB]: Enlarge (Chargeable dash & slam with sweet spot stun). [Q]: 72 Forms (Disguise wheel with Tree, Rock, Cancel). [E]: Sage's Mockery (Circular taunt & damage reduction). [R]: Shadow Rush Flurry (Stealth dash -> flurry rush recast)."
+	elif char_key == "drakaina":
+		if select_drakaina_button:
+			select_drakaina_button.text = "★ Kampé (Selected)"
+		char_desc_label.text = "KAMPÉ: Drakaina (200 HP)."
 	
-	if multiplayer and multiplayer.has_multiplayer_peer():
+	if connected_players.has(1):
+		connected_players[1]["character"] = selected_character
+
+	if _is_network_active():
 		if multiplayer.is_server():
-			if connected_players.has(1):
-				connected_players[1]["character"] = selected_character
-				sync_lobby_state.rpc(connected_players, game_mode)
+			sync_lobby_state.rpc(connected_players, game_mode)
 		else:
 			update_player_character.rpc_id(1, selected_character)
+	elif lobby_panel.visible:
+		_refresh_lobby_ui()
 
 func _on_game_mode_selected(idx: int) -> void:
-	if not multiplayer.is_server():
+	if not _is_network_active() or not multiplayer.is_server():
 		return
-	var mode_str = "tdm"
-	if idx == 1:
-		mode_str = "dm"
-	elif idx == 2:
-		mode_str = "bo5"
+	var mode_str = GameModes.get_mode_id_from_index(idx)
 	set_game_mode(mode_str)
 
 func set_game_mode(mode_str: String) -> void:
 	game_mode = mode_str
 	bo5_score_t1 = 0
 	bo5_score_t2 = 0
-	if multiplayer.is_server():
+	if _is_network_active() and multiplayer.is_server():
 		sync_bo5_score.rpc(0, 0)
 		sync_lobby_state.rpc(connected_players, game_mode)
 
@@ -448,10 +496,11 @@ func sync_bo5_score(s1: int, s2: int) -> void:
 func _on_slot_clicked(team: int, slot: int) -> void:
 	if is_training_mode:
 		return
-	if not multiplayer or not multiplayer.has_multiplayer_peer():
+	if not _is_network_active():
 		return
-	if game_mode == "dm":
-		return # Slots are assigned per-player in Deathmatch
+	var mode = GameModes.get_mode(game_mode)
+	if not mode.is_team_based:
+		return # Slots are assigned per-player in non-team modes (FFA)
 	if multiplayer.is_server():
 		_assign_player_slot(1, team, slot)
 	else:
@@ -535,6 +584,7 @@ func _on_training_pressed() -> void:
 		"gold": 999999,
 		"items": []
 	}
+	_select_character(selected_character)
 	_refresh_lobby_ui()
 
 func _on_host_pressed() -> void:
@@ -791,14 +841,9 @@ func _on_peer_disconnected(id: int) -> void:
 					player_node.die()
 			cleanup_player_entities(id)
 			
-			if game_mode == "dm":
-				var active_dm_count = 0
-				for pid in connected_players.keys():
-					if not _is_peer_pending_disconnect(int(pid)):
-						active_dm_count += 1
-				if active_dm_count < 2:
-					terminate_match.rpc("Match terminated: Not enough players remaining for Deathmatch.")
-					return
+			if _check_team_player_deficits():
+				terminate_match.rpc("Match terminated: Not enough players remaining.")
+				return
 			
 			if match_in_progress:
 				_check_match_status()
@@ -878,6 +923,8 @@ func update_player_character(char_key: String) -> void:
 func sync_lobby_state(players_dict: Dictionary, mode_str: String = "tdm") -> void:
 	if not _is_sender_host():
 		return
+	if not _is_network_active():
+		return
 	connected_players = players_dict
 	game_mode = mode_str
 	if not match_in_progress:
@@ -894,11 +941,7 @@ func _refresh_lobby_ui() -> void:
 
 	if game_mode_option:
 		game_mode_option.disabled = not is_server or is_training_mode
-		var sel_idx = 0
-		if game_mode == "dm":
-			sel_idx = 1
-		elif game_mode == "bo5":
-			sel_idx = 2
+		var sel_idx = GameModes.get_index_from_mode_id(game_mode)
 		game_mode_option.select(sel_idx)
 
 	if map_option:
@@ -1049,7 +1092,7 @@ func _on_map_option_selected(index: int) -> void:
 		training_selected_map = item_id
 	else:
 		selected_custom_map = item_id
-		if multiplayer.has_multiplayer_peer() and multiplayer.is_server():
+		if _is_network_active() and multiplayer.is_server():
 			sync_lobby_map.rpc(selected_custom_map)
 
 @rpc("any_peer", "call_local", "reliable")
@@ -1105,7 +1148,7 @@ func _on_start_match_pressed() -> void:
 func is_multiplayer_match() -> bool:
 	if is_training_mode:
 		return false
-	if not multiplayer or not multiplayer.has_multiplayer_peer():
+	if not _is_network_active():
 		return false
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return false
@@ -1194,8 +1237,11 @@ func start_game() -> void:
 			players_container.add_child(dummy)
 			
 			# Spawn Local Player directly as child
+			if connected_players.has(1):
+				connected_players[1]["character"] = selected_character
 			var p_info = connected_players.get(1, {"character": selected_character})
-			var packed_scene = CHARACTERS.get(p_info.get("character", selected_character), CHARACTERS["poke"])
+			var p_char = p_info.get("character", selected_character)
+			var packed_scene = CHARACTERS.get(p_char, CHARACTERS["poke"])
 			var player_instance = packed_scene.instantiate()
 			player_instance.name = "1"
 			player_instance.team_id = 1
@@ -1286,8 +1332,13 @@ func start_game() -> void:
 
 func _custom_spawn_player(data: Variant) -> Node:
 	var char_key = data.get("character", "poke")
-	var packed_scene = CHARACTERS.get(char_key, CHARACTERS["poke"])
+	var packed_scene = CharacterRegistry.get_character_scene(char_key)
+	if not packed_scene:
+		packed_scene = CHARACTERS.get(char_key, CHARACTERS["poke"])
 	var player_instance = packed_scene.instantiate()
+	var char_data = CharacterRegistry.get_character_data(char_key)
+	if char_data and player_instance.has_method("load_character_data"):
+		player_instance.load_character_data(char_data)
 	player_instance.name = str(data["peer_id"])
 	player_instance.team_id = data.get("team_id", 1)
 	player_instance.position = data["pos"]
@@ -1360,9 +1411,10 @@ func on_player_died(peer_id: int) -> void:
 	
 	_sync_all_kda()
 	
-	if game_mode == "dm":
-		# Respawn after 5 seconds in Deathmatch (if not disconnected)
-		get_tree().create_timer(5.0).timeout.connect(func():
+	var active_mode = GameModes.get_mode(game_mode)
+	if active_mode.respawn_delay > 0.0:
+		# Respawn after configured delay (e.g. 5.0 seconds in Deathmatch)
+		get_tree().create_timer(active_mode.respawn_delay).timeout.connect(func():
 			if match_in_progress and is_instance_valid(victim) and victim.get("is_dead") == true:
 				if not _is_peer_pending_disconnect(peer_id):
 					victim.respawn()
@@ -1378,69 +1430,13 @@ func _check_match_status() -> void:
 	if players_container.get_child_count() == 0:
 		return
 
-	if game_mode == "dm":
-		# Deathmatch is timed (5 minutes) and uses 5-second respawns, not last-man-standing
-		return
-	
-	var total_t1 = 0
-	var total_t2 = 0
-	var alive_t1 = 0
-	var alive_t2 = 0
-	var alive_players: Array = []
-	
-	for p in players_container.get_children():
-		if p is Node3D:
-			var t = p.get("team_id")
-			var dead = p.get("is_dead") == true or (p.get("current_health") != null and p.current_health <= 0.0)
-			if t == 1:
-				total_t1 += 1
-				if not dead:
-					alive_t1 += 1
-					alive_players.append(p)
-			elif t == 2:
-				total_t2 += 1
-				if not dead:
-					alive_t2 += 1
-					alive_players.append(p)
-			else:
-				if not dead:
-					alive_players.append(p)
-	
-	# If both teams are participating in match
-	if total_t1 > 0 and total_t2 > 0:
-		if alive_t1 == 0 and alive_t2 == 0:
-			if game_mode == "bo5":
-				_handle_bo5_round_end("DRAW")
-			else:
-				end_match.rpc("DRAW")
-		elif alive_t1 == 0 and alive_t2 > 0:
-			if game_mode == "bo5":
-				_handle_bo5_round_end("TEAM 2")
-			else:
-				end_match.rpc("TEAM 2")
-		elif alive_t2 == 0 and alive_t1 > 0:
-			if game_mode == "bo5":
-				_handle_bo5_round_end("TEAM 1")
-			else:
-				end_match.rpc("TEAM 1")
-	# If only one team
-	elif total_t1 > 0 or total_t2 > 0:
-		var total_active = total_t1 + total_t2
-		var total_alive = alive_t1 + alive_t2
-		if total_alive == 0:
-			end_match.rpc("DRAW")
-		elif total_active > 1 and total_alive <= 1:
-			if alive_players.size() == 1:
-				var winner = alive_players[0]
-				var winner_id = winner.name.to_int()
-				var p_info = connected_players.get(winner_id, {})
-				var p_name = p_info.get("name", "Player " + str(winner_id))
-				var char_name = winner.get_display_name() if winner.has_method("get_display_name") else winner.get("display_name")
-				if not char_name or str(char_name).is_empty():
-					char_name = get_character_display_name(p_info.get("character", "Hero"))
-				end_match.rpc("%s (%s)" % [p_name, char_name])
-			else:
-				end_match.rpc("DRAW")
+	var current_mode = GameModes.get_mode(game_mode)
+	var combat_status = current_mode.evaluate_combat_status(players_container, connected_players)
+	if combat_status["over"]:
+		if combat_status["is_round_only"]:
+			_handle_bo5_round_end(combat_status["winner"])
+		else:
+			end_match.rpc(combat_status["winner"])
 
 func _handle_bo5_round_end(round_winner: String) -> void:
 	match_in_progress = false
@@ -1449,19 +1445,20 @@ func _handle_bo5_round_end(round_winner: String) -> void:
 	elif round_winner == "TEAM 2":
 		bo5_score_t2 += 1
 	
-	# Award 100 gold to each player after each round of combat in Best of Five
+	var mode = GameModes.get_mode(game_mode)
+	var round_gold = mode.gold_per_round if mode else 100
 	for pid in connected_players.keys():
-		connected_players[pid]["gold"] = connected_players[pid].get("gold", 0) + 100
+		connected_players[pid]["gold"] = connected_players[pid].get("gold", 0) + round_gold
 		var p_node = players_container.get_node_or_null(str(pid))
 		if p_node and p_node.has_method("sync_inventory"):
 			p_node.sync_inventory.rpc(p_node.item_slots, connected_players[pid]["gold"])
 	
 	sync_bo5_score.rpc(bo5_score_t1, bo5_score_t2)
 	
-	if bo5_score_t1 >= 3:
-		end_match.rpc("TEAM 1")
-	elif bo5_score_t2 >= 3:
-		end_match.rpc("TEAM 2")
+	var bo5_mode: BestOfFiveMode = mode as BestOfFiveMode
+	var match_winner = bo5_mode.check_match_winner(bo5_score_t1, bo5_score_t2) if bo5_mode else ("TEAM 1" if bo5_score_t1 >= 3 else ("TEAM 2" if bo5_score_t2 >= 3 else ""))
+	if not match_winner.is_empty():
+		end_match.rpc(match_winner)
 	else:
 		end_round.rpc(round_winner, bo5_score_t1, bo5_score_t2)
 
@@ -1559,8 +1556,9 @@ func end_match(winner_name: String) -> void:
 		return
 	match_in_progress = false
 	_bo5_round_transition_active = false
-	if game_mode == "bo5" and winner_name != "DRAW":
-		winner_label.text = "BEST OF FIVE OVER!\n%s WINS THE MATCH!" % winner_name.to_upper()
+	var mode = GameModes.get_mode(game_mode)
+	if mode.has_rounds and winner_name != "DRAW":
+		winner_label.text = "%s OVER!\n%s WINS THE MATCH!" % [mode.display_name.to_upper(), winner_name.to_upper()]
 		if match_over_sub_label:
 			match_over_sub_label.text = "Final Score: Team 1 [%d] - [%d] Team 2\nReturning to lobby in 3 seconds..." % [bo5_score_t1, bo5_score_t2]
 	elif winner_name == "DRAW":
@@ -1675,49 +1673,52 @@ func spawn_projectile(pos: Vector3, dir: Vector3, shooter_id: int, dmg: float = 
 
 func _custom_spawn_projectile(data: Variant) -> Node:
 	var p_type = data.get("type", "projectile")
-	if p_type == "mortar_shell":
-		var shell = mortar_shell_scene.instantiate()
-		shell.start_pos = data["start_pos"]
-		shell.end_pos = data["end_pos"]
-		shell.speed = data.get("speed", 24.0)
-		shell.aoe_radius = data.get("aoe_radius", 3.2)
-		shell.damage = data.get("damage", 45.0)
-		shell.shooter_id = data.get("shooter_id", 0)
-		shell.shooter_team = data.get("shooter_team", 0)
-		return shell
-	elif p_type == "blood_wave":
-		var wave = blood_wave_scene.instantiate()
-		wave.position = data["pos"]
-		wave.direction = data["dir"]
-		wave.speed = data.get("speed", 22.0)
-		wave.max_range = data.get("max_range", 45.0)
-		wave.wave_width = data.get("wave_width", 12.0)
-		wave.damage = data.get("damage", 80.0)
-		wave.shooter_id = data.get("shooter_id", 0)
-		wave.shooter_team = data.get("shooter_team", 0)
-		return wave
-	elif p_type == "vision_flare":
-		var flare = vision_flare_scene.instantiate()
-		flare.position = data["pos"]
-		flare.direction = data["dir"]
-		flare.target_distance = data.get("target_dist", 65.0)
-		flare.shooter_id = data.get("shooter_id", 0)
-		flare.shooter_team = data.get("shooter_team", 0)
-		return flare
-	elif p_type == "sticky_grenade":
-		var grenade = sticky_grenade_scene.instantiate()
-		grenade.position = data["pos"]
-		grenade.direction = data["dir"]
-		grenade.speed = data.get("speed", 42.0)
-		grenade.max_range = data.get("max_range", 17.5)
-		grenade.aoe_radius = data.get("aoe_radius", 3.5)
-		grenade.damage = data.get("damage", 70.0)
-		grenade.fuse_duration = data.get("fuse_duration", 1.2)
-		grenade.shooter_id = data.get("shooter_id", 0)
-		grenade.shooter_team = data.get("shooter_team", 0)
-		return grenade
-
 	var proj = projectile_scene.instantiate()
+	proj.shooter_id = data.get("shooter_id", 0)
+	proj.shooter_team = data.get("shooter_team", 0)
+	proj.action_type = data.get("action_type", 0)
+
+	if p_type == "mortar_shell":
+		proj.position = data.get("start_pos", data.get("pos", Vector3.ZERO))
+		var end_p = data.get("end_pos", proj.position)
+		var delta_pos = end_p - proj.position
+		proj.target_distance = delta_pos.length()
+		proj.direction = delta_pos.normalized() if proj.target_distance > 0.001 else Vector3.FORWARD
+		proj.speed = data.get("speed", 24.0)
+		proj.damage = data.get("damage", 45.0)
+		proj.max_range = proj.target_distance
+		proj.classification = 1 # TARGET_LOCATION
+		proj.effect_type = "mortar_shell"
+		return proj
+	elif p_type == "blood_wave":
+		proj.position = data.get("pos", Vector3.ZERO)
+		proj.direction = data.get("dir", Vector3.FORWARD)
+		proj.speed = data.get("speed", 22.0)
+		proj.max_range = data.get("max_range", 45.0)
+		proj.damage = data.get("damage", 80.0)
+		proj.size = 2.4
+		proj.pierces = true
+		proj.effect_type = "blood_wave"
+		return proj
+	elif p_type == "vision_flare":
+		proj.position = data.get("pos", Vector3.ZERO)
+		proj.direction = data.get("dir", Vector3.FORWARD)
+		proj.speed = data.get("speed", 60.0)
+		proj.target_distance = data.get("target_dist", 65.0)
+		proj.max_range = proj.target_distance
+		proj.classification = 1 # TARGET_LOCATION
+		proj.effect_type = "vision_flare"
+		return proj
+	elif p_type == "sticky_grenade":
+		proj.position = data.get("pos", Vector3.ZERO)
+		proj.direction = data.get("dir", Vector3.FORWARD)
+		proj.speed = data.get("speed", 42.0)
+		proj.max_range = data.get("max_range", 17.5)
+		proj.damage = data.get("damage", 70.0)
+		proj.effect_type = "sticky_grenade"
+		return proj
+
+	var projectile = projectile_scene.instantiate()
 	proj.shooter_id = data.get("shooter_id", 0)
 	proj.shooter_team = data.get("shooter_team", 0)
 	proj.action_type = data.get("action_type", 0)
@@ -2012,26 +2013,17 @@ func _process(delta: float) -> void:
 	if is_multiplayer_match() and multiplayer.is_server() and match_in_progress and not is_training_mode:
 		_check_match_status()
 
-	if match_in_progress and game_mode == "dm":
+	var active_mode = GameModes.get_mode(game_mode)
+	if match_in_progress and not active_mode.is_team_based:
 		dm_match_timer -= delta
 		if dm_timer_label:
-			var mins = int(max(0.0, dm_match_timer)) / 60
-			var secs = int(max(0.0, dm_match_timer)) % 60
-			dm_timer_label.text = "⏱ DEATHMATCH: %02d:%02d" % [mins, secs]
+			dm_timer_label.text = active_mode.format_timer(dm_match_timer)
 			dm_timer_label.show()
 		
 		if multiplayer.is_server() and dm_match_timer <= 0.0:
 			dm_match_timer = 0.0
 			match_in_progress = false
-			var top_kills = -1
-			var top_winner = "NOBODY"
-			for pid in connected_players.keys():
-				var k = connected_players[pid].get("kills", 0)
-				if k > top_kills:
-					top_kills = k
-					var p_info = connected_players[pid]
-					var p_name = p_info.get("name", "Player " + str(pid))
-					top_winner = "%s (%d KILLS)" % [p_name, k]
+			var top_winner = active_mode.evaluate_timed_winner(connected_players)
 			end_match.rpc(top_winner)
 	elif dm_timer_label and dm_timer_label.visible:
 		dm_timer_label.hide()
@@ -2335,16 +2327,16 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if scoreboard_dm_list:
 		for c in scoreboard_dm_list.get_children():
 			c.queue_free()
-	
+	var current_scoreboard_mode = GameModes.get_mode(game_mode)
 	if scoreboard_score_container:
-		if game_mode == "bo5" and not is_training_mode:
+		if current_scoreboard_mode.has_rounds and not is_training_mode:
 			scoreboard_score_container.visible = true
-			scoreboard_score_label.text = "TEAM 1  [ %d ]   —   [ %d ]  TEAM 2" % [bo5_score_t1, bo5_score_t2]
+			scoreboard_score_label.text = current_scoreboard_mode.format_scoreboard_header(bo5_score_t1, bo5_score_t2)
 			if match_in_progress:
 				var current_round = bo5_score_t1 + bo5_score_t2 + 1
-				scoreboard_score_sublabel.text = "BEST OF FIVE • FIRST TO 3 WINS (ROUND %d)" % current_round
+				scoreboard_score_sublabel.text = "%s • FIRST TO %d WINS (ROUND %d)" % [current_scoreboard_mode.display_name.to_upper(), current_scoreboard_mode.round_win_target, current_round]
 			else:
-				scoreboard_score_sublabel.text = "BEST OF FIVE • FIRST TO 3 WINS"
+				scoreboard_score_sublabel.text = "%s • FIRST TO %d WINS" % [current_scoreboard_mode.display_name.to_upper(), current_scoreboard_mode.round_win_target]
 		else:
 			scoreboard_score_container.visible = false
 	
@@ -2417,7 +2409,7 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if scoreboard_team_container: scoreboard_team_container.visible = true
 	if scoreboard_dm_container: scoreboard_dm_container.visible = false
 	if scoreboard_score_container:
-		scoreboard_score_container.visible = (game_mode == "bo5")
+		scoreboard_score_container.visible = current_scoreboard_mode.has_rounds
 	
 	var t1_alive = 0
 	var t1_total = 0
@@ -2996,7 +2988,7 @@ func _input(event: InputEvent) -> void:
 			_show_shop(false)
 			get_viewport().set_input_as_handled()
 			return
-		elif is_training_mode or (match_in_progress and game_mode != "tdm"):
+		elif is_training_mode or (match_in_progress and game_mode != GameModes.MODE_TDM):
 			_show_shop(true)
 			get_viewport().set_input_as_handled()
 			return

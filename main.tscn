@@ -4,7 +4,8 @@
 [ext_resource type="Script" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
 [ext_resource type="Script" path="res://settings_ui.gd" id="3_settings_script"]
 [ext_resource type="Shader" path="res://fog_of_war.gdshader" id="4_fow_shader"]
-[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/Tree1.glb" id="5_tree"]
+[ext_resource type="PackedScene" uid="uid://dmcolosseum01" path="res://maps/map_colosseum.tscn" id="5_colosseum"]
+[ext_resource type="PackedScene" uid="uid://dmtraining01" path="res://maps/map_training.tscn" id="6_training"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fow"]
 shader = ExtResource("4_fow_shader")
@@ -22,30 +23,6 @@ sky = SubResource("Sky_1")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
-size = Vector3(70, 1, 70)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
-albedo_color = Color(0.18, 0.21, 0.25, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_floor"]
-material = SubResource("StandardMaterial3D_floor")
-size = Vector3(70, 1, 70)
-
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_training_floor"]
-height = 1.0
-radius = 16.0
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_training_floor"]
-albedo_color = Color(0.14, 0.17, 0.22, 1)
-roughness = 0.4
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_training_floor"]
-material = SubResource("StandardMaterial3D_training_floor")
-top_radius = 16.0
-bottom_radius = 16.0
-height = 1.0
-radial_segments = 48
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_2")
@@ -59,59 +36,10 @@ shadow_enabled = true
 
 [node name="Arena" type="Node3D" parent="."]
 
-[node name="DefaultMap" type="Node3D" parent="Arena"]
+[node name="DefaultMap" parent="Arena" instance=ExtResource("5_colosseum")]
 
-[node name="Floor" type="StaticBody3D" parent="Arena/DefaultMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/DefaultMap/Floor"]
-shape = SubResource("BoxShape3D_floor")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/DefaultMap/Floor"]
-mesh = SubResource("BoxMesh_floor")
-
-[node name="Tree_Center" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 0, 0)
-
-[node name="Tree_NW" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, -12)
-
-[node name="Tree_NE" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, -12)
-
-[node name="Tree_SW" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 12)
-
-[node name="Tree_SE" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 12)
-
-[node name="Tree_North" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -18)
-
-[node name="Tree_South" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 18)
-
-[node name="Tree_LeftMid" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, 0)
-
-[node name="Tree_RightMid" parent="Arena/DefaultMap" instance=ExtResource("5_tree")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 0)
-
-[node name="TrainingMap" type="Node3D" parent="Arena"]
+[node name="TrainingMap" parent="Arena" instance=ExtResource("6_training")]
 visible = false
-
-[node name="TrainingFloor" type="StaticBody3D" parent="Arena/TrainingMap"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Arena/TrainingMap/TrainingFloor"]
-shape = SubResource("CylinderShape3D_training_floor")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Arena/TrainingMap/TrainingFloor"]
-mesh = SubResource("CylinderMesh_training_floor")
 
 [node name="SpawnPoints" type="Node3D" parent="."]
 
@@ -407,7 +335,7 @@ text = "Heracles (Select)"
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Daughter of Gaia (Select)"
+text = "Urvashi (Select)"
 
 [node name="SelectReaper" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
 custom_minimum_size = Vector2(0, 38)
@@ -640,7 +568,7 @@ text = "🛡 Heracles (Juggernaut - 320 HP)"
 [node name="SwitchDive" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "💥 Daughter of Gaia (Striker - 240 HP)"
+text = "💥 Urvashi (Skirmisher - 240 HP)"
 
 [node name="SwitchReaper" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)

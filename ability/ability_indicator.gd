@@ -447,10 +447,14 @@ static func update_mortar_distance_and_angle(indicator: Node3D, start_pos: Vecto
 	update_arc_trajectory_indicator(indicator, start_pos + Vector3(0, 0.8, 0), end_pos, apex)
 	return end_pos
 
-static func create_from_hitbox(hitbox: RefCounted, fill_color: Color = Color(1.0, 0.2, 0.2, 0.25), border_color: Color = Color(1.0, 0.4, 0.4, 0.95)) -> Node3D:
+static func create_from_hitbox(hitbox: Variant, fill_color: Color = Color(1.0, 0.2, 0.2, 0.25), border_color: Color = Color(1.0, 0.4, 0.4, 0.95)) -> Node3D:
 	if not hitbox:
 		return null
-	var shape = hitbox.get("shape")
+	if hitbox.has_method("create_indicator"):
+		var custom_ind = hitbox.create_indicator(fill_color, border_color)
+		if custom_ind:
+			return custom_ind
+	var shape = hitbox.get("shape_type") if hitbox.get("shape_type") != null else hitbox.get("shape")
 	match shape:
 		AbilityPipeline.HitboxShape.SECTOR:
 			var rad = hitbox.get("radius") if hitbox.get("radius") != null else 4.0
@@ -464,17 +468,42 @@ static func create_from_hitbox(hitbox: RefCounted, fill_color: Color = Color(1.0
 			var w = hitbox.get("width") if hitbox.get("width") != null else 1.0
 			return create_line_indicator(l, w, fill_color, border_color)
 		AbilityPipeline.HitboxShape.BOX:
-			var rad = hitbox.get("radius") if hitbox.get("radius") != null else (hitbox.get("length") if hitbox.get("length") != null else 4.0)
+			var rad = hitbox.get("length") if hitbox.get("length") != null else (hitbox.get("radius") if hitbox.get("radius") != null else 4.0)
 			var w = hitbox.get("width") if hitbox.get("width") != null else 2.0
 			return create_line_indicator(rad, w, fill_color, border_color)
 		AbilityPipeline.HitboxShape.DONUT:
-			var inner_r = hitbox.get("width") if hitbox.get("width") != null else 3.0
-			var outer_r = hitbox.get("radius") if hitbox.get("radius") != null else 5.5
+			var inner_r = hitbox.get("inner_radius") if hitbox.get("inner_radius") != null else (hitbox.get("width") if hitbox.get("width") != null else 3.0)
+			var outer_r = hitbox.get("outer_radius") if hitbox.get("outer_radius") != null else (hitbox.get("radius") if hitbox.get("radius") != null else 5.5)
 			return create_donut_indicator(inner_r, outer_r, fill_color, border_color)
 	return null
 
 const WHITE_OUTLINE: Color = Color(1.0, 1.0, 1.0, 0.92)
 const EMPTY_FILL: Color = Color(1.0, 1.0, 1.0, 0.0)
+const TELEGRAPH_FILL: Color = Color(1.0, 0.15, 0.15, 0.35)
+const TELEGRAPH_BORDER: Color = Color(1.0, 0.28, 0.28, 0.98)
+
+static func create_telegraph_indicator(hitbox: Variant, fill_color: Color = TELEGRAPH_FILL, border_color: Color = TELEGRAPH_BORDER) -> Node3D:
+	var ind = create_from_hitbox(hitbox, fill_color, border_color)
+	if ind:
+		var orig_name = ind.name
+		ind.name = "TelegraphIndicator"
+		ind.set_meta("indicator_shape", orig_name)
+	return ind
+
+static func animate_telegraph_fill(indicator: Node3D, duration: float, tree: SceneTree) -> Tween:
+	if not is_instance_valid(indicator) or not tree or duration <= 0.0:
+		return null
+	var fill_node = indicator.get_child(0) if indicator.get_child_count() > 0 else null
+	if not fill_node or not (fill_node is Node3D):
+		return null
+	var shape_name = indicator.get_meta("indicator_shape", "") if indicator.has_meta("indicator_shape") else ""
+	if shape_name == "LineIndicator" or indicator.name.begins_with("Line"):
+		fill_node.scale = Vector3(1.0, 1.0, 0.001)
+	else:
+		fill_node.scale = Vector3(0.001, 1.0, 0.001)
+	var tween = tree.create_tween()
+	tween.tween_property(fill_node, "scale", Vector3.ONE, duration).set_trans(Tween.TRANS_LINEAR)
+	return tween
 
 static func reset_indicator(target: Node) -> void:
 	if not is_instance_valid(target):

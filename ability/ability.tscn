@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dmy_ability_root_01"]
+
+[ext_resource type="Script" path="res://ability/ability.gd" id="1_script"]
+
+[node name="Ability" type="Node"]
+script = ExtResource("1_script")
+slot_key = "LMB"
+cooldown = 1.0

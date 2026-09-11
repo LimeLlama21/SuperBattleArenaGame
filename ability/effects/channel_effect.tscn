@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dmy_channel_effect_01"]
+
+[ext_resource type="Script" path="res://ability/effects/channel_effect.gd" id="1_script"]
+
+[node name="ChannelEffect" type="Node"]
+script = ExtResource("1_script")
+effect_name = "Channel"
+channel_duration = 2.0

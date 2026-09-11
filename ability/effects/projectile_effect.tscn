@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://dmy_projectile_effect_01"]
+
+[ext_resource type="Script" path="res://ability/effects/projectile_effect.gd" id="1_script"]
+
+[node name="ProjectileEffect" type="Node"]
+script = ExtResource("1_script")
+speed = 70.0
+max_range = 25.0
+projectile_size = 0.5

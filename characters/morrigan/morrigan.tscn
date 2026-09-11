@@ -3,6 +3,9 @@
 [ext_resource type="Script" uid="uid://rl0wa80e4jvx" path="res://characters/morrigan/morrigan.gd" id="1_morrigan"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
 [ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
+[ext_resource type="PackedScene" path="res://ability/effects/projectile_effect.tscn" id="ext_eff_proj"]
+[ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
+[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 height = 1.8
@@ -65,7 +68,7 @@ corner_radius_bottom_left = 4
 [node name="Morrigan" type="CharacterBody3D" unique_id=377419315]
 collision_layer = 2
 script = ExtResource("1_morrigan")
-character_name = "Murder"
+character_name = "Morrigan"
 display_name = "Morrigan"
 max_health = 180.0
 current_health = 180.0
@@ -134,3 +137,100 @@ double_sided = false
 no_depth_test = true
 
 [node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]
+
+[node name="Abilities" type="Node" parent="."]
+
+[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "LMB"
+ability_id = "morrigan_black_plumage"
+ability_name = "Black Plumage"
+icon_symbol = "🪶"
+description = "Fires rapid piercing blood feathers dealing 9.0 damage."
+cooldown = 0.25
+speed = 70.0
+max_range = 35.0
+projectile_size = 0.4
+custom_effect_type = "morrigan_feather"
+damage_amount = 9.0
+charge_time = 0.80
+hold_to_charge = true
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "RMB"
+ability_id = "morrigan_omen_of_death"
+ability_name = "Omen of Death"
+icon_symbol = "💣"
+description = "Lobs mortar shell dealing 20.0 damage and slowing enemies."
+cooldown = 6.0
+cast_on_press = false
+speed = 38.0
+max_range = 22.0
+custom_effect_type = "mortar_shell"
+damage_amount = 20.0
+
+[node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_buff")]
+slot_key = "SHIFT"
+ability_id = "morrigan_crowstorm"
+ability_name = "Crowstorm"
+icon_symbol = "🌪️"
+description = "Disperses into crows granting massive move speed."
+cooldown = 6.0
+buff_name = "Crowstorm"
+buff_duration = 2.0
+status_type = "speed_boost"
+status_intensity = 0.60
+status_duration = 2.0
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "Q"
+ability_id = "morrigan_inescapable_ends"
+ability_name = "Inescapable Ends"
+icon_symbol = "⛓️"
+description = "Fires soul tether dealing 20.0 damage."
+cooldown = 9.0
+cast_on_press = false
+speed = 45.0
+max_range = 15.0
+custom_effect_type = "morrigan_tether_first"
+damage_amount = 20.0
+
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "E"
+ability_id = "morrigan_banshee_cry"
+ability_name = "Banshee Cry"
+icon_symbol = "🦇"
+description = "Terrifying shriek dealing 24.0 damage and stunning for 1.4s."
+cooldown = 14.0
+cast_on_press = false
+windup_time = 0.20
+hitbox_type = 1
+hitbox_radius = 7.5
+hitbox_angle_deg = 90.0
+hitbox_height = 2.0
+damage_amount = 24.0
+stun_duration = 1.4
+
+[node name="R" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "R"
+ability_id = "morrigan_born_of_blood"
+ability_name = "Born of Blood"
+icon_symbol = "🌊"
+description = "Unleashes tidal blood wave dealing 50.0 damage and stunning."
+cooldown = 30.0
+cast_on_press = false
+windup_time = 1.0
+delay = 1.0
+telegraph = true
+windup_move_speed_multiplier = 0.0
+move_lockout = true
+speed = 22.0
+max_range = 45.0
+pierces = true
+custom_effect_type = "blood_wave"
+damage_amount = 50.0
+action_type = 2
+stun_duration = 1.2
+hitbox_type = 5
+hitbox_length = 45.0
+hitbox_width = 12.0
+hitbox_height = 3.2

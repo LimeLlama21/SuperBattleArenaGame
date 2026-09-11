@@ -25,8 +25,8 @@ SettingsManager="*res://settings_manager.gd"
 
 [display]
 
-window/size/viewport_width=1728
-window/size/viewport_height=972
+window/size/viewport_width=2304
+window/size/viewport_height=1296
 
 [input]
 
@@ -98,7 +98,7 @@ spectate_prev={
 
 [physics]
 
-3d/default_gravity=13.0
+3d/default_gravity=28.0
 
 [rendering]
 

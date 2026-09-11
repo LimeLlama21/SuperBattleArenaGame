@@ -3,16 +3,23 @@ extends PlayerStatus
 
 # --- Movement Parameters ---
 @export var max_move_speed: float = 6.0
-@export var ground_acceleration: float = 65.0
-@export var ground_friction: float = 40.0
-@export var intentional_movement_friction: float = 110.0
-@export var air_acceleration: float = 8.0
-@export var air_drag: float = 16.0
-@export var jump_velocity: float = 11.2
-@export var jump_horizontal_impulse: float = 2.0
+@export var ground_acceleration: float = 25.0
+@export var ground_deceleration: float = 40.0
+@export var intentional_movement_friction: float = 75.0
+var air_acceleration: float = 7.5
+var air_max_speed_mult: float = 0.3
+var air_drag: float = 16.0
+var jump_velocity: float = 13.0
+var jump_horizontal_impulse: float = 2.0
+
+var is_mouse_hijacked: bool = false
+
+var ground_friction: float:
+	get: return ground_deceleration
+	set(v): ground_deceleration = v
 
 var is_intentional_movement: bool = false
-var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 13.0)
+var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 28.0)
 
 # --- External Knockback & Wall Impact ---
 var knockback_velocity: Vector3 = Vector3.ZERO
@@ -25,10 +32,20 @@ const WALL_IMPACT_DAMAGE_FACTOR: float = 1.8
 func modify_incoming_damage(amount: float, _attacker_id: int, _action_type: int) -> float:
 	return amount
 
-func get_effective_max_speed(current_speed: float) -> float:
-	return current_speed
+func get_effective_max_speed(current_calculated_speed: float) -> float:
+	return current_calculated_speed
 
 func has_custom_movement_control() -> bool:
+	return false
+
+func is_sliding_down_slope() -> bool:
+	if not is_on_floor():
+		return false
+	var floor_angle = get_floor_angle()
+	if floor_angle > floor_max_angle:
+		var floor_normal = get_floor_normal()
+		if velocity.dot(floor_normal) < 0.1 and velocity.length_squared() > 0.2:
+			return true
 	return false
 
 func is_enemy(_other: Node) -> bool:
@@ -36,7 +53,7 @@ func is_enemy(_other: Node) -> bool:
 
 # --- Knockback & Impulse Application ---
 func apply_knockback(impulse_vec: Vector3, _is_external: bool = true, wall_stun: float = 0.0) -> void:
-	if is_cc_immune:
+	if is_cc_immune or is_displacement_immune() or is_invulnerable() or is_bound():
 		return
 	if is_multiplayer_match():
 		if not is_server_authoritative():
@@ -67,6 +84,17 @@ func apply_velocity_impulse(impulse_vec: Vector3, is_intentional: bool = true) -
 
 # --- Aiming & Targeting Helpers ---
 func aim_at_mouse() -> void:
+	if is_mouse_hijacked:
+		return
+	if is_taunted():
+		var taunter = get_taunt_target()
+		if is_instance_valid(taunter):
+			var target := Vector3(taunter.global_position.x, global_position.y, taunter.global_position.z)
+			if global_position.distance_squared_to(target) > 0.3:
+				look_at(target, Vector3.UP)
+				rotation.x = 0.0
+				rotation.z = 0.0
+		return
 	var hit_pos = get_mouse_ground_intersection()
 	if hit_pos != null:
 		var target := Vector3(hit_pos.x, global_position.y, hit_pos.z)
@@ -93,55 +121,23 @@ func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:
 		default_fwd = Vector3.FORWARD
 	default_fwd = default_fwd.normalized()
 	
-	var viewport = get_viewport()
-	var cam = viewport.get_camera_3d() if viewport else null
-	if not viewport or not cam:
+	if not is_local_player():
 		return default_fwd
 	
-	var mouse_pos = viewport.get_mouse_position()
-	var ray_origin = cam.project_ray_origin(mouse_pos)
-	var ray_dir = cam.project_ray_normal(mouse_pos)
-	var space_state = get_world_3d().direct_space_state
+	if is_taunted():
+		var taunter = get_taunt_target()
+		if is_instance_valid(taunter):
+			var dir = (taunter.global_position - spawn_pos)
+			dir.y = 0.0
+			if dir.length_squared() > 0.0001:
+				return dir.normalized()
+		return default_fwd
 	
-	# 1. Direct Raycast Hit against characters (Collision layer 2: players / dummies)
-	var player_query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 300.0, 2)
-	player_query.collide_with_areas = false
-	player_query.collide_with_bodies = true
-	player_query.exclude = [get_rid()]
-	var player_result = space_state.intersect_ray(player_query)
-	
-	if not player_result.is_empty():
-		var hit_collider = player_result.collider
-		if hit_collider != self and hit_collider is CharacterBody3D and not hit_collider.get("is_dead") and is_enemy(hit_collider):
-			var target_pos = hit_collider.global_position + Vector3(0, 0.85, 0)
-			var shoot_dir = target_pos - spawn_pos
-			if shoot_dir.length_squared() > 0.0001:
-				return shoot_dir.normalized()
-	
-	# 2. Forgiving Proximity Check: If cursor is near an enemy character
-	var players_container = get_tree().root.get_node_or_null("Main/Players")
-	var best_target_pos: Vector3 = Vector3.ZERO
-	var min_screen_dist: float = 80.0 # Forgiving pixel radius around mouse cursor
-	var max_ray_dist: float = 2.5     # 3D distance tolerance to ray (meters)
-	
-	if players_container:
-		for p in players_container.get_children():
-			if p != self and p is CharacterBody3D and not p.get("is_dead") and is_enemy(p):
-				var t_pos = p.global_position + Vector3(0, 0.85, 0)
-				if not cam.is_position_behind(t_pos):
-					var screen_pos = cam.unproject_position(t_pos)
-					var screen_dist = mouse_pos.distance_to(screen_pos)
-					var v = t_pos - ray_origin
-					var t = v.dot(ray_dir)
-					if t > 0.0:
-						var closest_pt = ray_origin + ray_dir * t
-						var dist_to_ray = (t_pos - closest_pt).length()
-						if screen_dist <= min_screen_dist and dist_to_ray <= max_ray_dist:
-							min_screen_dist = screen_dist
-							best_target_pos = t_pos
-
-	if best_target_pos != Vector3.ZERO:
-		var shoot_dir = best_target_pos - spawn_pos
+	var hit_pos = get_mouse_ground_intersection()
+	if hit_pos != null:
+		var target_pos = Vector3(hit_pos.x, spawn_pos.y, hit_pos.z)
+		var shoot_dir = target_pos - spawn_pos
+		shoot_dir.y = 0.0
 		if shoot_dir.length_squared() > 0.0001:
 			return shoot_dir.normalized()
 	
@@ -204,7 +200,7 @@ func _process_physics_timers(delta: float) -> void:
 
 	if knockback_velocity != Vector3.ZERO:
 		var on_floor_check = is_on_floor()
-		var drag_rate = ground_friction if on_floor_check else air_drag
+		var drag_rate = ground_deceleration if on_floor_check else air_drag
 		knockback_velocity = knockback_velocity.move_toward(Vector3.ZERO, drag_rate * delta)
 		if knockback_velocity.length_squared() <= 0.001 or knockback_velocity.is_zero_approx():
 			knockback_velocity = Vector3.ZERO
@@ -212,7 +208,21 @@ func _process_physics_timers(delta: float) -> void:
 	else:
 		knockback_wall_stun = 0.0
 
+func _process_bound_physics(_delta: float) -> void:
+	if not is_instance_valid(bound_caster_node) or (bound_caster_node.get("is_dead") == true):
+		bound_timer = 0.0
+		bound_caster_node = null
+		bound_relative_offset = Vector3.ZERO
+		return
+	knockback_velocity = Vector3.ZERO
+	var target_pos = bound_caster_node.global_position + bound_relative_offset
+	global_position = target_pos
+	velocity = Vector3.ZERO
+
 func _process_dummy_physics(delta: float) -> void:
+	if is_bound():
+		_process_bound_physics(delta)
+		return
 	var on_floor_dummy = is_on_floor()
 	if not on_floor_dummy:
 		# Gravity applied as continuous acceleration: a * delta
@@ -222,13 +232,16 @@ func _process_dummy_physics(delta: float) -> void:
 	else:
 		if velocity.y < 0.0:
 			velocity.y = 0.0
-		velocity.x = move_toward(velocity.x, 0.0, ground_friction * delta)
-		velocity.z = move_toward(velocity.z, 0.0, ground_friction * delta)
+		velocity.x = move_toward(velocity.x, 0.0, ground_deceleration * delta)
+		velocity.z = move_toward(velocity.z, 0.0, ground_deceleration * delta)
 	var pre_move_vel_dummy = velocity
 	move_and_slide()
 	_check_wall_impact(pre_move_vel_dummy)
 
 func _process_player_movement_physics(delta: float, is_channeling_active: bool) -> void:
+	if is_bound():
+		_process_bound_physics(delta)
+		return
 	if has_custom_movement_control():
 		var pre_move_vel = velocity
 		move_and_slide()
@@ -275,10 +288,19 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 			velocity.x += jump_h_dir.x * jump_horizontal_impulse
 			velocity.z += jump_h_dir.z * jump_horizontal_impulse
 
-	# Movement Vector
+	# Movement Vector: natural movement works under any circumstance unless immobilized (rooted) or stunned
 	var input_dir := Vector2.ZERO
-	if not stunned and not rooted and not is_channeling_active:
-		input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if not stunned and not rooted:
+		if is_taunted():
+			var taunter = get_taunt_target()
+			if is_instance_valid(taunter):
+				var to_taunter = taunter.global_position - global_position
+				to_taunter.y = 0.0
+				if to_taunter.length_squared() > 0.01:
+					var norm = to_taunter.normalized()
+					input_dir = Vector2(norm.x, norm.z)
+		else:
+			input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_dir := Vector3(input_dir.x, 0, input_dir.y).normalized()
 
 	var effective_max_speed = max_move_speed * slow_mult
@@ -294,46 +316,38 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	if is_intentional_movement and cur_speed <= effective_max_speed:
 		is_intentional_movement = false
 
-	var effective_friction = intentional_movement_friction if (is_intentional_movement and on_floor) else ground_friction
-
 	var wish_dir = Vector2(target_dir.x, target_dir.z)
 
 	if wish_dir.length_squared() > 0.001:
 		wish_dir = wish_dir.normalized()
-		var current_speed_along_wish = current_horizontal.dot(wish_dir)
-		var add_speed = effective_max_speed - current_speed_along_wish
-		if add_speed > 0.0:
-			var accel_rate = ground_acceleration if on_floor else air_acceleration
-			var accel_step = min(accel_rate * delta, add_speed)
-			current_horizontal += wish_dir * accel_step
+		var accel_rate = ground_acceleration if on_floor else air_acceleration
+		# Apply acceleration along wish direction whenever input is made
+		current_horizontal += wish_dir * accel_rate * delta
 
-		# When steering on ground or over max speed, apply friction/drag to non-wish components or excess speed
-		if on_floor:
-			cur_speed = current_horizontal.length()
-			if cur_speed > effective_max_speed:
-				var excess_bleed = min(effective_friction * delta, cur_speed - effective_max_speed)
-				current_horizontal -= current_horizontal.normalized() * excess_bleed
-				if current_horizontal.length() <= effective_max_speed:
-					is_intentional_movement = false
-		else:
-			# Air resistance: only applies when not on solid ground and only influences horizontal movement
-			var lateral_vel = current_horizontal - wish_dir * current_speed_along_wish
-			if lateral_vel.length_squared() > 0.001:
-				lateral_vel = lateral_vel.move_toward(Vector2.ZERO, air_drag * delta)
-				current_horizontal = wish_dir * current_speed_along_wish + lateral_vel
-			
-			cur_speed = current_horizontal.length()
-			if cur_speed > effective_max_speed:
-				var excess_bleed = min(air_drag * delta, cur_speed - effective_max_speed)
-				current_horizontal -= current_horizontal.normalized() * excess_bleed
-				if current_horizontal.length() <= effective_max_speed:
-					is_intentional_movement = false
+		var cur_speed_after_accel = current_horizontal.length()
+		var speed_cap = effective_max_speed
+
+		# When steering on ground or in air with an intentional impulse (e.g. dash),
+		# bleed excess speed smoothly rather than hard-clamping to max speed
+		if is_intentional_movement and cur_speed_after_accel > speed_cap:
+			var drag_rate = intentional_movement_friction if on_floor else air_drag
+			var excess_bleed = min(drag_rate * delta, cur_speed_after_accel - speed_cap)
+			current_horizontal -= current_horizontal.normalized() * excess_bleed
+			if current_horizontal.length() <= speed_cap:
+				is_intentional_movement = false
+		elif cur_speed_after_accel > speed_cap:
+			current_horizontal = current_horizontal.normalized() * speed_cap
 	else:
-		# No input: decelerate smoothly with friction/drag
-		var drag_rate = effective_friction if on_floor else air_drag
-		current_horizontal = current_horizontal.move_toward(Vector2.ZERO, drag_rate * delta)
-		if current_horizontal.length() <= effective_max_speed:
-			is_intentional_movement = false
+		# No input: artificial deceleration towards 0 when no movement keys are pressed
+		if on_floor:
+			var decel_rate = intentional_movement_friction if (is_intentional_movement and cur_speed > effective_max_speed) else ground_deceleration
+			current_horizontal = current_horizontal.move_toward(Vector2.ZERO, decel_rate * delta)
+			if current_horizontal.length() <= effective_max_speed:
+				is_intentional_movement = false
+		else:
+			current_horizontal = current_horizontal.move_toward(Vector2.ZERO, air_drag * delta)
+			if current_horizontal.length() <= effective_max_speed:
+				is_intentional_movement = false
 
 	velocity.x = current_horizontal.x
 	velocity.z = current_horizontal.y

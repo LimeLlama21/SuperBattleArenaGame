@@ -2,7 +2,11 @@
 
 [ext_resource type="Script" uid="uid://dbjdgi1k8s2pk" path="res://characters/crush/crush.gd" id="1_crush"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
-[ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
+[ext_resource type="PackedScene" uid="uid://cdjy3oq13w80j" path="res://player/player_hud.tscn" id="3_player_hud"]
+[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
+[ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
+[ext_resource type="PackedScene" path="res://ability/effects/charge_slam_effect.tscn" id="ext_eff_charge"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.75
@@ -169,3 +173,90 @@ double_sided = false
 no_depth_test = true
 
 [node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]
+
+[node name="Abilities" type="Node" parent="."]
+
+[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "LMB"
+ability_id = "crush_slam"
+ability_name = "Slam"
+icon_symbol = "🔨"
+description = "Heavy hammer slam dealing 55.0 melee damage in a 120-degree frontal arc."
+cooldown = 0.65
+windup_time = 0.28
+hitbox_type = 1
+hitbox_radius = 4.2
+hitbox_angle_deg = 120.0
+hitbox_height = 2.4
+damage_amount = 55.0
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "RMB"
+ability_id = "crush_fan_stun"
+ability_name = "Seismic Arc"
+icon_symbol = "⚡"
+description = "Conical shockwave dealing 25.0 damage and stunning for 0.8s."
+cooldown = 6.0
+cast_on_press = false
+windup_time = 0.20
+hitbox_type = 1
+hitbox_radius = 5.2
+hitbox_angle_deg = 100.0
+hitbox_height = 2.4
+damage_amount = 25.0
+stun_duration = 0.8
+
+[node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
+slot_key = "SHIFT"
+ability_id = "crush_dash"
+ability_name = "Heavy Dash"
+icon_symbol = "💨"
+description = "Surges forward with unstoppable momentum."
+cooldown = 8.0
+impulse = 40.0
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "Q"
+ability_id = "crush_ground_stomp"
+ability_name = "Ground Stomp"
+icon_symbol = "💥"
+description = "Stomps ground dealing 20.0 damage and granting 40.0 shield."
+cooldown = 7.0
+cast_on_press = false
+windup_time = 0.25
+hitbox_type = 6
+hitbox_radius = 6.5
+hitbox_height = 2.0
+damage_amount = 20.0
+shield_amount = 40.0
+shield_duration = 4.0
+
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_buff")]
+slot_key = "E"
+ability_id = "crush_iron_barrier"
+ability_name = "Iron Barrier"
+icon_symbol = "🛡️"
+description = "Fortifies defense gaining 50.0 temporary shield."
+cooldown = 10.0
+buff_name = "IronBarrier"
+buff_duration = 4.0
+shield_amount = 50.0
+shield_duration = 4.0
+
+[node name="R" parent="Abilities" instance=ExtResource("ext_eff_charge")]
+slot_key = "R"
+ability_id = "crush_juggernaut_charge"
+ability_name = "Juggernaut Charge"
+icon_symbol = "🐗"
+description = "Unstoppable charge dealing 120.0 damage and stunning for 1.25s."
+cooldown = 45.0
+cast_on_press = false
+charge_speed = 28.0
+charge_duration = 1.0
+hitbox_type = 3
+hitbox_width = 3.0
+hitbox_length = 4.0
+hitbox_height = 2.5
+damage_amount = 120.0
+action_type = 2
+stun_duration = 1.25

@@ -1,8 +1,12 @@
 [gd_scene format=3 uid="uid://dhqp0hfpijgwi"]
 
-[ext_resource type="Script" path="res://characters/poke/poke.gd" id="1_poke"]
+[ext_resource type="Script" uid="uid://dxh7ridlhnf77" path="res://characters/poke/poke.gd" id="1_poke"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
 [ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
+[ext_resource type="PackedScene" path="res://ability/effects/projectile_effect.tscn" id="ext_eff_proj"]
+[ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
+[ext_resource type="PackedScene" path="res://ability/effects/area_zone_effect.tscn" id="ext_eff_zone"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.35
@@ -97,3 +101,99 @@ double_sided = false
 no_depth_test = true
 
 [node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]
+
+[node name="Abilities" type="Node" parent="."]
+
+[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "LMB"
+ability_id = "poke_rail_shot"
+ability_name = "Rapid Beam"
+icon_symbol = "🎯"
+description = "Rapid energy beam dealing 3.2 damage."
+cooldown = 0.11
+speed = 85.0
+max_range = 15.5
+projectile_size = 0.3
+custom_effect_type = "poke_sniper_laser"
+damage_amount = 3.2
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "RMB"
+ability_id = "poke_sniper_stance"
+ability_name = "Sniper Stance"
+icon_symbol = "🔭"
+description = "Long range charged shot dealing up to 70.0 damage."
+cooldown = 2.0
+cooldown_on_cast = false
+cast_on_press = false
+speed = 120.0
+max_range = 70.0
+projectile_size = 0.5
+custom_effect_type = "poke_sniper_laser"
+damage_amount = 70.0
+charge_time = 2.0
+min_damage = 35.0
+max_damage = 70.0
+hold_to_charge = true
+charge_move_speed_multiplier = 0.70
+
+[node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
+slot_key = "SHIFT"
+ability_id = "poke_dash"
+ability_name = "Tactical Slide"
+icon_symbol = "💨"
+description = "Quick evasion dash."
+cooldown = 4.0
+impulse = 28.0
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_buff")]
+slot_key = "Q"
+ability_id = "poke_overcharge"
+ability_name = "Overcharge"
+icon_symbol = "⚡"
+description = "Overcharges energy granting bonus damage."
+cooldown = 20.0
+buff_name = "Overcharge"
+buff_duration = 999.0
+
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_zone")]
+slot_key = "E"
+ability_id = "poke_ion_fence"
+ability_name = "Ion Fence"
+icon_symbol = "🚧"
+description = "Deploys energy fence that slows and grounds enemies."
+cooldown = 8.0
+cast_on_press = false
+radius = 6.5
+zone_duration = 6.0
+hitbox_type = 3
+hitbox_width = 8.0
+hitbox_length = 2.0
+hitbox_height = 2.5
+slow_intensity = 0.70
+slow_duration = 1.5
+
+[node name="R" parent="Abilities" instance=ExtResource("ext_eff_proj")]
+slot_key = "R"
+ability_id = "poke_orbital_hyperbeam"
+ability_name = "Orbital Hyperbeam"
+icon_symbol = "🛰️"
+description = "Devastating piercing laser beam dealing 70.0 damage."
+cooldown = 25.0
+cast_on_press = false
+windup_time = 2.0
+delay = 2.0
+telegraph = true
+windup_move_speed_multiplier = 0.0
+move_lockout = true
+speed = 120.0
+max_range = 70.0
+projectile_size = 1.6
+pierces = true
+custom_effect_type = "poke_orbital_hyperbeam"
+damage_amount = 70.0
+action_type = 2
+hitbox_type = 5
+hitbox_length = 70.0
+hitbox_width = 1.6
+hitbox_height = 2.5
