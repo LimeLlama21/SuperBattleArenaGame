@@ -33,6 +33,14 @@ var transformation_properties: Dictionary = {}
 var invulnerable_timer: float = 0.0
 var displacement_immune_timer: float = 0.0
 
+# --- Rupture Marks (Dive / Asparsas Passive) ---
+var dive_marks_count: int = 0
+var dive_mark_timer: float = 0.0
+var dive_mark_attacker_id: int = 0
+const DIVE_MARK_DURATION: float = 3.5
+const DIVE_MARK_MAX: int = 5
+const DIVE_MARK_BURST_PER_STACK: float = 18.0
+
 # --- Universal Levitation / Float State ---
 var is_floating: bool = false
 var float_timer: float = 0.0
@@ -568,6 +576,50 @@ func sync_apply_displacement_immunity(duration: float) -> void:
 		return
 	displacement_immune_timer = max(displacement_immune_timer, duration)
 
+# --- Rupture Marks (Dive / Asparsas Passive) Methods ---
+func apply_rupture_mark(attacker_id: int) -> void:
+	dive_marks_count = min(DIVE_MARK_MAX, dive_marks_count + 1)
+	dive_mark_timer = DIVE_MARK_DURATION
+	dive_mark_attacker_id = attacker_id
+
+func detonate_dive_marks(attacker: Node = null) -> int:
+	if dive_marks_count <= 0:
+		return 0
+	var count = dive_marks_count
+	var total_burst = count * DIVE_MARK_BURST_PER_STACK
+	var att_id = dive_mark_attacker_id
+	dive_marks_count = 0
+	dive_mark_timer = 0.0
+	if has_method("take_damage"):
+		call("take_damage", total_burst, att_id, 1)
+	elif "health" in self:
+		set("health", get("health") - total_burst)
+	
+	# Determine attacker instance if possible
+	var att_node = attacker
+	if not is_instance_valid(att_node) and is_inside_tree():
+		if att_id != 0:
+			if get_tree().root:
+				att_node = get_tree().root.get_node_or_null("Main/Players/" + str(att_id))
+			if not is_instance_valid(att_node):
+				var players = get_tree().get_nodes_in_group("players")
+				for p in players:
+					if p.name == str(att_id) or (p.get("peer_id") == att_id):
+						att_node = p
+						break
+	
+	if is_instance_valid(att_node):
+		if att_node.has_method("proc_passive_heal"):
+			att_node.proc_passive_heal(count)
+		elif att_node.has_method("heal"):
+			var heal_rider = (load("res://ability/riders/heal_rider.gd") as GDScript).new()
+			heal_rider.scale_with_marks = true
+			heal_rider.apply_to_self = true
+			heal_rider._execute_heal(att_node, count)
+			heal_rider.free()
+		
+	return count
+
 # --- Status & Timer Processing ---
 func _process_status_timers(delta: float) -> void:
 	# Channeling process
@@ -620,6 +672,12 @@ func _process_status_timers(delta: float) -> void:
 		invulnerable_timer = max(0.0, invulnerable_timer - delta)
 	if displacement_immune_timer > 0.0:
 		displacement_immune_timer = max(0.0, displacement_immune_timer - delta)
+
+	# Rupture mark timer
+	if dive_marks_count > 0:
+		dive_mark_timer -= delta
+		if dive_mark_timer <= 0.0:
+			dive_marks_count = 0
 
 	# Linear decay slow
 	if slow_timer > 0.0:

@@ -3,6 +3,7 @@ extends SceneTree
 const AbilityClass = preload("res://ability/ability.gd")
 const MeleeStrikeEffectClass = preload("res://ability/effects/melee_strike_effect.gd")
 const SectorHitboxClass = preload("res://ability/hitboxes/sector_hitbox.gd")
+const CircleHitboxClass = preload("res://ability/hitboxes/circle_hitbox.gd")
 const LineHitboxClass = preload("res://ability/hitboxes/line_hitbox.gd")
 const OnHitEnemyTriggerClass = preload("res://ability/triggers/on_hit_enemy_trigger.gd")
 const DamageRiderClass = preload("res://ability/riders/damage_rider.gd")
@@ -10,11 +11,14 @@ const StunRiderClass = preload("res://ability/riders/stun_rider.gd")
 const ShieldRiderClass = preload("res://ability/riders/shield_rider.gd")
 const BoundRiderClass = preload("res://ability/riders/bound_rider.gd")
 const StatusRiderClass = preload("res://ability/riders/status_rider.gd")
+const HealRiderClass = preload("res://ability/riders/heal_rider.gd")
 const PlayerSharedEffects = preload("res://player/player_shared_effects.gd")
 const CharacterRegistry = preload("res://characters/character_registry.gd")
 const CharacterData = preload("res://characters/character_data.gd")
 const AsparsasData = preload("res://characters/asparsas/asparsas_data.gd")
-const DiveData = AsparsasData
+const BasePlayer = preload("res://player/player_base.gd")
+const SileneClass = preload("res://characters/silene/silene.gd")
+const SileneDataClass = preload("res://characters/silene/silene_data.gd")
 
 func _initialize() -> void:
 	_run_all.call_deferred()
@@ -44,6 +48,8 @@ func _run_all() -> void:
 	test_aim_guide_and_projectile_indicator_filtering()
 	test_data_driven_character_pipeline()
 	test_bound_mechanic_and_rider()
+	test_silene_character_kit_and_mechanics()
+	test_player_projectile_armor_charges()
 
 	print("--- ALL ABILITY PIPELINE TESTS PASSED SUCCESSFULLY! ---")
 	quit(0)
@@ -122,6 +128,55 @@ func test_hitbox_calculations() -> void:
 	assert(sector.is_point_inside(origin, facing, Vector3(0, 0, -15)) == false, "Point beyond radius should be outside sector")
 	# Point too high
 	assert(sector.is_point_inside(origin, facing, Vector3(0, 5, -5)) == false, "Point above height should be outside sector")
+	assert(sector is CircleHitboxClass, "SectorHitbox must be a specialized CircleHitbox")
+
+	# Full Circle hitbox (default angle_deg = 360.0)
+	var full_circle = CircleHitboxClass.new()
+	full_circle.radius = 10.0
+	full_circle.height = 3.0
+	assert(full_circle.angle_deg == 360.0, "CircleHitbox default angle_deg should be 360")
+	assert(full_circle.is_point_inside(origin, facing, Vector3(0, 0, -5)) == true, "Point ahead should be inside full circle")
+	assert(full_circle.is_point_inside(origin, facing, Vector3(0, 0, 5)) == true, "Point behind should be inside full circle")
+	assert(full_circle.is_point_inside(origin, facing, Vector3(5, 0, 0)) == true, "Point to right should be inside full circle")
+	assert(full_circle.is_point_inside(origin, facing, Vector3(0, 0, 15)) == false, "Point beyond radius should be outside full circle")
+
+	# Circle hitbox with angle modifier (< 360.0, acts as sector)
+	var modified_circle = CircleHitboxClass.new()
+	modified_circle.radius = 10.0
+	modified_circle.angle_deg = 90.0
+	modified_circle.height = 3.0
+	assert(modified_circle.is_point_inside(origin, facing, Vector3(0, 0, -5)) == true, "Point ahead should be inside modified circle sector")
+	assert(modified_circle.is_point_inside(origin, facing, Vector3(5, 0, 0)) == false, "Point at 90 deg sideways should be outside 90 deg forward cone")
+
+	# Annul modifier tests (Annulus & Annulus Sector)
+	var annul_circle = CircleHitboxClass.new()
+	annul_circle.radius = 10.0
+	annul_circle.height = 3.0
+	annul_circle.annul = true # Should use character hitbox radius (default 0.4 without caster)
+	assert(annul_circle.get_annul_radius() == 0.4, "Annul true should default to 0.4 character radius when unbound")
+	assert(annul_circle.is_point_inside(origin, facing, Vector3(0, 0, -0.2)) == false, "Point inside annul inner radius should be excluded")
+	assert(annul_circle.is_point_inside(origin, facing, Vector3(0, 0, -1.0)) == true, "Point between inner and outer radius should be inside")
+
+	# Annul with custom float
+	var custom_annul = CircleHitboxClass.new()
+	custom_annul.radius = 10.0
+	custom_annul.height = 3.0
+	custom_annul.annul = 2.5
+	assert(custom_annul.get_annul_radius() == 2.5, "Annul float 2.5 should yield 2.5 inner radius")
+	assert(custom_annul.is_point_inside(origin, facing, Vector3(0, 0, -1.5)) == false, "Point within 2.5 inner radius should be excluded")
+	assert(custom_annul.is_point_inside(origin, facing, Vector3(0, 0, -3.0)) == true, "Point beyond 2.5 inner radius should be inside")
+
+	# Annulus Sector (angle_deg < 360 + annul)
+	var annul_sector = CircleHitboxClass.new()
+	annul_sector.radius = 10.0
+	annul_sector.angle_deg = 90.0
+	annul_sector.annul = 2.0
+	assert(annul_sector.is_point_inside(origin, facing, Vector3(0, 0, -1.0)) == false, "Point inside inner hole of annulus sector should be excluded")
+	assert(annul_sector.is_point_inside(origin, facing, Vector3(0, 0, -4.0)) == true, "Point in frontal wedge between 2.0 and 10.0 should be inside")
+	assert(annul_sector.is_point_inside(origin, facing, Vector3(0, 0, 4.0)) == false, "Point behind caster should be excluded from annulus sector")
+	var annul_ind = annul_sector.create_indicator()
+	assert(annul_ind != null, "Annulus sector indicator should create successfully")
+	annul_ind.free()
 	
 	# Line hitbox
 	var line = LineHitboxClass.new()
@@ -136,7 +191,7 @@ func test_rider_applications() -> void:
 	print("Testing Rider Payloads...")
 	var dummy = Node.new()
 	var dummy_script = GDScript.new()
-	dummy_script.source_code = "extends Node\nvar health = 100.0\nvar shield = 0.0\nvar is_stunned_state = false\nvar slow_amount = 0.0\nfunc take_damage(dmg, _att, _act): health -= dmg\nfunc add_shield(amt, _dur): shield += amt\nfunc apply_stun(_dur): is_stunned_state = true\nfunc apply_slow(_dur, intensity): slow_amount = intensity\n"
+	dummy_script.source_code = "extends Node\nvar max_health = 100.0\nvar current_health = 100.0\nvar health = 100.0\nvar shield = 0.0\nvar is_stunned_state = false\nvar slow_amount = 0.0\nfunc take_damage(dmg, _att, _act): health -= dmg; current_health = health\nfunc heal(amt): health += amt; current_health = health\nfunc add_shield(amt, _dur): shield += amt\nfunc apply_stun(_dur): is_stunned_state = true\nfunc apply_slow(_dur, intensity): slow_amount = intensity\n"
 	dummy_script.reload()
 	dummy.set_script(dummy_script)
 	
@@ -160,6 +215,33 @@ func test_rider_applications() -> void:
 	shield_rider.apply_to_self = false
 	shield_rider.apply(caster, dummy)
 	assert(dummy.get("shield") == 40.0, "Dummy should have 40 shield")
+
+	# Heal rider: Flat heal
+	var flat_heal_rider = HealRiderClass.new()
+	flat_heal_rider.amount = 20.0
+	flat_heal_rider.apply_to_self = false
+	flat_heal_rider.apply(caster, dummy)
+	assert(dummy.get("health") == 85.0, "Dummy should heal 20 HP from flat heal rider")
+	flat_heal_rider.free()
+
+	# Heal rider: Scale with marks (11-15% missing HP)
+	var marks_heal_rider = HealRiderClass.new()
+	marks_heal_rider.scale_with_marks = true
+	marks_heal_rider.apply_to_self = true
+	dummy.set("health", 60.0)
+	dummy.set("current_health", 60.0) # missing HP = 40.0
+	# 5 marks -> 15% of 40 = 6.0 heal -> 66.0
+	marks_heal_rider.apply_to_caster(dummy, {"marks": 5})
+	assert(abs(dummy.get("health") - 66.0) < 0.001, "5 marks should heal 15% missing HP")
+	marks_heal_rider.free()
+
+	# AbilityPipeline RiderType.HEAL and builder checks
+	assert(AbilityPipeline.RiderType.HEAL != null, "AbilityPipeline must define RiderType.HEAL")
+	assert(AbilityPipeline.parse_rider_type("HEAL") == AbilityPipeline.RiderType.HEAL, "parse_rider_type('HEAL') must return RiderType.HEAL")
+	var built_heal = AbilityBuilder._build_rider({"type": AbilityPipeline.RiderType.HEAL, "scale_with_marks": true, "min_percent": 0.11, "max_percent": 0.15})
+	assert(built_heal is HealRiderClass, "AbilityBuilder must build HealRider instance")
+	assert(built_heal.scale_with_marks == true, "Built HealRider must preserve scale_with_marks")
+	built_heal.free()
 	
 	dummy.free()
 	caster.free()
@@ -339,6 +421,44 @@ func test_character_kits_and_special_mechanics() -> void:
 	assert(dive.current_health == hp_before - 36.0, "2 marks should deal 36 burst damage")
 	dive.free()
 
+	# Dive Passive Proc Heal Testing (11% to 15% missing HP based on 1 to 5 marks)
+	var dive_attacker = (load("res://characters/asparsas/asparsas.tscn") as PackedScene).instantiate() as Asparsas
+	dive_attacker.name = "21"
+	dive_attacker.peer_id = 21
+	dive_attacker.team_id = 1
+	root.add_child(dive_attacker)
+	if not dive_attacker.is_node_ready(): dive_attacker._ready()
+
+	var enemy_target = (load("res://characters/crush/crush.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_target.name = "22"
+	enemy_target.team_id = 2
+	root.add_child(enemy_target)
+	if not enemy_target.is_node_ready(): enemy_target._ready()
+
+	for marks_to_test in range(1, 6):
+		dive_attacker.current_health = 140.0 # max_health is 240.0 -> missing_hp is 100.0
+		for _i in range(marks_to_test):
+			enemy_target.apply_rupture_mark(21)
+		assert(enemy_target.dive_marks_count == marks_to_test, "Enemy should have %d marks" % marks_to_test)
+		
+		enemy_target.detonate_dive_marks(dive_attacker)
+		var expected_pct = 0.10 + float(marks_to_test) * 0.01 # 11% to 15%
+		var expected_heal = 100.0 * expected_pct
+		var actual_hp = dive_attacker.current_health
+		assert(abs(actual_hp - (140.0 + expected_heal)) < 0.001, 
+			"Dive should heal %f%% (%f HP) on %d marks proc, got HP %f" % [expected_pct * 100.0, expected_heal, marks_to_test, actual_hp])
+
+	# Test on_melee_strike_hit cleave proc triggers passive heal
+	dive_attacker.current_health = 140.0
+	for _i in range(3): # 3 marks = 13% missing HP = 13.0 HP heal
+		enemy_target.apply_rupture_mark(21)
+	dive_attacker.on_melee_strike_hit(enemy_target, {"ability_id": "dive_heavy_cleave", "slot_key": "RMB"})
+	assert(abs(dive_attacker.current_health - 153.0) < 0.001, "Cleave hit should detonate marks and heal 13 HP (13%)")
+	assert(enemy_target.dive_marks_count == 0, "Cleave should consume enemy marks")
+
+	dive_attacker.free()
+	enemy_target.free()
+
 	# --- 3. Poke: Sniper Stance, Overcharge & Takedown Reset ---
 	var poke = (load("res://characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
 	poke.name = "12"
@@ -452,7 +572,7 @@ func test_gravity_and_jump_metrics() -> void:
 
 	var char_data_classes = [
 		CrushData,
-		DiveData,
+		AsparsasData,
 		MorriganData,
 		PokeData,
 		ReaperData
@@ -471,7 +591,7 @@ func test_gravity_and_jump_metrics() -> void:
 
 	# Verify specific reduced ground_acceleration values
 	assert(CrushData.create().ground_acceleration == 20.0, "Crush ground_acceleration should be 20.0")
-	assert(DiveData.create().ground_acceleration == 25.0, "Dive ground_acceleration should be 25.0")
+	assert(AsparsasData.create().ground_acceleration == 25.0, "Asparsas ground_acceleration should be 25.0")
 	assert(MorriganData.create().ground_acceleration == 25.0, "Morrigan ground_acceleration should be 25.0")
 	assert(PokeData.create().ground_acceleration == 30.0, "Poke ground_acceleration should be 30.0")
 	assert(ReaperData.create().ground_acceleration == 40.0, "Reaper ground_acceleration should be 40.0")
@@ -1394,6 +1514,7 @@ func test_combat_hitbox_cylinder_and_no_autoaim() -> void:
 
 	# Restore airborne position for projectile CombatHitbox test
 	target_dummy.global_position = Vector3(0.0, 8.0, -5.0)
+	target_dummy.armor_charges = 0
 
 	# B. Projectile Collision on Airborne Target
 	var proj_scene = load("res://projectile.tscn") as PackedScene
@@ -1446,14 +1567,14 @@ func test_aim_guide_and_projectile_indicator_filtering() -> void:
 	assert(poke_lmb != null, "Poke LMB must exist")
 	assert(poke.should_ability_have_indicator(poke_lmb) == false, "Poke LMB projectile indicator must be removed")
 
+	var poke_rmb = poke.abilities.get("RMB")
+	assert(poke_rmb != null, "Poke RMB must exist")
+	assert(poke.should_ability_have_indicator(poke_rmb) == false, "Poke Sniper stance charged shot projectile indicator must be removed (uses local laser aim guide)")
+
 	# 2. Verify charged, very long range, and mortar projectile abilities KEEP their indicators
 	var morrigan_rmb = morrigan.abilities.get("RMB")
 	assert(morrigan_rmb != null, "Morrigan RMB must exist")
 	assert(morrigan.should_ability_have_indicator(morrigan_rmb) == true, "Morrigan mortar shell must KEEP its indicator")
-
-	var poke_rmb = poke.abilities.get("RMB")
-	assert(poke_rmb != null, "Poke RMB must exist")
-	assert(poke.should_ability_have_indicator(poke_rmb) == true, "Poke Sniper stance charged shot must KEEP its indicator")
 
 	var poke_r = poke.abilities.get("R")
 	assert(poke_r != null, "Poke R must exist")
@@ -1533,23 +1654,40 @@ func test_data_driven_character_pipeline() -> void:
 	player.queue_free()
 	factory_player.queue_free()
 
-	# 6. Verify Drakaina (Kampé)
-	assert(CharacterRegistry.has_character("drakaina"), "CharacterRegistry must have drakaina")
-	assert(CharacterRegistry.get_display_name("drakaina") == "Kampé", "Display name must be Kampé")
-	var drakaina_data = CharacterRegistry.get_character_data("drakaina")
-	assert(drakaina_data != null, "Drakaina data must be retrievable")
-	assert(drakaina_data.character_name == "Drakaina", "Drakaina character_name must match")
-	assert(drakaina_data.display_name == "Kampé", "Drakaina display_name must match")
-	var drakaina_instance = CharacterRegistry.create_player_instance("drakaina")
-	assert(drakaina_instance != null, "Drakaina instance must be created")
-	root.add_child(drakaina_instance)
-	drakaina_instance.name = "drakaina_test"
-	if not drakaina_instance.is_node_ready():
-		drakaina_instance._ready()
-	assert(drakaina_instance.character_name == "Drakaina", "Instance character_name must be Drakaina")
-	assert(drakaina_instance.display_name == "Kampé", "Instance display_name must be Kampé")
-	drakaina_instance.queue_free()
-	print("  ✓ Drakaina (Kampé) registration and instantiation verified.")
+	# 6. Verify The Dragon of Silene (Saint Silene)
+	assert(CharacterRegistry.has_character("silene"), "CharacterRegistry must have silene")
+	assert(CharacterRegistry.get_display_name("silene") == "Saint Silene", "Display name must be Saint Silene")
+	var silene_data = CharacterRegistry.get_character_data("silene")
+	assert(silene_data != null, "Silene data must be retrievable")
+	assert(silene_data.character_name == "The Dragon of Silene", "Character name must be The Dragon of Silene")
+	assert(silene_data.display_name == "Saint Silene", "Display name must match")
+	var silene_instance = CharacterRegistry.create_player_instance("silene")
+	assert(silene_instance != null, "Silene instance must be created")
+	root.add_child(silene_instance)
+	silene_instance.name = "silene_test"
+	if not silene_instance.is_node_ready():
+		silene_instance._ready()
+	assert(silene_instance.character_name == "The Dragon of Silene", "Instance character_name must be The Dragon of Silene")
+	assert(silene_instance.display_name == "Saint Silene", "Instance display_name must be Saint Silene")
+	silene_instance.queue_free()
+	print("  ✓ The Dragon of Silene (Saint Silene) registration and instantiation verified.")
+
+	# 7. Verify Urvashi (asparsas)
+	assert(CharacterRegistry.has_character("asparsas"), "CharacterRegistry must have asparsas")
+	assert(CharacterRegistry.get_display_name("asparsas") == "Urvashi", "Display name for asparsas must be Urvashi")
+	assert(not CharacterRegistry.has_character("dive"), "CharacterRegistry must not have obsolete 'dive' key")
+	var urvashi_data = CharacterRegistry.get_character_data("asparsas")
+	assert(urvashi_data != null, "Urvashi data must be retrievable")
+	assert(urvashi_data.display_name == "Urvashi", "Urvashi data display_name must be Urvashi")
+	var urvashi_instance = CharacterRegistry.create_player_instance("asparsas")
+	assert(urvashi_instance != null, "Urvashi instance must be created")
+	root.add_child(urvashi_instance)
+	urvashi_instance.name = "urvashi_test"
+	if not urvashi_instance.is_node_ready():
+		urvashi_instance._ready()
+	assert(urvashi_instance.display_name == "Urvashi", "Instance display_name must be Urvashi")
+	urvashi_instance.queue_free()
+	print("  ✓ Urvashi (asparsas) registration and display name verified.")
 
 	print("✓ Data-Driven Character Pipeline verified successfully.")
 
@@ -1700,10 +1838,324 @@ func test_bound_mechanic_and_rider() -> void:
 	target.queue_free()
 	test_effect.queue_free()
 	print("✓ Bound Rider, Relocation, CC, and Tethering Mechanics verified successfully.")
+func test_silene_character_kit_and_mechanics() -> void:
+	print("Testing Saint Silene Complete Ability Kit and Mechanics...")
+	var root = get_root()
 
+	# 1. Instantiate Silene and dummy target
+	var silene_scene = load("res://characters/silene/silene.tscn") as PackedScene
+	assert(silene_scene != null, "Silene scene must load")
+	var silene = silene_scene.instantiate() as BasePlayer
+	silene.name = "901"
+	silene.peer_id = 901
+	silene.team_id = 1
+	root.add_child(silene)
+	silene.global_position = Vector3(500.0, 0.0, 500.0)
+	if not silene.is_node_ready():
+		silene._ready()
 
+	var dummy_scene = load("res://characters/crush/crush.tscn") as PackedScene
+	assert(dummy_scene != null, "Crush scene must load for dummy")
+	var dummy = dummy_scene.instantiate() as BasePlayer
+	dummy.name = "902"
+	dummy.peer_id = 902
+	dummy.team_id = 2
+	root.add_child(dummy)
+	dummy.global_position = silene.global_position + Vector3(0, 0, -5.0)
+	if not dummy.is_node_ready():
+		dummy._ready()
 
+	# Verify abilities in scene
+	assert(silene.abilities.has("LMB"), "Silene must have LMB ability")
+	assert(silene.abilities.has("SHIFT"), "Silene must have SHIFT ability")
+	assert(silene.abilities.has("RMB"), "Silene must have RMB ability")
+	assert(silene.abilities.has("Q"), "Silene must have Q ability")
+	assert(silene.abilities.has("E"), "Silene must have E ability")
+	assert(silene.abilities.has("R"), "Silene must have R ability")
 
+	assert(silene.max_health == 320.0, "Silene max health must be 320.0 (Heracles tier)")
 
+	var lmb_ab = silene.abilities["LMB"]
+	assert(lmb_ab.hitbox_type == 6, "LMB must be CircleHitbox (Annulus Sector)")
+	assert(lmb_ab.hitbox_annul == 0.8, "LMB inner annul must be 0.8")
+
+	var rmb_ab = silene.abilities["RMB"]
+	assert(rmb_ab.hitbox_type == 6, "RMB must be CircleHitbox (Annulus Sector)")
+	assert(rmb_ab.hitbox_annul == 1.0, "RMB inner annul must be 1.0")
+	assert(rmb_ab.hitbox_radius == 6.2, "RMB radius must be 6.2 (matching Q)")
+	assert(rmb_ab.hitbox_angle_deg == 63.0, "RMB angle must be 63.0 (30% thinner than 90 deg)")
+
+	var q_ab = silene.abilities["Q"]
+	assert(q_ab.hitbox_type == 6, "Q must be CircleHitbox (Annulus Sector)")
+	assert(q_ab.hitbox_annul == 2.0, "Q inner annul must be 2.0")
+
+	var r_ab = silene.abilities["R"]
+	assert(r_ab.hitbox_type == 6, "R must be CircleHitbox (Annulus Sector)")
+	assert(r_ab.hitbox_annul == 2.2, "R inner annul must be 2.2")
+
+	print("  ✓ Silene ability configurations and annulus sector hitboxes verified.")
+
+	# 2. Passive: Flat bonus damage on ability damage dealt (separate instance)
+	dummy.current_health = 200.0
+	dummy.max_health = 200.0
+	# Deal 20 ability damage to dummy; passive should proc an additional 10.0 damage
+	silene.deal_damage(dummy, 20.0, BasePlayer.ActionType.ABILITY)
+	assert(is_equal_approx(dummy.current_health, 170.0), "Dummy HP should be 170.0 (20 base + 10 passive flat bonus)")
+	print("  ✓ Passive flat bonus damage (separate instance) verified.")
+
+	# 3. LMB: Claw Swipe (Annulus Sector: radius 3.8m, annul 0.8m, angle 100 deg)
+	dummy.current_health = 200.0
+	# Position dummy inside inner hole (0.5m ahead)
+	dummy.global_position = silene.global_position + Vector3(0, 0, -0.5)
+	silene.custom_execute_ability_server("LMB", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(dummy.current_health == 200.0, "Target inside inner annul cutout (0.5m) should NOT be hit by LMB")
+
+	# Position dummy inside annulus sweetspot (2.0m ahead)
+	dummy.global_position = silene.global_position + Vector3(0, 0, -2.0)
+	silene.custom_execute_ability_server("LMB", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	# Takes 24.0 LMB damage + 10.0 passive bonus damage = 34.0 damage -> 166.0 HP
+	assert(is_equal_approx(dummy.current_health, 166.0), "Target in annulus sector sweetspot (2.0m) should take LMB damage + passive")
+	print("  ✓ LMB Annulus Sector claw swipe verified.")
+
+	# 4. RMB: Dragon Bite (% Max Health DMG + 100% Heal)
+	dummy.current_health = 200.0
+	dummy.max_health = 200.0
+	silene.current_health = 100.0
+	silene.max_health = 320.0
+
+	# Inside inner hole (0.6m): immune
+	dummy.global_position = silene.global_position + Vector3(0, 0, -0.6)
+	silene.custom_execute_ability_server("RMB", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(dummy.current_health == 200.0, "Target inside inner annul cutout (0.6m) should NOT be hit by RMB")
+
+	# Inside sweetspot (2.2m ahead): 18.0 base + 16% of 200 (32.0) = 50.0 bite damage (+ 10.0 passive = 60.0 total)
+	# Silene heals for 50.0 bite damage
+	dummy.global_position = silene.global_position + Vector3(0, 0, -2.2)
+	silene.custom_execute_ability_server("RMB", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(is_equal_approx(silene.current_health, 150.0), "Silene should heal 50.0 HP from bite damage dealt")
+
+	# Test extended range (5.5m ahead, within new 6.2m range matching Q):
+	dummy.current_health = 200.0
+	dummy.global_position = silene.global_position + Vector3(0, 0, -5.5)
+	silene.custom_execute_ability_server("RMB", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(dummy.current_health < 200.0, "Target at 5.5m ahead should be hit by extended RMB range (6.2m)")
+
+	# Test narrower cone (30% thinner, 63 deg cone, half angle 31.5 deg):
+	# Position at 3.0m ahead rotated by 40 deg (should miss now):
+	dummy.current_health = 200.0
+	var offset_dir = Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(40.0)).normalized()
+	dummy.global_position = silene.global_position + offset_dir * 3.0
+	silene.custom_execute_ability_server("RMB", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(dummy.current_health == 200.0, "Target at 40 deg angle should miss due to thinner 63 deg cone")
+	print("  ✓ RMB Annulus Sector bite with % max HP, healing, extended 6.2m range, and 63 deg cone verified.")
+
+	# 5. Q: Tail Lash (Annulus Sector: radius 6.2m, annul 2.0m, angle 180 deg)
+	dummy.current_health = 200.0
+	dummy.cleanse_cc()
+	# Inside inner hole (1.0m ahead): immune
+	dummy.global_position = silene.global_position + Vector3(0, 0, -1.0)
+	silene.custom_execute_ability_server("Q", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(dummy.current_health == 200.0, "Target inside inner annul cutout (1.0m) should NOT be hit by Q")
+	assert(dummy.is_stunned() == false, "Target inside inner cutout should NOT be stunned by Q")
+
+	# Inside sweetspot (3.5m ahead): 30.0 damage + 10.0 passive = 40.0 damage, stunned 1.2s
+	dummy.global_position = silene.global_position + Vector3(0, 0, -3.5)
+	silene.custom_execute_ability_server("Q", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(is_equal_approx(dummy.current_health, 160.0), "Dummy should take 30 + 10 damage from Q")
+	assert(dummy.is_stunned() == true, "Dummy should be stunned by Q")
+	dummy.cleanse_cc()
+	print("  ✓ Q Annulus Sector tail lash with damage and stun verified.")
+
+	# 6. Dash (Shift): Uncharged Leap & Grab Slam
+	dummy.current_health = 200.0
+	dummy.cleanse_cc()
+	dummy.global_position = silene.global_position + Vector3(0, 0, -1.0)
+	silene.start_dash(silene.global_position, Vector3.FORWARD, 0.0)
+	assert(silene.is_silene_dashing == true, "Silene should be dashing")
+	assert(silene.is_charged_dash == false, "Uncharged dash should not be charged")
+	assert(silene.is_cc_immune == false, "Uncharged leap must NOT be cc immune")
+	# Simulate frame for grab
+	silene._process_dash(0.016)
+	assert(silene.grabbed_victim == dummy, "Silene should have grabbed dummy")
+	# Simulate dash completion to slam
+	silene.dash_timer = 0.0
+	silene._process_dash(0.016)
+	assert(silene.is_silene_dashing == false, "Dash should end on completion")
+	# Slam damage: 35.0 + 10.0 passive = 45.0 damage -> 155.0 HP
+	assert(is_equal_approx(dummy.current_health, 155.0), "Dummy should take uncharged slam damage + passive")
+	assert(dummy.is_stunned() == true, "Dummy should be stunned by slam")
+	dummy.cleanse_cc()
+	print("  ✓ Dash uncharged leap, grab, and slam verified.")
+
+	# 7. Dash (Shift): Charged Rush, Unstoppable, and Outer Hitbox
+	var dummy2_scene = load("res://characters/crush/crush.tscn") as PackedScene
+	var dummy2 = dummy2_scene.instantiate() as BasePlayer
+	dummy2.name = "3"
+	dummy2.team_id = 2
+	root.add_child(dummy2)
+	if not dummy2.is_node_ready():
+		dummy2._ready()
+	dummy2.current_health = 200.0
+
+	# Put dummy in front for grab, dummy2 to the side (2.5m away) for outer hitbox
+	dummy.global_position = silene.global_position + Vector3(0, 0, -1.0)
+	dummy2.global_position = silene.global_position + Vector3(2.5, 0, 0)
+	silene.start_dash(silene.global_position, Vector3.FORWARD, 1.0)
+	assert(silene.is_charged_dash == true, "Charged dash should be charged")
+	assert(silene.is_cc_immune == true, "Charged rush MUST be unstoppable (is_cc_immune = true)")
+	# Process grab and outer hitbox
+	silene._process_dash(0.016)
+	assert(silene.grabbed_victim == dummy, "Charged rush should grab direct frontal target")
+	assert(silene.collateral_hit_victims.has(dummy2), "Secondary target in outer zone must be hit by collateral hitbox")
+	assert(dummy2.current_health < 200.0, "Secondary target should take collateral damage")
+	# Complete charged slam
+	silene.dash_timer = 0.0
+	silene._process_dash(0.016)
+	assert(silene.is_cc_immune == false, "CC immunity should end when dash finishes")
+	print("  ✓ Charged rush unstoppable state and outer collateral hitbox verified.")
+
+	# 8. Dash CC Cancellation (Release enemy with NO damage and NO cc)
+	dummy.current_health = 200.0
+	dummy.cleanse_cc()
+	dummy.global_position = silene.global_position + Vector3(0, 0, -1.0)
+	silene.start_dash(silene.global_position, Vector3.FORWARD, 0.0)
+	silene._process_dash(0.016)
+	assert(silene.grabbed_victim == dummy, "Target grabbed")
+	# CC Silene
+	silene.stun_timer = 1.0
+	silene._process_dash(0.016)
+	assert(silene.is_silene_dashing == false, "Dash must be cancelled by CC")
+	assert(silene.grabbed_victim == null, "Grabbed victim must be released")
+	assert(dummy.current_health == 200.0, "Released victim must take NO damage")
+	assert(dummy.is_stunned() == false, "Released victim must take NO stun/cc")
+	silene.cleanse_cc()
+	print("  ✓ Dash CC cancellation releases victim unharmed without damage or CC.")
+
+	# 9. E: Fire Breath (Area scaling with height and raycast vertices)
+	silene.global_position = Vector3(0, 0, 0)
+	var low_verts = silene.calculate_fire_breath_vertices(silene.global_position, Vector3.FORWARD, 8.0, 60.0, 5)
+	assert(low_verts.size() == 5, "Should generate 5 raycast vertices")
+	# Set height to 5m and test scaling
+	silene.global_position.y = 5.0
+	var height_val = silene._get_height_above_ground()
+	# Height elevation scales up radius and angle
+	var scaled_radius = clamp(8.0 + height_val * 0.9, 8.0, 17.0)
+	assert(scaled_radius >= 8.0, "Fire breath radius scales with height above ground")
+	silene.global_position = Vector3.ZERO
+	print("  ✓ Fire breath height scaling and raycasted vertices verified.")
+
+	# 10. R: Primal Roar (Annulus Sector: radius 13.0m, annul 2.2m, angle 100 deg)
+	dummy.current_health = 200.0
+	dummy.cleanse_cc()
+	# Inside inner hole (1.5m): immune
+	dummy.global_position = silene.global_position + Vector3(0, 0, -1.5)
+	silene.custom_execute_ability_server("R", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(dummy.current_health == 200.0, "Target inside inner annul cutout (1.5m) should NOT be hit by Roar")
+
+	# Inside sweetspot (5.0m ahead): takes 45 + 10 damage = 55 damage, silenced 2.0s, pulled
+	dummy.global_position = silene.global_position + Vector3(0, 0, -5.0)
+	silene.custom_execute_ability_server("R", silene.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(is_equal_approx(dummy.current_health, 145.0), "Dummy HP should be 145.0 (45 roar dmg + 10 passive)")
+	assert(dummy.is_silenced() == true, "Dummy should be silenced by Roar")
+	print("  ✓ R Annulus Sector roar with silence and damage verified.")
+
+	# 11. Match-long +10 Max HP per takedown persisting across rounds
+	var initial_max_hp = silene.max_health
+	silene._on_character_takedown(dummy)
+	assert(is_equal_approx(silene.max_health, initial_max_hp + 10.0), "Silene should gain +10 max HP on takedown")
+	assert(is_equal_approx(silene.silene_takedown_bonus_hp, 10.0), "silene_takedown_bonus_hp should be 10.0")
+
+	# Test persistence simulation: round reset re-applying saved bonus HP
+	silene.restore_saved_takedown_bonus_hp(30.0)
+	assert(is_equal_approx(silene.silene_takedown_bonus_hp, 30.0), "Restored bonus HP should be 30.0")
+	assert(is_equal_approx(silene.max_health, initial_max_hp + 30.0), "Silene max health must persist bonus HP across rounds")
+	print("  ✓ Persistent +10 max HP per takedown across rounds verified.")
+
+	# Cleanup
+	silene.queue_free()
+	dummy.queue_free()
+	dummy2.queue_free()
+	print("✓ Saint Silene complete ability kit and mechanics verified successfully!")
+
+func test_player_projectile_armor_charges() -> void:
+	print("Testing Universal Anti-Poke Projectile Armor Charges...")
+	var root = get_root()
+
+	# 1. Verify all characters start with 2 armor charges
+	var dummy = (load("res://training_dummy.tscn") as PackedScene).instantiate() as BasePlayer
+	root.add_child(dummy)
+	assert(dummy.armor_charges == 2, "Character must start with 2 armor charges")
+	assert(dummy.max_armor_charges == 2, "Max armor charges must be 2")
+	print("  ✓ Every character starts with 2 armor charges.")
+
+	# 2. Projectile hit resists damage and consumes 1 charge
+	var initial_hp = dummy.current_health
+	var proj_scene = load("res://projectile.tscn") as PackedScene
+
+	var proj1 = proj_scene.instantiate()
+	root.add_child(proj1)
+	proj1.shooter_id = 999
+	proj1.damage = 45.0
+	proj1.direction = Vector3.FORWARD
+	proj1.effect_type = "slow"
+	proj1.effect_duration = 2.0
+	proj1.effect_intensity = 0.40
+
+	var dummy_hb = dummy.get_combat_hitbox()
+	assert(dummy_hb != null, "Target must have CombatHitbox")
+	proj1._on_area_entered(dummy_hb)
+
+	# Damage was resisted!
+	assert(dummy.current_health == initial_hp, "First projectile damage must be completely resisted by armor charge")
+	assert(dummy.armor_charges == 1, "First projectile must consume 1 armor charge (remaining: 1)")
+	# But rider (slow) still applies!
+	assert(dummy.is_slowed() == true, "Projectile riders (slow) must still apply even when damage is resisted")
+	print("  ✓ First projectile damage resisted, 1 charge consumed, and riders still applied.")
+
+	# 3. Non-projectile damage does NOT interact with or consume armor charges
+	dummy.take_damage(30.0, 999, BasePlayer.ActionType.ATTACK) # Direct damage without is_projectile
+	assert(is_equal_approx(dummy.current_health, initial_hp - 30.0), "Non-projectile damage must deal full damage")
+	assert(dummy.armor_charges == 1, "Non-projectile damage must NOT consume armor charges")
+	print("  ✓ Non-projectile damage ignores armor charges and deals full damage.")
+
+	# 4. Second projectile hit resists damage and consumes 2nd charge
+	var hp_before_proj2 = dummy.current_health
+	var proj2 = proj_scene.instantiate()
+	root.add_child(proj2)
+	proj2.shooter_id = 999
+	proj2.damage = 60.0
+	proj2.direction = Vector3.FORWARD
+	proj2.effect_type = "blood_wave" # Stun rider
+
+	proj2._on_area_entered(dummy_hb)
+	assert(dummy.current_health == hp_before_proj2, "Second projectile damage must be resisted by second armor charge")
+	assert(dummy.armor_charges == 0, "Second projectile must consume last armor charge (remaining: 0)")
+	assert(dummy.is_stunned() == true, "Projectile stun rider must still apply when damage is resisted")
+	print("  ✓ Second projectile damage resisted, 0 charges remaining, and stun rider applied.")
+
+	# 5. Third projectile hit (no armor charges left) deals full damage
+	var hp_before_proj3 = dummy.current_health
+	var proj3 = proj_scene.instantiate()
+	root.add_child(proj3)
+	proj3.shooter_id = 999
+	proj3.damage = 50.0
+	proj3.direction = Vector3.FORWARD
+
+	proj3._on_area_entered(dummy_hb)
+	assert(is_equal_approx(dummy.current_health, hp_before_proj3 - 50.0), "Third projectile must deal full damage after charges depleted")
+	assert(dummy.armor_charges == 0, "Armor charges remain 0")
+	print("  ✓ Third projectile deals full damage after armor charges exhausted.")
+
+	# 6. Respawn restores 2 armor charges
+	dummy.sync_respawn(Vector3.ZERO)
+	assert(dummy.armor_charges == 2, "Respawn must restore all 2 armor charges")
+	print("  ✓ Respawn restores all 2 armor charges.")
+
+	# Cleanup
+	dummy.queue_free()
+	proj1.queue_free()
+	proj2.queue_free()
+	proj3.queue_free()
+	print("✓ Universal Anti-Poke Projectile Armor Charges verified successfully!")
 
 

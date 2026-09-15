@@ -3,7 +3,10 @@ extends Node
 
 @export var shape_type: AbilityPipeline.HitboxShape = AbilityPipeline.HitboxShape.NONE
 
+var current_caster: Node = null
+
 func get_targets_in_hitbox(caster: Node, origin: Vector3, facing: Vector3, scene_tree: SceneTree) -> Array[Node]:
+	current_caster = caster
 	var hit_targets: Array[Node] = []
 	if not is_instance_valid(caster) or not scene_tree:
 		return hit_targets
@@ -49,6 +52,7 @@ func get_targets_in_hitbox(caster: Node, origin: Vector3, facing: Vector3, scene
 		var check_pos = Vector3(p.global_position.x, closest_y, p.global_position.z)
 		if is_point_inside(origin, facing, check_pos):
 			hit_targets.append(p)
+	current_caster = null
 	return hit_targets
 
 func is_point_inside(_origin: Vector3, _facing: Vector3, _point: Vector3) -> bool:

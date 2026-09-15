@@ -331,7 +331,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Heracles (Select)"
 
-[node name="SelectDive" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
+[node name="SelectAsparsas" type="Button" parent="UI/LobbyRoom/VBox/HBoxSelect"]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -565,7 +565,7 @@ custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🛡 Heracles (Juggernaut - 320 HP)"
 
-[node name="SwitchDive" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchAsparsas" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "💥 Urvashi (Skirmisher - 240 HP)"

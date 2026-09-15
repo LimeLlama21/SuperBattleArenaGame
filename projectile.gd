@@ -258,8 +258,11 @@ func _trigger_death_effects() -> void:
 				if shooter_team > 0 and p.get("team_id") != null and p.team_id == shooter_team:
 					continue
 				var d = (p.global_position - global_position).length()
-				if d <= 3.5 and p.has_method("take_damage"):
-					p.take_damage(damage, shooter_id, action_type)
+				if d <= 3.5:
+					if p.has_method("take_projectile_damage"):
+						p.take_projectile_damage(damage, shooter_id, action_type)
+					elif p.has_method("take_damage"):
+						p.take_damage(damage, shooter_id, action_type)
 	if spawn_terrain_on_death:
 		if main_node and main_node.has_method("spawn_temporary_terrain"):
 			main_node.spawn_temporary_terrain(global_position, 5.0, shooter_id)
@@ -307,7 +310,10 @@ func _process_target_hit(body: Node) -> void:
 				var missing_ratio = clamp((1.0 - hp_pct) / 0.70, 0.0, 1.0)
 				final_damage = damage * (1.0 + missing_ratio)
 
-		body.take_damage(final_damage, shooter_id, action_type)
+		if body.has_method("take_projectile_damage"):
+			body.take_projectile_damage(final_damage, shooter_id, action_type)
+		else:
+			body.take_damage(final_damage, shooter_id, action_type)
 		if effect_type == "blood_wave" and body.has_method("apply_stun"):
 			body.apply_stun(1.0)
 		if (effect_type == "slow" or effect_type == "dive_earth_tremor") and body.has_method("apply_slow"):

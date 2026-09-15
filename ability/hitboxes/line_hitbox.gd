@@ -24,7 +24,7 @@ func is_point_inside(origin: Vector3, facing: Vector3, point: Vector3) -> bool:
 	return lateral_dist <= (width * 0.5)
 
 func create_indicator(fill_color: Color = AbilityIndicator.EMPTY_FILL, outline_color: Color = AbilityIndicator.WHITE_OUTLINE) -> Node3D:
-	return AbilityIndicator.create_line_indicator(length, width, fill_color, outline_color, false, 1.0, true)
+	return AbilityIndicator.create_line_indicator(length, width, fill_color, outline_color, false, 1.0, false)
 
 func update_indicator(indicator: Node3D, origin: Vector3, facing: Vector3) -> void:
 	if not indicator:

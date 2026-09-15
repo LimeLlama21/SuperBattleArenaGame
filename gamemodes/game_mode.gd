@@ -51,6 +51,8 @@ func check_player_deficits(connected_players: Dictionary, is_peer_pending_discon
 		for pid in connected_players.keys():
 			if not is_peer_pending_disconnect_callable.call(int(pid)):
 				active_count += 1
+		if OS.is_debug_build() and active_count >= 1:
+			return false
 		return active_count < 2
 	
 	var t1_count = 0
@@ -133,7 +135,7 @@ func evaluate_combat_status(players_container: Node3D, connected_players: Dictio
 				var p_name = p_info.get("name", "Player " + str(winner_id))
 				var char_name = winner.get_display_name() if winner.has_method("get_display_name") else winner.get("display_name")
 				if not char_name or str(char_name).is_empty():
-					char_name = str(p_info.get("character", "Hero")).capitalize()
+					char_name = CharacterRegistry.get_display_name(p_info.get("character", "Hero"))
 				result["winner"] = "%s (%s)" % [p_name, char_name]
 			else:
 				result["winner"] = "DRAW"

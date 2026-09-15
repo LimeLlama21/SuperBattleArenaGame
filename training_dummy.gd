@@ -84,7 +84,7 @@ func die() -> void:
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
-func respawn() -> void:
+func respawn(_target_spawn_pos: Vector3 = Vector3.ZERO) -> void:
 	global_position = home_position
 	velocity = Vector3.ZERO
 	current_health = max_health

@@ -3,7 +3,7 @@ extends Node3D
 
 # Procedural visual indicator system for ability hitboxes, ranges, and target zones
 
-static func create_sector_indicator(radius: float, angle_deg: float, fill_color: Color, border_color: Color) -> Node3D:
+static func create_sector_indicator(radius: float, angle_deg: float, fill_color: Color, border_color: Color, inner_radius: float = 0.0) -> Node3D:
 	var root = Node3D.new()
 	root.name = "SectorIndicator"
 	
@@ -15,20 +15,44 @@ static func create_sector_indicator(radius: float, angle_deg: float, fill_color:
 	var segments = max(18, int(angle_deg / 3.5))
 	var center = Vector3(0, 0.06, 0)
 	
-	for i in range(segments):
-		var t0 = -half_rad + (float(i) / segments) * (half_rad * 2.0)
-		var t1 = -half_rad + (float(i + 1) / segments) * (half_rad * 2.0)
-		
-		var p0 = center
-		var p1 = Vector3(sin(t0) * radius, 0.06, -cos(t0) * radius)
-		var p2 = Vector3(sin(t1) * radius, 0.06, -cos(t1) * radius)
-		
-		st.set_color(fill_color)
-		st.add_vertex(p0)
-		st.set_color(fill_color)
-		st.add_vertex(p1)
-		st.set_color(fill_color)
-		st.add_vertex(p2)
+	if inner_radius <= 0.001:
+		for i in range(segments):
+			var t0 = -half_rad + (float(i) / segments) * (half_rad * 2.0)
+			var t1 = -half_rad + (float(i + 1) / segments) * (half_rad * 2.0)
+			
+			var p0 = center
+			var p1 = Vector3(sin(t0) * radius, 0.06, -cos(t0) * radius)
+			var p2 = Vector3(sin(t1) * radius, 0.06, -cos(t1) * radius)
+			
+			st.set_color(fill_color)
+			st.add_vertex(p0)
+			st.set_color(fill_color)
+			st.add_vertex(p1)
+			st.set_color(fill_color)
+			st.add_vertex(p2)
+	else:
+		for i in range(segments):
+			var t0 = -half_rad + (float(i) / segments) * (half_rad * 2.0)
+			var t1 = -half_rad + (float(i + 1) / segments) * (half_rad * 2.0)
+			
+			var p0_in = Vector3(sin(t0) * inner_radius, 0.06, -cos(t0) * inner_radius)
+			var p1_in = Vector3(sin(t1) * inner_radius, 0.06, -cos(t1) * inner_radius)
+			var p0_out = Vector3(sin(t0) * radius, 0.06, -cos(t0) * radius)
+			var p1_out = Vector3(sin(t1) * radius, 0.06, -cos(t1) * radius)
+			
+			st.set_color(fill_color)
+			st.add_vertex(p0_in)
+			st.set_color(fill_color)
+			st.add_vertex(p0_out)
+			st.set_color(fill_color)
+			st.add_vertex(p1_out)
+			
+			st.set_color(fill_color)
+			st.add_vertex(p0_in)
+			st.set_color(fill_color)
+			st.add_vertex(p1_out)
+			st.set_color(fill_color)
+			st.add_vertex(p1_in)
 
 	var fill_mat = StandardMaterial3D.new()
 	fill_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -47,11 +71,21 @@ static func create_sector_indicator(radius: float, angle_deg: float, fill_color:
 	var st_line = SurfaceTool.new()
 	st_line.begin(Mesh.PRIMITIVE_LINE_STRIP)
 	st_line.set_color(border_color)
-	st_line.add_vertex(center)
-	for i in range(segments + 1):
-		var t = -half_rad + (float(i) / segments) * (half_rad * 2.0)
-		st_line.add_vertex(Vector3(sin(t) * radius, 0.08, -cos(t) * radius))
-	st_line.add_vertex(center)
+	
+	if inner_radius <= 0.001:
+		st_line.add_vertex(center)
+		for i in range(segments + 1):
+			var t = -half_rad + (float(i) / segments) * (half_rad * 2.0)
+			st_line.add_vertex(Vector3(sin(t) * radius, 0.08, -cos(t) * radius))
+		st_line.add_vertex(center)
+	else:
+		for i in range(segments + 1):
+			var t = -half_rad + (float(i) / segments) * (half_rad * 2.0)
+			st_line.add_vertex(Vector3(sin(t) * radius, 0.08, -cos(t) * radius))
+		for i in range(segments + 1):
+			var t = half_rad - (float(i) / segments) * (half_rad * 2.0)
+			st_line.add_vertex(Vector3(sin(t) * inner_radius, 0.08, -cos(t) * inner_radius))
+		st_line.add_vertex(Vector3(sin(-half_rad) * radius, 0.08, -cos(-half_rad) * radius))
 	
 	var line_mat = StandardMaterial3D.new()
 	line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -459,9 +493,19 @@ static func create_from_hitbox(hitbox: Variant, fill_color: Color = Color(1.0, 0
 		AbilityPipeline.HitboxShape.SECTOR:
 			var rad = hitbox.get("radius") if hitbox.get("radius") != null else 4.0
 			var ang = hitbox.get("angle_deg") if hitbox.get("angle_deg") != null else 90.0
-			return create_sector_indicator(rad, ang, fill_color, border_color)
+			var inner_r = hitbox.get_annul_radius() if hitbox.has_method("get_annul_radius") else 0.0
+			return create_sector_indicator(rad, ang, fill_color, border_color, inner_r)
 		AbilityPipeline.HitboxShape.CIRCLE, AbilityPipeline.HitboxShape.CYLINDER:
 			var rad = hitbox.get("radius") if hitbox.get("radius") != null else 4.0
+			var ang = hitbox.get("angle_deg") if hitbox.get("angle_deg") != null else 360.0
+			var inner_r = hitbox.get_annul_radius() if hitbox.has_method("get_annul_radius") else 0.0
+			if shape == AbilityPipeline.HitboxShape.CIRCLE:
+				if inner_r > 0.0 and ang < 360.0:
+					return create_sector_indicator(rad, ang, fill_color, border_color, inner_r)
+				elif inner_r > 0.0:
+					return create_donut_indicator(inner_r, rad, fill_color, border_color)
+				elif ang < 360.0:
+					return create_sector_indicator(rad, ang, fill_color, border_color)
 			return create_circle_indicator(rad, fill_color, border_color)
 		AbilityPipeline.HitboxShape.LINE:
 			var l = hitbox.get("length") if hitbox.get("length") != null else 10.0

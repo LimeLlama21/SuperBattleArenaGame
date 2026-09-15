@@ -12,6 +12,8 @@ signal ability_cast(ability_name: String, slot_key: String)
 signal damage_dealt(target: Node, amount: float, action_type: int)
 signal damage_taken(attacker_id: int, amount: float, action_type: int)
 signal takedown_scored(victim: Node)
+signal armor_charges_changed(current: int, max_val: int)
+signal projectile_damage_resisted(attacker_id: int, original_amount: float)
 
 # --- Character Identification & Team ---
 @export var character_name: String = "Character"
@@ -50,9 +52,44 @@ var current_shield: float = 0.0:
 var shield_timer: float = 0.0
 var is_dead: bool = false
 var recent_damage_dealers: Dictionary = {} # attacker_id -> timestamp (seconds)
+var respawn_countdown: float = 0.0
 
 var peer_id: int:
 	get: return name.to_int()
+
+# --- Armor Charges (Anti-Poke Defense) ---
+@export var max_armor_charges: int = 2
+@export var armor_charges: int = 2:
+	set(value):
+		var clamped_val = clamp(value, 0, max_armor_charges)
+		if armor_charges != clamped_val:
+			armor_charges = clamped_val
+			armor_charges_changed.emit(armor_charges, max_armor_charges)
+			update_health_bar()
+
+func get_armor_charges() -> int:
+	return armor_charges
+
+func consume_armor_charge() -> bool:
+	if armor_charges > 0:
+		armor_charges -= 1
+		if is_multiplayer_match() and is_server_authoritative():
+			sync_armor_charges.rpc(armor_charges)
+		return true
+	return false
+
+func restore_armor_charge(amount: int = 1) -> void:
+	armor_charges = min(max_armor_charges, armor_charges + amount)
+	if is_multiplayer_match() and is_server_authoritative():
+		sync_armor_charges.rpc(armor_charges)
+
+func reset_armor_charges() -> void:
+	armor_charges = max_armor_charges
+	if is_multiplayer_match() and is_server_authoritative():
+		sync_armor_charges.rpc(armor_charges)
+
+func take_projectile_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK) -> void:
+	take_damage(amount, attacker_id, action_type, true)
 
 func add_shield(amount: float, duration: float = 5.0) -> void:
 	apply_shield(amount, duration)
@@ -568,13 +605,18 @@ func modify_incoming_damage(amount: float, attacker_id: int, _action_type: int) 
 		amount *= clamp(1.0 - (dmg_reduction / 100.0), 0.0, 1.0)
 	return amount
 
-func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK) -> void:
+func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK, is_projectile: bool = false) -> void:
 	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 	if is_dead:
 		return
 
 	if is_ethereal_active() or is_invulnerable():
+		return
+
+	if is_projectile and amount > 0.0 and armor_charges > 0:
+		consume_armor_charge()
+		projectile_damage_resisted.emit(attacker_id, amount)
 		return
 
 	if is_transformed and transformation_properties.get("break_on_damage", true):
@@ -607,7 +649,13 @@ func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionT
 
 	if attacker_id > 0:
 		recent_damage_dealers[attacker_id] = Time.get_ticks_msec() / 1000.0
-		var attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
+		var attacker = null
+		if get_tree() and get_tree().root:
+			attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
+			if not attacker and get_parent():
+				attacker = get_parent().get_node_or_null(str(attacker_id))
+			if not attacker:
+				attacker = get_tree().root.get_node_or_null(str(attacker_id))
 		if attacker and attacker.has_method("_on_damage_dealt"):
 			attacker._on_damage_dealt(self, final_dmg, action_type)
 
@@ -667,6 +715,12 @@ func sync_mana(new_mana: float) -> void:
 		return
 	current_mana = new_mana
 	update_health_bar()
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_armor_charges(new_charges: int) -> void:
+	if not _is_sender_host():
+		return
+	armor_charges = new_charges
 
 func get_combat_hitbox() -> Area3D:
 	return get_node_or_null("CombatHitbox") as Area3D
@@ -807,7 +861,9 @@ func update_health_bar() -> void:
 
 	# Bottom-Left Large HUD Health & Mana Bars
 	if hud and hud.has_method("update_health"):
-		hud.update_health(current_health, max_health, current_shield, gh)
+		hud.update_health(current_health, max_health, current_shield, gh, armor_charges)
+	if hud and hud.has_method("update_armor_charges"):
+		hud.update_armor_charges(armor_charges, max_armor_charges)
 	if hud and hud.has_method("update_mana"):
 		hud.update_mana(current_mana, max_mana)
 
@@ -839,7 +895,7 @@ func die() -> void:
 			if attacker and attacker.has_method("_on_takedown"):
 				attacker._on_takedown(self)
 
-	var in_training = (main_node and main_node.get("is_training_mode") == true) or not is_multiplayer_match()
+	var in_training = (main_node and main_node.get("is_training_mode") == true) if main_node else false
 
 	if in_training:
 		_update_death_state(true)
@@ -849,19 +905,32 @@ func die() -> void:
 		)
 		return
 
+	var respawn_delay = -1.0
+	if main_node and "game_mode" in main_node:
+		var mode = GameModes.get_mode(main_node.game_mode)
+		if mode and mode.respawn_delay > 0.0:
+			respawn_delay = mode.respawn_delay
+
 	if is_multiplayer_match():
-		sync_death_state.rpc(true)
+		sync_death_state.rpc(true, respawn_delay)
 	else:
 		_update_death_state(true)
+		respawn_countdown = respawn_delay
+		if respawn_delay > 0.0:
+			get_tree().create_timer(respawn_delay).timeout.connect(func():
+				if is_instance_valid(self) and is_dead:
+					respawn()
+			)
 
 	if main_node and main_node.has_method("on_player_died"):
 		main_node.on_player_died(name.to_int())
 
 @rpc("any_peer", "call_local", "reliable")
-func sync_death_state(dead: bool) -> void:
+func sync_death_state(dead: bool, respawn_delay: float = -1.0) -> void:
 	if not _is_sender_host():
 		return
 	is_dead = dead
+	respawn_countdown = max(0.0, respawn_delay) if dead else 0.0
 	_update_death_state(dead)
 
 func _update_death_state(dead: bool) -> void:
@@ -874,7 +943,7 @@ func _update_death_state(dead: bool) -> void:
 			aim_line_root.show()
 
 	var main_node = get_tree().root.get_node_or_null("Main")
-	var in_training = (main_node and main_node.get("is_training_mode") == true) or not is_multiplayer_match()
+	var in_training = (main_node and main_node.get("is_training_mode") == true) if main_node else false
 
 	if dead:
 		velocity = Vector3.ZERO
@@ -888,31 +957,43 @@ func _update_death_state(dead: bool) -> void:
 			if spectator_panel:
 				spectator_panel.visible = false
 
-func respawn() -> void:
+func respawn(target_spawn_pos: Vector3 = Vector3.ZERO) -> void:
 	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 
-	var spawn_pos = Vector3(-8.0, 0.1, 0.0)
+	var spawn_pos = target_spawn_pos
 	var main_node = get_tree().root.get_node_or_null("Main")
-	var in_training = (main_node and main_node.get("is_training_mode") == true) or not is_multiplayer_match()
+	var in_training = (main_node and main_node.get("is_training_mode") == true) if main_node else false
 
-	if not in_training:
-		var spawn_points = get_tree().root.get_node_or_null("Main/SpawnPoints")
-		if spawn_points and spawn_points.get_child_count() > 0:
-			var idx = randi() % spawn_points.get_child_count()
-			spawn_pos = spawn_points.get_child(idx).global_position
-	elif main_node and main_node.get("training_selected_map") != null and main_node.get("training_selected_map") != -1:
-		var t1_spawns = get_tree().root.get_node_or_null("Main/SpawnPoints/Team1_Spawns")
-		if t1_spawns:
-			var sp_center = t1_spawns.get_node_or_null("Spawn3")
-			if sp_center:
-				spawn_pos = sp_center.global_position
-			elif t1_spawns.get_child_count() > 0:
-				spawn_pos = t1_spawns.get_child(0).global_position
+	if spawn_pos == Vector3.ZERO:
+		if main_node and main_node.has_method("get_respawn_position"):
+			spawn_pos = main_node.get_respawn_position(self)
+		elif not in_training:
+			var spawn_points = get_tree().root.get_node_or_null("Main/SpawnPoints")
+			var candidate_spawns: Array[Vector3] = []
+			if spawn_points:
+				for team_node in spawn_points.get_children():
+					for marker in team_node.get_children():
+						if marker is Node3D:
+							candidate_spawns.append(marker.global_position)
+			if not candidate_spawns.is_empty():
+				spawn_pos = candidate_spawns[randi() % candidate_spawns.size()]
+			else:
+				spawn_pos = Vector3(-24.0, 0.1, 0.0)
+		elif main_node and main_node.get("training_selected_map") != null and main_node.get("training_selected_map") != -1:
+			var t1_spawns = get_tree().root.get_node_or_null("Main/SpawnPoints/Team1_Spawns")
+			if t1_spawns:
+				var sp_center = t1_spawns.get_node_or_null("Spawn3")
+				if sp_center:
+					spawn_pos = sp_center.global_position
+				elif t1_spawns.get_child_count() > 0:
+					spawn_pos = t1_spawns.get_child(0).global_position
+				else:
+					spawn_pos = Vector3(-24.0, 0.1, 0.0)
 			else:
 				spawn_pos = Vector3(-24.0, 0.1, 0.0)
 		else:
-			spawn_pos = Vector3(-24.0, 0.1, 0.0)
+			spawn_pos = Vector3(-8.0, 0.1, 0.0)
 
 	if is_multiplayer_match() and multiplayer.is_server():
 		sync_respawn.rpc(spawn_pos)
@@ -926,18 +1007,37 @@ func sync_respawn(spawn_pos: Vector3) -> void:
 	is_dead = false
 	current_health = max_health
 	current_shield = 0.0
+	current_mana = max_mana
+	armor_charges = max_armor_charges
 	cleanse_cc()
+	cancel_channel()
+	cancel_active_windup()
+	clear_buffered_ability()
+	recent_damage_dealers.clear()
+	
 	global_position = spawn_pos
 	velocity = Vector3.ZERO
 	knockback_velocity = Vector3.ZERO
 	knockback_wall_stun = 0.0
-	_update_death_state(false)
+	spectate_target = null
+	spectate_index = 0
+	respawn_countdown = 0.0
 	
-	var main_node = get_tree().root.get_node_or_null("Main")
-	if main_node and main_node.get("is_training_mode") == true and (is_local_player() or name == "1"):
-		scale = Vector3(0.1, 0.1, 0.1)
-		var tween = create_tween()
-		tween.tween_property(self, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	reset_physics_interpolation()
+	if camera and is_instance_valid(camera):
+		camera.reset_physics_interpolation()
+		camera.global_position = spawn_pos + CAMERA_OFFSET
+		camera.look_at(spawn_pos, Vector3.UP)
+	
+	_update_death_state(false)
+	update_health_bar()
+	
+	if is_server_authoritative():
+		apply_invulnerability(2.0)
+	
+	scale = Vector3(0.1, 0.1, 0.1)
+	var tween = create_tween()
+	tween.tween_property(self, "scale", Vector3.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 # --- Spectator Processing ---
 func _process_camera(_delta: float) -> void:
@@ -946,7 +1046,10 @@ func _process_camera(_delta: float) -> void:
 	camera.global_position = global_position + CAMERA_OFFSET
 	camera.look_at(global_position, Vector3.UP)
 
-func _process_spectator(_delta: float) -> void:
+func _process_spectator(delta: float) -> void:
+	if respawn_countdown > 0.0:
+		respawn_countdown = max(0.0, respawn_countdown - delta)
+
 	if Input.is_action_just_pressed("spectate_next"):
 		_cycle_spectate(1)
 	elif Input.is_action_just_pressed("spectate_prev"):
@@ -957,14 +1060,21 @@ func _process_spectator(_delta: float) -> void:
 		_cycle_spectate(1)
 		target_to_watch = spectate_target
 
+	var header_text = ""
+	if respawn_countdown > 0.0:
+		header_text = "⚔ RESPAWNING IN %.1fs ⚔\n" % respawn_countdown
+
 	if target_to_watch and is_instance_valid(target_to_watch) and camera:
 		camera.global_position = target_to_watch.global_position + CAMERA_OFFSET
 		camera.look_at(target_to_watch.global_position, Vector3.UP)
 		if spectator_label:
 			var d_name = target_to_watch.get_display_name() if target_to_watch.has_method("get_display_name") else target_to_watch.get("character_name")
-			spectator_label.text = "SPECTATING: %s (Player %s)\n[LMB / RMB to Cycle]" % [d_name, target_to_watch.name]
+			spectator_label.text = "%sSPECTATING: %s (Player %s)\n[LMB / RMB to Cycle]" % [header_text, d_name, target_to_watch.name]
 	elif spectator_label:
-		spectator_label.text = "SPECTATING: None (All Players Eliminated)\n[LMB / RMB to Cycle]"
+		if respawn_countdown > 0.0:
+			spectator_label.text = "%s[Preparing Deployment]" % header_text
+		else:
+			spectator_label.text = "SPECTATING: None (All Players Eliminated)\n[LMB / RMB to Cycle]"
 
 func _cycle_spectate(direction: int) -> void:
 	var players_container = get_tree().root.get_node_or_null("Main/Players")
@@ -1052,9 +1162,16 @@ func _on_attack_performed_firing_visual(_attack_name: String) -> void:
 func should_ability_have_indicator(ab: Variant) -> bool:
 	if not ab:
 		return false
+	if "show_indicator" in ab and not ab.show_indicator:
+		return false
+	var eff = ab.get("effect_instance") if ab.get("effect_instance") != null else ab
+	if eff and "show_indicator" in eff and not eff.show_indicator:
+		return false
+	var ab_id = str(ab.get("ability_id")).to_lower() if ab.get("ability_id") != null else ""
+	if ab_id == "poke_sniper_stance" or ab_id == "poke_sniper":
+		return false
 	if ab.has_method("should_show_indicator"):
 		return ab.should_show_indicator()
-	var eff = ab.get("effect_instance") if ab.get("effect_instance") != null else ab
 	var eff_name = eff.get("effect_name") if "effect_name" in eff else ""
 	if eff_name != "Projectile" and not ("speed" in eff and eff.speed > 0.0 and "max_range" in eff and eff.max_range > 0.0):
 		return true
@@ -1063,7 +1180,6 @@ func should_ability_have_indicator(ab: Variant) -> bool:
 	if ab.get("hold_to_charge") == true or (ab.get("charge_time") != null and ab.charge_time > 0.0):
 		return true
 	var custom_eff = str(eff.get("custom_effect_type")).to_lower() if eff.get("custom_effect_type") != null else ""
-	var ab_id = str(ab.get("ability_id")).to_lower() if ab.get("ability_id") != null else ""
 	if custom_eff == "mortar_shell" or ab_id.contains("mortar") or ab_id.contains("omen"):
 		return true
 	var rng = float(eff.get("max_range")) if eff.get("max_range") != null else 0.0
@@ -1797,13 +1913,15 @@ func show_ability_telegraph(ability_def: Variant, origin: Vector3, facing_dir: V
 	elif ab.effect_instance and ab.effect_instance is MeleeStrikeEffect:
 		follows_caster = true
 
+	var hb_shape = hb.shape_type if (hb and "shape_type" in hb) else -1
+	var hb_angle = hb.angle_deg if (hb and "angle_deg" in hb) else 360.0
+
 	var is_ground_targeted = false
 	if target_pos != Vector3.ZERO:
 		var eff_name = ""
 		if "effect_name" in ab: eff_name = ab.effect_name
 		elif ab.effect_instance and "effect_name" in ab.effect_instance: eff_name = ab.effect_instance.effect_name
-		var hb_shape = hb.shape_type if (hb and "shape_type" in hb) else -1
-		if eff_name in ["AerialCrash", "AreaZone"] or hb_shape in [AbilityPipeline.HitboxShape.CIRCLE, AbilityPipeline.HitboxShape.CYLINDER]:
+		if eff_name in ["AerialCrash", "AreaZone"] or hb_shape == AbilityPipeline.HitboxShape.CYLINDER or (hb_shape == AbilityPipeline.HitboxShape.CIRCLE and hb_angle >= 360.0):
 			is_ground_targeted = true
 
 	var spawn_pos = target_pos if is_ground_targeted else global_position
@@ -1817,7 +1935,7 @@ func show_ability_telegraph(ability_def: Variant, origin: Vector3, facing_dir: V
 		ind.top_level = true
 		get_tree().root.add_child(ind)
 		ind.global_position = Vector3(spawn_pos.x, 0.06, spawn_pos.z)
-		if facing_dir.length_squared() > 0.001 and not is_ground_targeted:
+		if facing_dir.length_squared() > 0.001 and (not is_ground_targeted or hb_angle < 360.0):
 			var target = spawn_pos + facing_dir
 			ind.look_at(Vector3(target.x, ind.global_position.y, target.z), Vector3.UP)
 			ind.rotation.x = 0.0

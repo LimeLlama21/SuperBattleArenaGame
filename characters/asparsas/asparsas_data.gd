@@ -1,11 +1,9 @@
 class_name AsparsasData
 extends RefCounted
 
-const DiveData = AsparsasData
-
 static func create() -> CharacterData:
 	var data = CharacterData.new()
-	data.character_name = "Asparsas"
+	data.character_name = "Urvashi"
 	data.display_name = "Urvashi"
 	data.archetype = "Skirmisher"
 	data.max_health = 240.0
@@ -20,6 +18,8 @@ static func create() -> CharacterData:
 		"wall_bounce_ratio": 0.55,
 		"rupture_mark_duration": 3.5,
 		"rupture_mark_max": 5,
-		"rupture_damage_per_mark": 18.0
+		"rupture_damage_per_mark": 18.0,
+		"rupture_heal_min_pct": 0.11,
+		"rupture_heal_max_pct": 0.15
 	}
 	return data

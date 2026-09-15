@@ -11,13 +11,9 @@ var block_timer: float = 0.0
 const BLOCK_DURATION: float = 3.0
 const BLOCK_DR_PERCENT: float = 0.75
 
-# Rupture Marks
-var dive_marks_count: int = 0
-var dive_mark_timer: float = 0.0
-var dive_mark_attacker_id: int = 0
-const DIVE_MARK_DURATION: float = 3.5
-const DIVE_MARK_MAX: int = 5
-const DIVE_MARK_BURST_PER_STACK: float = 18.0
+# Rupture Marks Passive Tuning (11-15% missing HP heal based on marks)
+const DIVE_MARK_HEAL_MIN_PERCENT: float = 0.11
+const DIVE_MARK_HEAL_MAX_PERCENT: float = 0.15
 
 # Tectonic Uprising (Ultimate Buff)
 var dive_ult_buff_timer: float = 0.0
@@ -45,6 +41,10 @@ const CRASH_RADIUS: float = 6.0
 func _setup_character_kit() -> void:
 	var data = AsparsasData.create()
 	load_character_data(data)
+	if character_name == "Asparsas" or character_name.is_empty():
+		character_name = "Urvashi"
+	if display_name == "Asparsas" or display_name.is_empty():
+		display_name = "Urvashi"
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
 	if sync and sync.replication_config:
@@ -60,11 +60,6 @@ func _process_character_kit(delta: float) -> void:
 
 	if dive_ult_buff_timer > 0.0:
 		dive_ult_buff_timer = max(0.0, dive_ult_buff_timer - delta)
-
-	if dive_marks_count > 0:
-		dive_mark_timer -= delta
-		if dive_mark_timer <= 0.0:
-			dive_marks_count = 0
 
 	# Check wall bounce during dash
 	if dash_wall_bounce_timer > 0.0:
@@ -108,26 +103,24 @@ func modify_incoming_damage(amount: float, attacker_id: int, _action_type: int) 
 			return amount * (1.0 - BLOCK_DR_PERCENT)
 	return amount
 
-func apply_rupture_mark(attacker_id: int) -> void:
-	dive_marks_count = min(DIVE_MARK_MAX, dive_marks_count + 1)
-	dive_mark_timer = DIVE_MARK_DURATION
-	dive_mark_attacker_id = attacker_id
-
-func detonate_dive_marks() -> void:
-	if dive_marks_count <= 0:
-		return
-	var total_burst = dive_marks_count * DIVE_MARK_BURST_PER_STACK
-	var att_id = dive_mark_attacker_id
-	dive_marks_count = 0
-	dive_mark_timer = 0.0
-	take_damage(total_burst, att_id, 1)
+func proc_passive_heal(marks: int) -> float:
+	var heal_rider = (load("res://ability/riders/heal_rider.gd") as GDScript).new()
+	heal_rider.scale_with_marks = true
+	heal_rider.min_missing_hp_percent = DIVE_MARK_HEAL_MIN_PERCENT
+	heal_rider.max_missing_hp_percent = DIVE_MARK_HEAL_MAX_PERCENT
+	heal_rider.apply_to_self = true
+	var res = heal_rider._execute_heal(self, marks)
+	heal_rider.free()
+	return res
 
 func on_melee_strike_hit(target: Node, hit_data: Dictionary) -> void:
 	var ab_id = hit_data.get("ability_id", "")
 	var slot = hit_data.get("slot_key", "")
 	if ab_id == "dive_heavy_cleave" or slot == "RMB":
 		if is_instance_valid(target) and target.has_method("detonate_dive_marks"):
-			target.detonate_dive_marks()
+			var marks_detonated = target.detonate_dive_marks(self)
+			hit_data["marks"] = marks_detonated
+			hit_data["marks_healed"] = true
 	else:
 		if is_instance_valid(target) and target.has_method("apply_rupture_mark"):
 			target.apply_rupture_mark(peer_id)

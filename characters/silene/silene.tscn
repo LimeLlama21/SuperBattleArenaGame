@@ -1,0 +1,183 @@
+[gd_scene load_steps=10 format=3 uid="uid://silenechar01"]
+
+[ext_resource type="Script" path="res://characters/silene/silene.gd" id="1_silene"]
+[ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="2_player_hud"]
+
+[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
+[ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" path="res://ability/effects/channel_effect.tscn" id="ext_eff_channel"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
+albedo_color = Color(0.18, 0.45, 0.32, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+material = SubResource("StandardMaterial3D_body")
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nose"]
+albedo_color = Color(0.85, 0.65, 0.15, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_nose"]
+material = SubResource("StandardMaterial3D_nose")
+size = Vector3(0.2, 0.2, 0.4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fg"]
+bg_color = Color(0.2, 0.75, 0.4, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[node name="Silene" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_silene")
+character_name = "The Dragon of Silene"
+display_name = "Saint Silene"
+max_health = 320.0
+current_health = 320.0
+max_move_speed = 5.5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_1")
+
+[node name="FacingIndicator" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, -0.35)
+mesh = SubResource("BoxMesh_nose")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
+current = true
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_1")
+
+[node name="HealthBarViewport" type="SubViewport" parent="."]
+disable_3d = true
+transparent_bg = true
+size = Vector2i(220, 28)
+render_target_update_mode = 4
+
+[node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport"]
+custom_minimum_size = Vector2(220, 28)
+offset_right = 220.0
+offset_bottom = 28.0
+theme_override_styles/background = SubResource("StyleBoxFlat_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
+value = 100.0
+max_value = 100.0
+show_percentage = false
+
+[node name="HealthBarSprite" type="Sprite3D" parent="."]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, 2.45, 0)
+billboard = 1
+double_sided = false
+no_depth_test = true
+
+[node name="PlayerHUD" parent="." instance=ExtResource("2_player_hud")]
+
+[node name="Abilities" type="Node" parent="."]
+
+[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "LMB"
+ability_id = "silene_claw_swipe"
+ability_name = "Claw Swipe"
+icon_symbol = "🐾"
+description = "Swipes with claws in an annulus sector dealing 24.0 damage."
+cooldown = 0.45
+hitbox_type = 6
+hitbox_radius = 3.8
+hitbox_annul = 0.8
+hitbox_angle_deg = 100.0
+damage_amount = 24.0
+
+[node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
+slot_key = "SHIFT"
+ability_id = "silene_dash"
+ability_name = "Dragon Leap"
+icon_symbol = "🐉"
+description = "Uncharged short leap or charged rush that grabs and slams the first enemy hit. Charged is unstoppable and knocks enemies aside."
+cooldown = 7.0
+hold_to_charge = true
+charge_time = 1.2
+max_charge_time = 1.2
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "RMB"
+ability_id = "silene_bite"
+ability_name = "Dragon Bite"
+icon_symbol = "🦷"
+description = "Bites in an annulus sector dealing base damage + 16% max HP and healing for 100% of damage dealt."
+cooldown = 7.0
+cast_on_press = false
+hitbox_type = 6
+hitbox_radius = 6.2
+hitbox_annul = 1.0
+hitbox_angle_deg = 63.0
+damage_amount = 18.0
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "Q"
+ability_id = "silene_tail_lash"
+ability_name = "Tail Lash"
+icon_symbol = "🐊"
+description = "Lashes out with tail in an annulus sector, dealing 30.0 damage and stunning for 1.2s."
+cooldown = 8.5
+cast_on_press = false
+hitbox_type = 6
+hitbox_radius = 6.2
+hitbox_annul = 2.0
+hitbox_angle_deg = 180.0
+damage_amount = 30.0
+stun_duration = 1.2
+
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_channel")]
+slot_key = "E"
+ability_id = "silene_fire_breath"
+ability_name = "Dragonfire Breath"
+icon_symbol = "🔥"
+description = "Breathes fire in a cone in front dealing damage over time. Area expands with elevation and stops on terrain."
+cooldown = 11.0
+cast_on_press = false
+duration = 2.2
+channel_duration = 2.2
+
+[node name="R" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "R"
+ability_id = "silene_roar"
+ability_name = "Primal Roar"
+icon_symbol = "📢"
+description = "Roars in an annulus sector, dealing 45.0 damage, silencing for 2.0s, and dragging enemies towards Silene. Permanently gain 10 max HP per takedown."
+cooldown = 35.0
+cast_on_press = false
+hitbox_type = 6
+hitbox_radius = 13.0
+hitbox_annul = 2.2
+hitbox_angle_deg = 100.0
+damage_amount = 45.0
+action_type = 2

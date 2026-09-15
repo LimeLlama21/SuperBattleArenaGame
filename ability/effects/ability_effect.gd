@@ -20,6 +20,7 @@ const EmpowerRiderClass = preload("res://ability/riders/empower_rider.gd")
 const StatusRiderClass = preload("res://ability/riders/status_rider.gd")
 const SpeedBoostRiderClass = preload("res://ability/riders/speed_boost_rider.gd")
 const BoundRiderClass = preload("res://ability/riders/bound_rider.gd")
+const HealRiderClass = preload("res://ability/riders/heal_rider.gd")
 
 const OnHitEnemyTriggerClass = preload("res://ability/triggers/on_hit_enemy_trigger.gd")
 const OnCastTriggerClass = preload("res://ability/triggers/on_cast_trigger.gd")
@@ -50,6 +51,7 @@ enum HitboxType {
 @export var hitbox_angle_deg: float = 0.0
 @export var hitbox_inner_radius: float = 0.0
 @export var hitbox_outer_radius: float = 0.0
+@export var hitbox_annul: Variant = false
 
 @export_group("Rider Settings")
 @export var damage_amount: float = 0.0
@@ -66,6 +68,13 @@ enum HitboxType {
 @export var status_type: String = ""
 @export var status_duration: float = 0.0
 @export var status_intensity: float = 0.0
+@export var heal_amount: float = 0.0
+@export var heal_percent: float = 0.0
+@export var heal_missing_hp: bool = false
+@export var heal_scale_with_marks: bool = false
+@export var heal_min_missing_hp_pct: float = 0.11
+@export var heal_max_missing_hp_pct: float = 0.15
+@export var heal_apply_to_self: bool = true
 
 var hitbox_instance = null
 var trigger_instances: Array = []
@@ -151,11 +160,13 @@ func setup() -> void:
 		if hitbox_angle_deg > 0.0 and "angle_deg" in hitbox_instance:
 			hitbox_instance.angle_deg = hitbox_angle_deg
 		elif "angle_deg" in hitbox_instance and hitbox_instance.angle_deg <= 0.0:
-			hitbox_instance.angle_deg = 90.0
+			hitbox_instance.angle_deg = 360.0 if hitbox_instance.shape_type == AbilityPipeline.HitboxShape.CIRCLE else 90.0
 		if hitbox_inner_radius > 0.0 and "inner_radius" in hitbox_instance:
 			hitbox_instance.inner_radius = hitbox_inner_radius
 		if hitbox_outer_radius > 0.0 and "outer_radius" in hitbox_instance:
 			hitbox_instance.outer_radius = hitbox_outer_radius
+		if "annul" in hitbox_instance:
+			hitbox_instance.annul = hitbox_annul
 		if hitbox_instance.has_method("setup"):
 			hitbox_instance.setup()
 
@@ -216,6 +227,16 @@ func setup() -> void:
 			stt.duration = status_duration
 			stt.intensity = status_intensity
 			rider_instances.append(stt)
+		if heal_amount > 0.0 or heal_percent > 0.0 or heal_scale_with_marks:
+			var hl = HealRiderClass.new()
+			hl.amount = heal_amount
+			hl.percent = heal_percent
+			hl.heal_missing_hp = heal_missing_hp
+			hl.scale_with_marks = heal_scale_with_marks
+			hl.min_missing_hp_percent = heal_min_missing_hp_pct
+			hl.max_missing_hp_percent = heal_max_missing_hp_pct
+			hl.apply_to_self = heal_apply_to_self
+			rider_instances.append(hl)
 
 	# Setup triggers
 	if trigger_instances.is_empty():
@@ -292,6 +313,18 @@ func _apply_rider_overrides(r_inst: Node) -> void:
 			r_inst.duration = status_duration
 		if status_intensity > 0.0:
 			r_inst.intensity = status_intensity
+	elif r_inst is HealRiderClass:
+		if heal_amount > 0.0:
+			r_inst.amount = heal_amount
+		if heal_percent > 0.0:
+			r_inst.percent = heal_percent
+		if heal_missing_hp:
+			r_inst.heal_missing_hp = true
+		if heal_scale_with_marks:
+			r_inst.scale_with_marks = true
+			r_inst.min_missing_hp_percent = heal_min_missing_hp_pct
+			r_inst.max_missing_hp_percent = heal_max_missing_hp_pct
+		r_inst.apply_to_self = heal_apply_to_self
 
 func _execute_server_effect(caster: Node, origin: Vector3, direction: Vector3, target_pos: Vector3, charge_ratio: float = 0.0) -> void:
 	execute_effect_server(caster, origin, direction, target_pos, charge_ratio)

@@ -8,27 +8,21 @@ const CharacterData = preload("res://characters/character_data.gd")
 const CHARACTERS: Dictionary = {
 	"poke": preload("res://characters/poke/poke.tscn"),
 	"crush": preload("res://characters/crush/crush.tscn"),
-	"dive": preload("res://characters/asparsas/asparsas.tscn"),
 	"asparsas": preload("res://characters/asparsas/asparsas.tscn"),
 	"reaper": preload("res://characters/reaper/reaper.tscn"),
 	"morrigan": preload("res://characters/morrigan/morrigan.tscn"),
-	"murder": preload("res://characters/morrigan/morrigan.tscn"),
-	"monkey_king": preload("res://characters/monkey/monkey.tscn"),
 	"monkey": preload("res://characters/monkey/monkey.tscn"),
-	"drakaina": preload("res://characters/drakaina/drakaina.tscn")
+	"silene": preload("res://characters/silene/silene.tscn")
 }
 
 const CHARACTER_DISPLAY_NAMES: Dictionary = {
 	"poke": "Arash",
 	"crush": "Heracles",
-	"dive": "Urvashi",
 	"asparsas": "Urvashi",
 	"reaper": "Keres",
 	"morrigan": "Morrigan",
-	"murder": "Morrigan",
-	"monkey_king": "The Great Sage",
 	"monkey": "The Great Sage",
-	"drakaina": "Kampé",
+	"silene": "Saint Silene",
 	"dummy": "Training Dummy"
 }
 
@@ -87,11 +81,11 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var hbox_map: HBoxContainer = get_node_or_null("UI/LobbyRoom/VBox/HBoxMap")
 @onready var select_poke_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectPoke
 @onready var select_crush_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectCrush
-@onready var select_dive_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectDive
+@onready var select_asparsas_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectAsparsas
 @onready var select_reaper_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectReaper")
 @onready var select_morrigan_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMorrigan")
 @onready var select_monkey_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMonkey")
-@onready var select_drakaina_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectDrakaina")
+@onready var select_silene_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectSilene")
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
 @onready var team_header: Label = get_node_or_null("UI/LobbyRoom/VBox/TeamSection/TeamHeader")
@@ -108,11 +102,11 @@ static func get_character_display_name(char_key: String) -> String:
 
 @onready var switch_poke_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchPoke"
 @onready var switch_crush_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchCrush"
-@onready var switch_dive_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDive"
+@onready var switch_asparsas_btn: Button = $"UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchAsparsas"
 @onready var switch_reaper_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchReaper")
 @onready var switch_morrigan_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMorrigan")
 @onready var switch_monkey_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMonkey")
-@onready var switch_drakaina_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchDrakaina")
+@onready var switch_silene_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchSilene")
 
 @onready var switch_map_standard: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapStandard")
 @onready var switch_map_colosseum: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapColosseum")
@@ -330,7 +324,7 @@ func _ready() -> void:
 	http_request_join.request_completed.connect(_on_backend_join_room_completed)
 	select_poke_button.pressed.connect(func(): _select_character("poke"))
 	select_crush_button.pressed.connect(func(): _select_character("crush"))
-	select_dive_button.pressed.connect(func(): _select_character("asparsas"))
+	select_asparsas_button.pressed.connect(func(): _select_character("asparsas"))
 	if select_reaper_button:
 		select_reaper_button.pressed.connect(func(): _select_character("reaper"))
 	if select_morrigan_button:
@@ -343,13 +337,13 @@ func _ready() -> void:
 		hbox_select.add_child(select_monkey_button)
 	if select_monkey_button:
 		select_monkey_button.pressed.connect(func(): _select_character("monkey"))
-	if hbox_select and not select_drakaina_button:
-		select_drakaina_button = Button.new()
-		select_drakaina_button.name = "SelectDrakaina"
-		select_drakaina_button.text = "Kampé (Select)"
-		hbox_select.add_child(select_drakaina_button)
-	if select_drakaina_button:
-		select_drakaina_button.pressed.connect(func(): _select_character("drakaina"))
+	if hbox_select and not select_silene_button:
+		select_silene_button = Button.new()
+		select_silene_button.name = "SelectSilene"
+		select_silene_button.text = "Saint Silene (Select)"
+		hbox_select.add_child(select_silene_button)
+	if select_silene_button:
+		select_silene_button.pressed.connect(func(): _select_character("silene"))
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
@@ -360,7 +354,7 @@ func _ready() -> void:
 	
 	switch_poke_btn.pressed.connect(func(): _switch_training_character("poke"))
 	switch_crush_btn.pressed.connect(func(): _switch_training_character("crush"))
-	switch_dive_btn.pressed.connect(func(): _switch_training_character("asparsas"))
+	switch_asparsas_btn.pressed.connect(func(): _switch_training_character("asparsas"))
 	if switch_reaper_btn:
 		switch_reaper_btn.pressed.connect(func(): _switch_training_character("reaper"))
 	if switch_morrigan_btn:
@@ -373,13 +367,13 @@ func _ready() -> void:
 		switch_char_tab.add_child(switch_monkey_btn)
 	if switch_monkey_btn:
 		switch_monkey_btn.pressed.connect(func(): _switch_training_character("monkey"))
-	if switch_char_tab and not switch_drakaina_btn:
-		switch_drakaina_btn = Button.new()
-		switch_drakaina_btn.name = "SwitchDrakaina"
-		switch_drakaina_btn.text = "Kampé"
-		switch_char_tab.add_child(switch_drakaina_btn)
-	if switch_drakaina_btn:
-		switch_drakaina_btn.pressed.connect(func(): _switch_training_character("drakaina"))
+	if switch_char_tab and not switch_silene_btn:
+		switch_silene_btn = Button.new()
+		switch_silene_btn.name = "SwitchSilene"
+		switch_silene_btn.text = "Saint Silene"
+		switch_char_tab.add_child(switch_silene_btn)
+	if switch_silene_btn:
+		switch_silene_btn.pressed.connect(func(): _switch_training_character("silene"))
 	
 	if map_option:
 		map_option.item_selected.connect(_on_map_option_selected)
@@ -425,15 +419,15 @@ func _select_character(char_key: String) -> void:
 	selected_character = char_key
 	select_poke_button.text = "Arash (Select)"
 	select_crush_button.text = "Heracles (Select)"
-	select_dive_button.text = "Urvashi (Select)"
+	select_asparsas_button.text = "Urvashi (Select)"
 	if select_reaper_button:
 		select_reaper_button.text = "Keres (Select)"
 	if select_morrigan_button:
 		select_morrigan_button.text = "Morrigan (Select)"
 	if select_monkey_button:
 		select_monkey_button.text = "The Great Sage (Select)"
-	if select_drakaina_button:
-		select_drakaina_button.text = "Kampé (Select)"
+	if select_silene_button:
+		select_silene_button.text = "Saint Silene (Select)"
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Arash (Selected)"
@@ -441,25 +435,25 @@ func _select_character(char_key: String) -> void:
 	elif char_key == "crush":
 		select_crush_button.text = "★ Heracles (Selected)"
 		char_desc_label.text = "HERACLES: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
-	elif char_key == "dive" or char_key == "asparsas":
-		select_dive_button.text = "★ Urvashi (Selected)"
-		char_desc_label.text = "URVASHI: Skirmisher (100 HP). Passive [Rupture Marks]: Stacking burst marks. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
+	elif char_key == "asparsas":
+		select_asparsas_button.text = "★ Urvashi (Selected)"
+		char_desc_label.text = "URVASHI: Skirmisher (240 HP). Passive [Rupture Marks]: Stacking burst marks detonated for damage and 11-15% missing HP heal. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
 	elif char_key == "reaper":
 		if select_reaper_button:
 			select_reaper_button.text = "★ Keres (Selected)"
 		char_desc_label.text = "KERES: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (Charged throw: grounds + progressive slow -> roots & disables all movement). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
-	elif char_key == "morrigan" or char_key == "murder":
+	elif char_key == "morrigan":
 		if select_morrigan_button:
 			select_morrigan_button.text = "★ Morrigan (Selected)"
 		char_desc_label.text = "MORRIGAN: Mage (90 HP). Passive [Harbinger of Doom]: Ability hits spawn orbiting crows that seek nearby enemies (20 dmg + 35% slow). [LMB]: Black Plumage (Chargeable up to 5 rapid burst feathers). [RMB]: Omen of Death (Parabolic mortar shell). [Q]: Inescapable Ends (Dual-cast magnetic tether). [E]: Cry of the Banshee (Large cone shriek + 1.4s silence). [R]: Born of Blood (1s channel -> massive 45m piercing wave + stun). [Shift]: Crowstorm (Steered flight + 60% MS + 50% DR)."
-	elif char_key == "monkey_king" or char_key == "monkey":
+	elif char_key == "monkey":
 		if select_monkey_button:
 			select_monkey_button.text = "★ The Great Sage (Selected)"
 		char_desc_label.text = "THE GREAT SAGE: Trickster (160 HP). Passive [Stone Monkey]: Critical health (30%) triggers 3s stone invulnerability + displacement immunity + 30% missing HP heal. [LMB]: Heavenly Pillar (Fast staff bonk). [RMB]: Enlarge (Chargeable dash & slam with sweet spot stun). [Q]: 72 Forms (Disguise wheel with Tree, Rock, Cancel). [E]: Sage's Mockery (Circular taunt & damage reduction). [R]: Shadow Rush Flurry (Stealth dash -> flurry rush recast)."
-	elif char_key == "drakaina":
-		if select_drakaina_button:
-			select_drakaina_button.text = "★ Kampé (Selected)"
-		char_desc_label.text = "KAMPÉ: Drakaina (200 HP)."
+	elif char_key == "silene":
+		if select_silene_button:
+			select_silene_button.text = "★ Saint Silene (Selected)"
+		char_desc_label.text = "SAINT SILENE: The Dragon of Silene (320 HP). Passive [Draconic Ferocity]: Flat bonus damage on all abilities. [LMB]: Claw Swipe (Annulus Sector). [Shift]: Dragon Leap/Rush (Grab & Slam, Wall Stop, Unstoppable when Charged). [RMB]: Dragon Bite (Annulus Sector % Max HP DMG & Heal). [Q]: Tail Lash (Annulus Sector Stun & DMG). [E]: Dragonfire Breath (Height-scaling Cone DOT, Terrain raycast). [R]: Primal Roar (Annulus Sector Silence & Drag) + Persistent +10 Max HP per takedown."
 	
 	if connected_players.has(1):
 		connected_players[1]["character"] = selected_character
@@ -986,7 +980,7 @@ func _refresh_lobby_ui() -> void:
 			if idx1 < p_ids.size():
 				var pid = p_ids[idx1]
 				var occupant = connected_players[pid]
-				var char_name = occupant.get("character", "poke").to_upper()
+				var char_name = get_character_display_name(occupant.get("character", "poke")).to_upper()
 				var p_name = occupant.get("name", "Player")
 				if str(pid) == str(my_id):
 					btn1.text = "★ %s [%s] (YOU)" % [p_name, char_name]
@@ -1000,7 +994,7 @@ func _refresh_lobby_ui() -> void:
 			if idx2 < p_ids.size():
 				var pid = p_ids[idx2]
 				var occupant = connected_players[pid]
-				var char_name = occupant.get("character", "poke").to_upper()
+				var char_name = get_character_display_name(occupant.get("character", "poke")).to_upper()
 				var p_name = occupant.get("name", "Player")
 				if str(pid) == str(my_id):
 					btn2.text = "★ %s [%s] (YOU)" % [p_name, char_name]
@@ -1041,7 +1035,7 @@ func _refresh_lobby_ui() -> void:
 				break
 		
 		if occupant != null:
-			var char_name = occupant.get("character", "poke").to_upper()
+			var char_name = get_character_display_name(occupant.get("character", "poke")).to_upper()
 			var p_name = occupant.get("name", "Player")
 			if str(occ_id) == str(my_id):
 				btn.text = "★ %s [%s] (YOU)" % [p_name, char_name]
@@ -1064,7 +1058,7 @@ func _refresh_lobby_ui() -> void:
 				break
 		
 		if occupant != null:
-			var char_name = occupant.get("character", "poke").to_upper()
+			var char_name = get_character_display_name(occupant.get("character", "poke")).to_upper()
 			var p_name = occupant.get("name", "Player")
 			if str(occ_id) == str(my_id):
 				btn.text = "★ %s [%s] (YOU)" % [p_name, char_name]
@@ -1110,7 +1104,7 @@ func _on_start_match_pressed() -> void:
 	if is_training_mode:
 		start_game()
 		return
-	if not is_multiplayer_match() or not multiplayer.is_server():
+	if not multiplayer.is_server():
 		return
 	if game_mode == "dm":
 		var can_start_dm = connected_players.size() >= 2 or (connected_players.size() >= 1 and OS.is_debug_build())
@@ -1122,6 +1116,9 @@ func _on_start_match_pressed() -> void:
 			connected_players[k]["assists"] = 0
 		_sync_all_kda()
 		start_game.rpc()
+		return
+
+	if not is_multiplayer_match():
 		return
 
 	var t1_count = 0
@@ -1152,7 +1149,7 @@ func is_multiplayer_match() -> bool:
 		return false
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return false
-	return connected_players.size() > 1 or multiplayer.get_peers().size() > 0
+	return connected_players.size() > 1 or multiplayer.get_peers().size() > 0 or (connected_players.size() >= 1 and (OS.is_debug_build() or game_mode == "dm"))
 
 func get_player_team(peer_id: int) -> int:
 	for k in connected_players.keys():
@@ -1294,7 +1291,8 @@ func start_game() -> void:
 					"pos": spawn_pos,
 					"rot_y": randf_range(0.0, TAU),
 					"items": p_info.get("items", []),
-					"gold": p_info.get("gold", 0)
+					"gold": p_info.get("gold", 0),
+					"silene_bonus_hp": p_info.get("silene_bonus_hp", 0.0)
 				}
 				player_spawner.spawn(spawn_payload)
 		else:
@@ -1326,7 +1324,8 @@ func start_game() -> void:
 					"pos": spawn_pos,
 					"rot_y": 0.0 if p_team == 1 else PI,
 					"items": p_info.get("items", []),
-					"gold": p_info.get("gold", 0)
+					"gold": p_info.get("gold", 0),
+					"silene_bonus_hp": p_info.get("silene_bonus_hp", 0.0)
 				}
 				player_spawner.spawn(spawn_payload)
 
@@ -1350,6 +1349,12 @@ func _custom_spawn_player(data: Variant) -> Node:
 	for it in raw_items:
 		player_instance.item_slots.append(str(it))
 	player_instance.apply_all_items()
+	if player_instance.has_method("restore_saved_takedown_bonus_hp"):
+		var saved_hp = data.get("silene_bonus_hp", 0.0)
+		if saved_hp <= 0.0 and connected_players.has(data.get("peer_id", -1)):
+			saved_hp = connected_players[data["peer_id"]].get("silene_bonus_hp", 0.0)
+		if saved_hp > 0.0:
+			player_instance.restore_saved_takedown_bonus_hp(saved_hp)
 	call_deferred("_refresh_all_player_team_visuals")
 	return player_instance
 
@@ -1358,6 +1363,80 @@ func _refresh_all_player_team_visuals() -> void:
 		for p in players_container.get_children():
 			if p.has_method("_update_team_visuals"):
 				p._update_team_visuals()
+
+func get_all_spawn_positions() -> Array[Vector3]:
+	var result: Array[Vector3] = []
+	if not spawn_points:
+		spawn_points = get_node_or_null("SpawnPoints")
+	if spawn_points:
+		var t1 = spawn_points.get_node_or_null("Team1_Spawns")
+		var t2 = spawn_points.get_node_or_null("Team2_Spawns")
+		if t1:
+			for sp in t1.get_children():
+				if sp is Node3D:
+					result.append(sp.global_position)
+		if t2:
+			for sp in t2.get_children():
+				if sp is Node3D:
+					result.append(sp.global_position)
+	if result.is_empty():
+		result = [
+			Vector3(-24.0, 0.1, -10.0), Vector3(-24.0, 0.1, -5.0), Vector3(-24.0, 0.1, 0.0), Vector3(-24.0, 0.1, 5.0), Vector3(-24.0, 0.1, 10.0),
+			Vector3(24.0, 0.1, -10.0), Vector3(24.0, 0.1, -5.0), Vector3(24.0, 0.1, 0.0), Vector3(24.0, 0.1, 5.0), Vector3(24.0, 0.1, 10.0)
+		]
+	return result
+
+func get_respawn_position(player_node: Node) -> Vector3:
+	var mode = GameModes.get_mode(game_mode)
+	var spawns: Array[Vector3] = []
+	if mode and not mode.is_team_based:
+		# Free For All: all spawn points
+		spawns = get_all_spawn_positions()
+	else:
+		# Team-based: pick team spawns
+		var p_team = player_node.get("team_id") if player_node else 1
+		var team_container_name = "Team1_Spawns" if p_team == 1 else "Team2_Spawns"
+		var t_spawns = spawn_points.get_node_or_null(team_container_name) if spawn_points else null
+		if t_spawns:
+			for sp in t_spawns.get_children():
+				if sp is Node3D:
+					spawns.append(sp.global_position)
+		if spawns.is_empty():
+			var default_x = -24.0 if p_team == 1 else 24.0
+			for z in [-10.0, -5.0, 0.0, 5.0, 10.0]:
+				spawns.append(Vector3(default_x, 0.1, z))
+
+	if spawns.is_empty():
+		return Vector3(-24.0, 0.1, 0.0)
+
+	# Find a spawn position safely distanced from alive enemies
+	var alive_enemies: Array[Node3D] = []
+	if players_container:
+		for p in players_container.get_children():
+			if p is Node3D and p != player_node and is_instance_valid(p) and not p.get("is_dead"):
+				alive_enemies.append(p)
+
+	if alive_enemies.is_empty():
+		return spawns[randi() % spawns.size()]
+
+	# Score spawns by distance to closest alive enemy (pick among the safest)
+	var best_spawns: Array[Vector3] = []
+	var max_min_dist = -1.0
+	for pos in spawns:
+		var min_dist_to_enemy = 999999.0
+		for enemy in alive_enemies:
+			var d = pos.distance_to(enemy.global_position)
+			if d < min_dist_to_enemy:
+				min_dist_to_enemy = d
+		if min_dist_to_enemy > max_min_dist:
+			max_min_dist = min_dist_to_enemy
+			best_spawns = [pos]
+		elif abs(min_dist_to_enemy - max_min_dist) < 1.0:
+			best_spawns.append(pos)
+
+	if not best_spawns.is_empty():
+		return best_spawns[randi() % best_spawns.size()]
+	return spawns[randi() % spawns.size()]
 
 func on_player_died(peer_id: int) -> void:
 	if not is_multiplayer_match() or not multiplayer.is_server() or not match_in_progress or is_training_mode:
@@ -1412,12 +1491,15 @@ func on_player_died(peer_id: int) -> void:
 	_sync_all_kda()
 	
 	var active_mode = GameModes.get_mode(game_mode)
-	if active_mode.respawn_delay > 0.0:
+	if active_mode and active_mode.respawn_delay > 0.0:
+		if victim and victim.has_method("sync_death_state"):
+			victim.sync_death_state.rpc(true, active_mode.respawn_delay)
 		# Respawn after configured delay (e.g. 5.0 seconds in Deathmatch)
 		get_tree().create_timer(active_mode.respawn_delay).timeout.connect(func():
 			if match_in_progress and is_instance_valid(victim) and victim.get("is_dead") == true:
 				if not _is_peer_pending_disconnect(peer_id):
-					victim.respawn()
+					var spawn_pos = get_respawn_position(victim)
+					victim.respawn(spawn_pos)
 		)
 		return
 

@@ -136,6 +136,7 @@ min_damage = 35.0
 max_damage = 70.0
 hold_to_charge = true
 charge_move_speed_multiplier = 0.70
+show_indicator = false
 
 [node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
 slot_key = "SHIFT"

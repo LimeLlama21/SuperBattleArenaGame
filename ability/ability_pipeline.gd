@@ -59,7 +59,8 @@ enum RiderType {
 	CRIPPLE,
 	ETHEREAL,
 	MS_STEAL,
-	BOUND
+	BOUND,
+	HEAL
 }
 
 # --- Critical Hit Constants ---
@@ -86,7 +87,8 @@ class PipelineHitbox extends RefCounted:
 	var length: float = 0.0
 	var width: float = 0.0
 	var height: float = 2.0
-	var angle_deg: float = 0.0
+	var angle_deg: float = 360.0 # Defaults to 360.0 for full circle; < 360.0 acts as sector modifier
+	var annul: Variant = false # If false, ignored; if true, character hitbox radius; if float/int > 0, custom inner radius
 
 class PipelineTrigger extends RefCounted:
 	var trigger_type: TriggerType = TriggerType.ON_HIT_ENEMY
@@ -218,7 +220,9 @@ static func create_hitbox(cfg: Dictionary) -> PipelineHitbox:
 	hb.length = cfg.get("length", 0.0)
 	hb.width = cfg.get("width", 0.0)
 	hb.height = cfg.get("height", 2.0)
-	hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", 0.0))
+	var default_angle = 90.0 if hb.shape == HitboxShape.SECTOR else 360.0
+	hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", default_angle))
+	hb.annul = cfg.get("annul", false)
 	return hb
 
 static func create_rider(cfg: Dictionary) -> PipelineRider:
@@ -316,6 +320,7 @@ static func parse_rider_type(val: Variant) -> RiderType:
 			"ETHEREAL": return RiderType.ETHEREAL
 			"MS_STEAL": return RiderType.MS_STEAL
 			"BOUND": return RiderType.BOUND
+			"HEAL", "HEALING": return RiderType.HEAL
 	return RiderType.DAMAGE
 
 static func parse_trigger_type(val: Variant) -> TriggerType:

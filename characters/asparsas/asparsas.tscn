@@ -101,7 +101,7 @@ corner_radius_bottom_left = 4
 [node name="Asparsas" type="CharacterBody3D" unique_id=581126200]
 collision_layer = 2
 script = ExtResource("1_asparsas")
-character_name = "Asparsas"
+character_name = "Urvashi"
 display_name = "Urvashi"
 max_health = 240.0
 current_health = 240.0
@@ -198,7 +198,7 @@ slot_key = "RMB"
 ability_id = "dive_heavy_cleave"
 ability_name = "Heavy Cleave"
 icon_symbol = "⚔️"
-description = "Wide sweep dealing 65.0 damage and applying rupture."
+description = "Wide sweep dealing 65.0 damage and detonating rupture marks for burst damage and 11-15% missing HP heal."
 cooldown = 6.0
 cast_on_press = false
 windup_time = 0.18
@@ -207,6 +207,10 @@ hitbox_radius = 3.0
 hitbox_angle_deg = 135.0
 hitbox_height = 2.4
 damage_amount = 65.0
+heal_scale_with_marks = true
+heal_min_missing_hp_pct = 0.11
+heal_max_missing_hp_pct = 0.15
+heal_apply_to_self = true
 
 [node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
 slot_key = "SHIFT"

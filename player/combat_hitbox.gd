@@ -68,3 +68,14 @@ func apply_speed_boost(duration: float, percent: float) -> void:
 	var target = get_character()
 	if is_instance_valid(target) and target.has_method("apply_speed_boost"):
 		target.apply_speed_boost(duration, percent)
+
+func apply_rupture_mark(attacker_id: int) -> void:
+	var target = get_character()
+	if is_instance_valid(target) and target.has_method("apply_rupture_mark"):
+		target.apply_rupture_mark(attacker_id)
+
+func detonate_dive_marks(attacker: Node = null) -> int:
+	var target = get_character()
+	if is_instance_valid(target) and target.has_method("detonate_dive_marks"):
+		return target.detonate_dive_marks(attacker)
+	return 0

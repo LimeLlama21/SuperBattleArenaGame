@@ -70,7 +70,7 @@ func setup_character_ui(character_name: String, ability_ui_configs: Dictionary) 
 func get_slot(slot_key: String) -> AbilitySlot:
 	return slots_by_key.get(slot_key, null)
 
-func update_health(current: float, max_val: float, shield: float = 0.0, gray_health: float = 0.0) -> void:
+func update_health(current: float, max_val: float, shield: float = 0.0, gray_health: float = 0.0, armor_charges: int = -1) -> void:
 	var total_display_max = max(max_val, current + shield + gray_health)
 	if gray_health_bar:
 		gray_health_bar.max_value = total_display_max
@@ -82,10 +82,15 @@ func update_health(current: float, max_val: float, shield: float = 0.0, gray_hea
 		health_bar.max_value = total_display_max
 		health_bar.value = current
 	if health_label:
+		var text = "%d / %d HP" % [int(ceil(current)), int(ceil(max_val))]
 		if shield > 0.0:
-			health_label.text = "%d / %d HP (+%d)" % [int(ceil(current)), int(ceil(max_val)), int(ceil(shield))]
-		else:
-			health_label.text = "%d / %d HP" % [int(ceil(current)), int(ceil(max_val))]
+			text += " (+%d)" % int(ceil(shield))
+		if armor_charges > 0:
+			text += " [Armor: %d]" % armor_charges
+		health_label.text = text
+
+func update_armor_charges(_charges: int, _max_charges: int) -> void:
+	pass
 
 func update_mana(current: float, max_val: float) -> void:
 	if not mana_bar:

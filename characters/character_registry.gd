@@ -16,13 +16,10 @@ static func _ensure_initialized() -> void:
 	_register_builtin("poke", "res://characters/poke/poke_data.gd", "res://characters/poke/poke.tscn")
 	_register_builtin("crush", "res://characters/crush/crush_data.gd", "res://characters/crush/crush.tscn")
 	_register_builtin("asparsas", "res://characters/asparsas/asparsas_data.gd", "res://characters/asparsas/asparsas.tscn")
-	_register_builtin("dive", "res://characters/asparsas/asparsas_data.gd", "res://characters/asparsas/asparsas.tscn")
 	_register_builtin("reaper", "res://characters/reaper/reaper_data.gd", "res://characters/reaper/reaper.tscn")
 	_register_builtin("morrigan", "res://characters/morrigan/morrigan_data.gd", "res://characters/morrigan/morrigan.tscn")
-	_register_builtin("murder", "res://characters/morrigan/morrigan_data.gd", "res://characters/morrigan/morrigan.tscn")
 	_register_builtin("monkey", "res://characters/monkey/monkey_data.gd", "res://characters/monkey/monkey.tscn")
-	_register_builtin("monkey_king", "res://characters/monkey/monkey_data.gd", "res://characters/monkey/monkey.tscn")
-	_register_builtin("drakaina", "res://characters/drakaina/drakaina_data.gd", "res://characters/drakaina/drakaina.tscn")
+	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
 
 static func _register_builtin(key: String, data_script_path: String, scene_path: String) -> void:
 	var data: CharacterData = null
@@ -89,31 +86,31 @@ static func get_character_scene(key: String) -> PackedScene:
 static func get_all_character_keys() -> Array[String]:
 	_ensure_initialized()
 	var unique_keys: Array[String] = []
-	# Filter out aliases like "dive" and "murder" for UI lists if desired, or return canonical
-	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "drakaina"]
+	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "silene"]
 	for k in canonical:
 		if _registry.has(k) and not unique_keys.has(k):
 			unique_keys.append(k)
 	for k in _registry.keys():
-		if not unique_keys.has(k) and not ["dive", "murder", "monkey_king"].has(k):
+		if not unique_keys.has(k):
 			unique_keys.append(k)
 	return unique_keys
 
 static func get_display_name(key: String) -> String:
-	var data = get_character_data(key)
+	var k = key.to_lower()
+	var data = get_character_data(k)
 	if data and not data.display_name.is_empty():
 		return data.display_name
 	if data and not data.character_name.is_empty():
 		return data.character_name
 	
-	match key.to_lower():
+	match k:
 		"poke": return "Arash"
-		"crush": return "Crush"
-		"asparsas", "dive": return "Asparsas"
-		"reaper": return "Grimm"
-		"morrigan", "murder": return "Morrigan"
-		"monkey", "monkey_king": return "The Great Sage"
-		"drakaina": return "Kampé"
+		"crush": return "Heracles"
+		"asparsas": return "Urvashi"
+		"reaper": return "Keres"
+		"morrigan": return "Morrigan"
+		"monkey": return "The Great Sage"
+		"silene": return "Saint Silene"
 		_: return key.capitalize()
 
 static func create_player_instance(key: String) -> BasePlayer:

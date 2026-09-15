@@ -22,6 +22,7 @@ const AbilityHitboxClass = preload("res://ability/hitboxes/ability_hitbox.gd")
 @export var windup_time: float = 0.0
 @export var mana_cost: float = -1.0 # -1.0 uses default slot rules (LMB/SHIFT=0, R=30, others=10), >= 0 overrides
 @export var cooldown_on_cast: bool = true
+@export var show_indicator: bool = true
 
 @export_group("Delay / Windup Settings")
 @export var delay: float = 0.0
@@ -111,8 +112,16 @@ func is_charge_ability() -> bool:
 	return false
 
 func should_show_indicator() -> bool:
-	var is_proj = false
+	if not show_indicator:
+		return false
 	var eff = effect_instance if (effect_instance and effect_instance != self) else self
+	if eff and "show_indicator" in eff and not eff.show_indicator:
+		return false
+	var ab_id = ability_id.to_lower()
+	if ab_id == "poke_sniper_stance" or ab_id == "poke_sniper":
+		return false
+
+	var is_proj = false
 	if eff:
 		var eff_name = eff.get("effect_name") if "effect_name" in eff else ""
 		if eff_name == "Projectile":
@@ -136,7 +145,6 @@ func should_show_indicator() -> bool:
 	var custom_eff = ""
 	if eff and "custom_effect_type" in eff:
 		custom_eff = str(eff.custom_effect_type).to_lower()
-	var ab_id = ability_id.to_lower()
 	if custom_eff == "mortar_shell" or ab_id.contains("mortar") or ab_id.contains("omen"):
 		return true
 
@@ -583,10 +591,14 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			hb.radius = cfg.get("radius", 4.0)
 			hb.angle_deg = cfg.get("angle", cfg.get("angle_deg", 90.0))
 			hb.height = cfg.get("height", 2.5)
+			hb.annul = cfg.get("annul", false)
 			return hb
 		AbilityPipeline.HitboxShape.CIRCLE:
 			var hb = (load("res://ability/hitboxes/circle_hitbox.gd") as GDScript).new()
 			hb.radius = cfg.get("radius", 3.0)
+			hb.height = cfg.get("height", 2.5)
+			hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", 360.0))
+			hb.annul = cfg.get("annul", false)
 			return hb
 		AbilityPipeline.HitboxShape.CYLINDER:
 			var hb = (load("res://ability/hitboxes/cylinder_hitbox.gd") as GDScript).new()
@@ -688,5 +700,15 @@ static func _build_rider(cfg: Dictionary) -> Node:
 			r.status_type = str(raw_type)
 			r.duration = cfg.get("duration", 1.5)
 			r.intensity = cfg.get("intensity", 0.0)
+			return r
+		AbilityPipeline.RiderType.HEAL:
+			var r = (load("res://ability/riders/heal_rider.gd") as GDScript).new()
+			r.amount = cfg.get("amount", cfg.get("heal_amount", 0.0))
+			r.percent = cfg.get("percent", 0.0)
+			r.heal_missing_hp = cfg.get("heal_missing_hp", false)
+			r.scale_with_marks = cfg.get("scale_with_marks", false)
+			r.min_missing_hp_percent = cfg.get("min_percent", 0.11)
+			r.max_missing_hp_percent = cfg.get("max_percent", 0.15)
+			r.apply_to_self = cfg.get("apply_to_self", true)
 			return r
 	return null
