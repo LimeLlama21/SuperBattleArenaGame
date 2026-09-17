@@ -63,10 +63,34 @@ enum RiderType {
 	HEAL
 }
 
+# --- 5. UI Modal States: Interactive or overlay UI states associated with the ability ---
+enum UIModalType {
+	NONE,           # Default: standard ability without modal state
+	RADIAL_WHEEL,   # Dynamic N-slice radial selection dial preset
+	CUSTOM          # Custom PackedScene or controller
+}
+
+enum ModalInteractionMode {
+	HOLD_AND_RELEASE, # Hold key -> aim towards slice -> release key to confirm
+	TOGGLE_AND_CLICK  # Press key to open -> click to confirm
+}
+
 # --- Critical Hit Constants ---
 const CRIT_DAMAGE_MULTIPLIER: float = 2.0 # Standard critical strike deals double damage (200%)
 
 # --- Pipeline Component Classes ---
+class PipelineUIModal extends RefCounted:
+	var modal_type: UIModalType = UIModalType.NONE
+	var interaction_mode: ModalInteractionMode = ModalInteractionMode.HOLD_AND_RELEASE
+	var options: Array = [] # Array of Dictionary: { "id": String, "label": String, "icon": Variant, "color": Color, "description": String }
+	var dynamic_options_func: String = "" # Method name on caster called to retrieve dynamic options at runtime
+	var cancel_cooldown: float = 0.0 # Reduced cooldown applied if modal is canceled
+	var cancel_refund_percent: float = 0.0 # Ratio of mana refunded if canceled (e.g. 0.5 = 50%)
+	var deadzone_radius: float = 38.0
+	var outer_radius: float = 135.0
+	var custom_modal_scene: PackedScene = null
+	var custom_params: Dictionary = {}
+
 class PipelineEffect extends RefCounted:
 	var effect_type: EffectType = EffectType.PROJECTILE
 	var speed: float = 0.0
@@ -129,11 +153,15 @@ class AbilityDefinition extends RefCounted:
 	var description: String = ""
 	var effect: PipelineEffect = null
 	var hitbox: PipelineHitbox = null # Skippable / optional
+	var ui_modal: PipelineUIModal = null # Skippable / optional UI modal state
 	var triggers: Array = []
 	var riders: Array = []
 
 	func has_hitbox() -> bool:
 		return hitbox != null and hitbox.shape != HitboxShape.NONE
+
+	func has_ui_modal() -> bool:
+		return ui_modal != null and ui_modal.modal_type != UIModalType.NONE
 
 	func get_lockout_time() -> float:
 		if lockout_duration > 0.0:
@@ -195,7 +223,26 @@ static func create_ability(cfg: Dictionary) -> AbilityDefinition:
 			elif t is PipelineTrigger:
 				def.triggers.append(t)
 
+	if cfg.has("ui_modal") and cfg["ui_modal"] is Dictionary:
+		def.ui_modal = create_ui_modal(cfg["ui_modal"])
+	elif cfg.has("ui_modal") and cfg["ui_modal"] is PipelineUIModal:
+		def.ui_modal = cfg["ui_modal"]
+
 	return def
+
+static func create_ui_modal(cfg: Dictionary) -> PipelineUIModal:
+	var m = PipelineUIModal.new()
+	m.modal_type = parse_ui_modal_type(cfg.get("type", cfg.get("modal_type", UIModalType.NONE)))
+	m.interaction_mode = parse_modal_interaction_mode(cfg.get("interaction_mode", cfg.get("mode", ModalInteractionMode.HOLD_AND_RELEASE)))
+	m.options = cfg.get("options", []).duplicate(true)
+	m.dynamic_options_func = cfg.get("dynamic_options_func", "")
+	m.cancel_cooldown = cfg.get("cancel_cooldown", 0.0)
+	m.cancel_refund_percent = cfg.get("cancel_refund_percent", cfg.get("cancel_refund", 0.0))
+	m.deadzone_radius = cfg.get("deadzone_radius", 38.0)
+	m.outer_radius = cfg.get("outer_radius", 135.0)
+	m.custom_modal_scene = cfg.get("custom_modal_scene", null)
+	m.custom_params = cfg.get("custom_params", {})
+	return m
 
 static func create_effect(cfg: Dictionary) -> PipelineEffect:
 	var eff = PipelineEffect.new()
@@ -340,3 +387,28 @@ static func parse_trigger_type(val: Variant) -> TriggerType:
 			"ON_ENTER": return TriggerType.ON_ENTER
 			"ON_CHANNEL_COMPLETE": return TriggerType.ON_CHANNEL_COMPLETE
 	return TriggerType.ON_HIT_ENEMY
+
+static func parse_ui_modal_type(val: Variant) -> UIModalType:
+	if val is UIModalType:
+		return val
+	if val is int:
+		return val as UIModalType
+	if val is String:
+		var upper = val.to_upper()
+		match upper:
+			"NONE": return UIModalType.NONE
+			"RADIAL_WHEEL", "RADIAL", "WHEEL": return UIModalType.RADIAL_WHEEL
+			"CUSTOM": return UIModalType.CUSTOM
+	return UIModalType.NONE
+
+static func parse_modal_interaction_mode(val: Variant) -> ModalInteractionMode:
+	if val is ModalInteractionMode:
+		return val
+	if val is int:
+		return val as ModalInteractionMode
+	if val is String:
+		var upper = val.to_upper()
+		match upper:
+			"HOLD_AND_RELEASE", "HOLD": return ModalInteractionMode.HOLD_AND_RELEASE
+			"TOGGLE_AND_CLICK", "TOGGLE", "CLICK": return ModalInteractionMode.TOGGLE_AND_CLICK
+	return ModalInteractionMode.HOLD_AND_RELEASE

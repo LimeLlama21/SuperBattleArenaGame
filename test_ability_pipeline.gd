@@ -19,6 +19,8 @@ const AsparsasData = preload("res://characters/asparsas/asparsas_data.gd")
 const BasePlayer = preload("res://player/player_base.gd")
 const SileneClass = preload("res://characters/silene/silene.gd")
 const SileneDataClass = preload("res://characters/silene/silene_data.gd")
+const ArtistClass = preload("res://characters/artist/artist.gd")
+const HanziPointCloudRecognizer = preload("res://characters/artist/hanzi_point_cloud_recognizer.gd")
 
 func _initialize() -> void:
 	_run_all.call_deferred()
@@ -50,6 +52,8 @@ func _run_all() -> void:
 	test_bound_mechanic_and_rider()
 	test_silene_character_kit_and_mechanics()
 	test_player_projectile_armor_charges()
+	test_ui_modal_states_and_radial_wheel()
+	test_artist_the_painted_sage_kit()
 
 	print("--- ALL ABILITY PIPELINE TESTS PASSED SUCCESSFULLY! ---")
 	quit(0)
@@ -2157,5 +2161,262 @@ func test_player_projectile_armor_charges() -> void:
 	proj2.queue_free()
 	proj3.queue_free()
 	print("✓ Universal Anti-Poke Projectile Armor Charges verified successfully!")
+
+func test_ui_modal_states_and_radial_wheel() -> void:
+	print("Testing UI Modal States & Radial Wheel Pipeline Integration...")
+
+	# 1. Null / Default Modal State on Standard Abilities
+	var default_def = AbilityPipeline.create_ability({
+		"id": "standard_slash",
+		"name": "Slash",
+		"slot": "LMB"
+	})
+	assert(default_def.ui_modal == null, "Standard ability ui_modal should default to null")
+	assert(default_def.has_ui_modal() == false, "Standard ability should not have ui modal")
+
+	# 2. Declarative Pipeline Definition with UIModalType.RADIAL_WHEEL
+	var modal_def = AbilityPipeline.create_ability({
+		"id": "elemental_dial",
+		"name": "Elemental Shift",
+		"slot": "Q",
+		"ui_modal": {
+			"type": "RADIAL_WHEEL",
+			"interaction_mode": "HOLD_AND_RELEASE",
+			"cancel_cooldown": 2.0,
+			"cancel_refund_percent": 0.5,
+			"options": [
+				{"id": "fire", "label": "🔥 FIRE"},
+				{"id": "water", "label": "💧 WATER"},
+				{"id": "earth", "label": "🌿 EARTH"}
+			]
+		}
+	})
+	assert(modal_def.has_ui_modal() == true, "Ability with modal config must report has_ui_modal = true")
+	assert(modal_def.ui_modal.modal_type == AbilityPipeline.UIModalType.RADIAL_WHEEL, "Modal type should be RADIAL_WHEEL")
+	assert(modal_def.ui_modal.interaction_mode == AbilityPipeline.ModalInteractionMode.HOLD_AND_RELEASE, "Interaction mode should be HOLD_AND_RELEASE")
+	assert(modal_def.ui_modal.cancel_cooldown == 2.0, "Cancel cooldown should be 2.0s")
+	assert(modal_def.ui_modal.cancel_refund_percent == 0.5, "Cancel refund percent should be 50%")
+	assert(modal_def.ui_modal.options.size() == 3, "Modal options size should be 3")
+	print("  ✓ Declarative Pipeline UI Modal definition and parsing verified.")
+
+	# 3. Dynamic N-Option Radial Math in RadialSelectionWheel
+	var wheel = RadialSelectionWheel.new()
+	root.add_child(wheel)
+	wheel.setup_options([
+		{"id": "fire", "label": "🔥 FIRE"},
+		{"id": "water", "label": "💧 WATER"},
+		{"id": "earth", "label": "🌿 EARTH"},
+		{"id": "air", "label": "💨 AIR"}
+	])
+	assert(wheel.options.size() == 4, "Wheel must support 4 dynamic options")
+	var c0 = wheel.get_option_center(0, 4)
+	var c1 = wheel.get_option_center(1, 4)
+	var c2 = wheel.get_option_center(2, 4)
+	var c3 = wheel.get_option_center(3, 4)
+	# Index 0 is at Top: -PI/2 (x approx 0, y < 0 relative to center)
+	assert(is_equal_approx(c0.x, wheel.wheel_center.x), "Option 0 should be top center")
+	assert(c0.y < wheel.wheel_center.y, "Option 0 y should be above center")
+	# Index 1 is at Right: 0 rad (x > 0, y approx 0 relative to center)
+	assert(c1.x > wheel.wheel_center.x, "Option 1 should be to the right")
+	assert(is_equal_approx(c1.y, wheel.wheel_center.y), "Option 1 y should align with center")
+	# Index 2 is at Bottom: +PI/2 (x approx 0, y > 0 relative to center)
+	assert(is_equal_approx(c2.x, wheel.wheel_center.x), "Option 2 should be bottom center")
+	assert(c2.y > wheel.wheel_center.y, "Option 2 y should be below center")
+	# Index 3 is at Left: PI rad (x < 0, y approx 0 relative to center)
+	assert(c3.x < wheel.wheel_center.x, "Option 3 should be to the left")
+	assert(is_equal_approx(c3.y, wheel.wheel_center.y), "Option 3 y should align with center")
+
+	# Test open, selection, and close signals
+	var test_state = {"selected": "", "cancelled": false}
+	wheel.option_selected.connect(func(opt_choice: String): test_state["selected"] = opt_choice)
+	wheel.cancelled.connect(func(): test_state["cancelled"] = true)
+
+	wheel.open(Vector2(200, 200))
+	assert(wheel.is_wheel_open == true, "Wheel should be open")
+	wheel.current_hovered_option = "earth"
+	var choice = wheel.close_and_select()
+	assert(choice == "earth", "Choice should be earth")
+	assert(test_state["selected"] == "earth", "Signal should have emitted earth")
+	assert(wheel.is_wheel_open == false, "Wheel should be closed")
+
+	# Test cancel signal
+	test_state["cancelled"] = false
+	wheel.open(Vector2(200, 200))
+	wheel.cancel_wheel()
+	assert(test_state["cancelled"] == true, "Cancel signal must fire upon cancel_wheel()")
+	assert(wheel.is_wheel_open == false, "Wheel should be closed after cancel")
+	wheel.queue_free()
+	print("  ✓ Dynamic N-option radial calculations, selection, and cancel signals verified.")
+
+	# 4. Monkey King Offloaded Pipeline Integration
+	var monkey = CharacterRegistry.create_player_instance("Monkey")
+	root.add_child(monkey)
+	monkey.peer_id = 1
+	var q_ab = monkey.abilities.get("Q")
+	assert(q_ab != null, "Monkey King must have Q ability")
+	assert(q_ab.has_ui_modal() == true, "Monkey King Q must have ui_modal configured via pipeline")
+	assert(q_ab.ui_modal.modal_type == AbilityPipeline.UIModalType.RADIAL_WHEEL, "Monkey Q modal must be RADIAL_WHEEL")
+	assert(q_ab.ui_modal.options.size() == 2, "Monkey Q modal must have 2 options (tree, rock)")
+	assert(monkey.character_handles_slot("Q") == false, "Monkey King should NO LONGER handle Q slot manually (offloaded to pipeline)")
+
+	# 5. Player Modal Lifecycle: Open, Mana Reservation, and Cancel Refund
+	monkey.current_mana = 80.0
+	monkey.open_ability_modal("Q", q_ab)
+	assert(monkey.active_modal_slot == "Q", "Active modal slot should be Q")
+	assert(monkey.is_mouse_hijacked == true, "Mouse should be hijacked while modal is open")
+	assert(monkey.current_mana == 70.0, "Opening modal should reserve Q_MANA_COST (10 mana)")
+
+	# Cancel active modal
+	monkey.cancel_active_modal()
+	assert(monkey.active_modal_slot == "", "Active modal slot should be empty after cancel")
+	assert(monkey.is_mouse_hijacked == false, "Mouse should no longer be hijacked after cancel")
+	assert(monkey.current_mana == 75.0, "Canceling must refund 50% of 10 mana (5.0 mana)")
+	assert(is_equal_approx(q_ab.current_cooldown, 2.5), "Canceling must apply 2.5s cancel cooldown")
+
+	# 6. CC Interrupt Cancellation
+	monkey.current_mana = 80.0
+	q_ab.current_cooldown = 0.0
+	monkey.open_ability_modal("Q", q_ab)
+	assert(monkey.active_modal_slot == "Q", "Active modal slot should be Q before CC")
+	# Stun the player and process input
+	monkey.apply_stun(1.0)
+	monkey._process_abilities_input(0.01)
+	assert(monkey.active_modal_slot == "", "CC stun must automatically cancel active modal")
+	assert(monkey.is_mouse_hijacked == false, "CC stun must release mouse hijack")
+	assert(monkey.current_mana == 75.0, "CC cancel must refund 50% mana")
+	assert(is_equal_approx(q_ab.current_cooldown, 2.5), "CC cancel must apply cancel cooldown")
+	monkey.stun_timer = 0.0
+
+	# 7. Confirm Option & Execution
+	monkey.current_mana = 80.0
+	q_ab.current_cooldown = 0.0
+	monkey.open_ability_modal("Q", q_ab)
+	monkey.resolve_modal_choice("Q", q_ab, "rock")
+	assert(monkey.active_modal_slot == "", "Active modal slot should be empty after choice confirmed")
+	assert(monkey.is_mouse_hijacked == false, "Mouse should no longer be hijacked after choice confirmed")
+	assert(monkey.is_unit_transformed() == true, "Choosing rock must execute 72 Forms transformation")
+	assert(monkey.transformed_prop_type == "rock", "Prop type must be rock")
+
+	# Cleanup
+	monkey.queue_free()
+	print("  ✓ Player modal lifecycle, mana reservation, cancel refund, CC interrupt, and confirmation verified.")
+	print("✓ UI Modal States & Radial Wheel Pipeline Integration verified successfully!")
+
+func test_artist_the_painted_sage_kit() -> void:
+	print("Testing The Painted Sage (Artist) Kit, Vancian Magic & Hanzi Recognizer...")
+
+	# 1. Character Registry & Metadata
+	assert(CharacterRegistry.has_character("artist") == true, "CharacterRegistry must have 'artist'")
+	assert(CharacterRegistry.get_display_name("artist") == "The Painted Sage", "Display name must be 'The Painted Sage'")
+
+	var artist = CharacterRegistry.create_player_instance("artist") as ArtistClass
+	assert(artist != null, "Must successfully instantiate Artist character")
+	root.add_child(artist)
+	artist.peer_id = 1
+
+	# 2. Ability Slots Check
+	assert(artist.abilities.get("LMB") == null, "Primary LMB must be null")
+	assert(artist.abilities.get("RMB") == null, "Secondary RMB must be null")
+	assert(artist.abilities.get("Q") == null, "Q spell must be null")
+	assert(artist.abilities.get("E") == null, "E spell must be null")
+
+	var dash_ab = artist.abilities.get("SHIFT")
+	assert(dash_ab != null, "SHIFT must be configured for dash")
+	assert(dash_ab.ability_id == "artist_dash", "Dash ability_id must be artist_dash")
+
+	var ult_ab = artist.abilities.get("R")
+	assert(ult_ab != null, "R must be configured for Vancian ult")
+	assert(ult_ab.has_ui_modal() == true, "R must have ui_modal configured")
+	assert(ult_ab.ui_modal.modal_type == AbilityPipeline.UIModalType.CUSTOM, "R modal must be CUSTOM")
+	assert(ult_ab.ui_modal.interaction_mode == AbilityPipeline.ModalInteractionMode.TOGGLE_AND_CLICK, "Interaction mode must be TOGGLE_AND_CLICK")
+	assert(ult_ab.ui_modal.cancel_cooldown == 1.0, "Cancel cooldown must be 1.0s")
+	assert(ult_ab.cooldown == 3.0, "Cast cooldown must be 3.0s")
+	print("  ✓ Identity, metadata, null primary/spells, dash, and R pipeline modal verified.")
+
+	# 3. $P Point-Cloud Recognizer Tests for all 4 elements
+	var fire_test_strokes: Array = [
+		[Vector2(0.26, 0.36), Vector2(0.31, 0.47)],
+		[Vector2(0.74, 0.36), Vector2(0.69, 0.47)],
+		[Vector2(0.50, 0.16), Vector2(0.49, 0.41), Vector2(0.36, 0.69), Vector2(0.19, 0.89)],
+		[Vector2(0.49, 0.46), Vector2(0.64, 0.67), Vector2(0.84, 0.89)]
+	]
+	var fire_res = HanziPointCloudRecognizer.recognize(fire_test_strokes)
+	assert(fire_res.get("element") == "fire", "Recognizer must match 'fire'")
+	assert(fire_res.get("hanzi") == "火", "Hanzi must be '火'")
+	assert(float(fire_res.get("score")) > 0.7, "Confidence must be > 70%")
+
+	var water_test_strokes: Array = [
+		[Vector2(0.50, 0.12), Vector2(0.50, 0.84), Vector2(0.43, 0.77)],
+		[Vector2(0.21, 0.39), Vector2(0.37, 0.39), Vector2(0.23, 0.64)],
+		[Vector2(0.64, 0.29), Vector2(0.81, 0.77)]
+	]
+	var water_res = HanziPointCloudRecognizer.recognize(water_test_strokes)
+	assert(water_res.get("element") == "water", "Recognizer must match 'water'")
+	assert(water_res.get("hanzi") == "水", "Hanzi must be '水'")
+
+	var air_test_strokes: Array = [
+		[Vector2(0.21, 0.16), Vector2(0.21, 0.84)],
+		[Vector2(0.21, 0.16), Vector2(0.79, 0.16), Vector2(0.79, 0.79), Vector2(0.71, 0.74)],
+		[Vector2(0.36, 0.41), Vector2(0.64, 0.69)],
+		[Vector2(0.54, 0.43), Vector2(0.43, 0.64)]
+	]
+	var air_res = HanziPointCloudRecognizer.recognize(air_test_strokes)
+	assert(air_res.get("element") == "air", "Recognizer must match 'air'")
+	assert(air_res.get("hanzi") == "风", "Hanzi must be '风'")
+
+	var earth_test_strokes: Array = [
+		[Vector2(0.31, 0.41), Vector2(0.69, 0.41)],
+		[Vector2(0.50, 0.16), Vector2(0.50, 0.84)],
+		[Vector2(0.16, 0.84), Vector2(0.84, 0.84)]
+	]
+	var earth_res = HanziPointCloudRecognizer.recognize(earth_test_strokes)
+	assert(earth_res.get("element") == "earth", "Recognizer must match 'earth'")
+	assert(earth_res.get("hanzi") == "土", "Hanzi must be '土'")
+	print("  ✓ $P Point-Cloud Recognizer for Fire (火), Water (水), Air (风), and Earth (土) verified.")
+
+	# 4. Vancian Dynamic Options Initial State
+	var initial_opts = artist.get_vancian_modal_options("R")
+	assert(initial_opts.size() == 4, "Must have 4 Vancian slots")
+	for i in range(4):
+		assert(initial_opts[i].get("is_empty") == true, "Initial slot %d must be empty" % i)
+
+	# 5. Inscribe Spell Scribing Flow & 1-second Cooldown
+	artist.vancian_slots[0] = "fire"
+	artist._on_modal_option_selected("R", "inscribed:0:fire")
+	assert(is_equal_approx(ult_ab.current_cooldown, 1.0), "Inscribing a spell must apply 1.0s cooldown")
+
+	# Verify updated options
+	var updated_opts = artist.get_vancian_modal_options("R")
+	assert(updated_opts[0].get("is_empty") == false, "Slot 0 should now be prepared")
+	assert(updated_opts[0].get("id") == "cast:0:fire", "Slot 0 id should be cast:0:fire")
+	assert(updated_opts[1].get("is_empty") == true, "Slot 1 should still be empty")
+
+	# Inscribe second slot
+	artist.vancian_slots[1] = "water"
+	artist.start_ability_cooldown("R", 0.0)
+	var opts2 = artist.get_vancian_modal_options("R")
+	assert(opts2[1].get("is_empty") == false, "Slot 1 should now be prepared")
+	assert(opts2[1].get("id") == "cast:1:water", "Slot 1 id should be cast:1:water")
+
+	# 6. Modal Cancel 1-second Cooldown
+	artist._on_modal_cancelled("R")
+	assert(is_equal_approx(ult_ab.current_cooldown, 1.0), "Canceling modal must apply 1.0s cooldown")
+	print("  ✓ Vancian slot preparation, dynamic options, and 1.0s drawing/cancel cooldown verified.")
+
+	# 7. Casting Prepared Ammo & 3-second Cooldown
+	ult_ab.current_cooldown = 0.0
+	artist._on_modal_option_selected("R", "cast:0:fire")
+	assert(artist.vancian_slots[0] == "", "Casting must expend slot 0 ammunition")
+	assert(artist.active_element == "fire", "Active element must be set to fire")
+	assert(ult_ab.damage_amount == 75.0, "Fire payload damage must be 75.0")
+	var cast_success = artist.try_cast_ability("R")
+	assert(cast_success == true, "try_cast_ability(R) must succeed for prepared spell")
+	assert(is_equal_approx(ult_ab.current_cooldown, 3.0), "Casting prepared spell must apply 3.0s cooldown")
+	print("  ✓ Ammunition expenditure, elemental payload application, and 3.0s cast cooldown verified.")
+
+	# Cleanup
+	artist.queue_free()
+	print("✓ The Painted Sage (Artist) Kit, Vancian Magic & Hanzi Recognizer verified successfully!")
+
 
 

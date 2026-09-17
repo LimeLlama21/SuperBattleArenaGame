@@ -183,6 +183,13 @@ func _init() -> void:
 var abilities: Dictionary = {}
 var ability_slots: Dictionary = {}
 var slot_remaps: Dictionary = {}
+var active_modal_slot: String = ""
+
+func start_ability_cooldown(slot_key: String, duration: float) -> void:
+	var ab = abilities.get(slot_key)
+	if ab:
+		var mult = get_cooldown_multiplier() if has_method("get_cooldown_multiplier") else 1.0
+		ab.current_cooldown = duration * mult
 
 func remap_slot(from_slot: String, to_slot: String) -> void:
 	slot_remaps[from_slot] = to_slot
@@ -2223,6 +2230,8 @@ func _process_abilities_lifecycle(delta: float) -> void:
 func _process_abilities_input(delta: float) -> void:
 	if is_dead or is_stunned() or is_bound() or is_silenced():
 		cancel_active_windup()
+		if not active_modal_slot.is_empty():
+			cancel_active_modal()
 		for slot_key in abilities:
 			var ab = abilities[slot_key]
 			if ab is AbilityClass:
@@ -2231,6 +2240,10 @@ func _process_abilities_input(delta: float) -> void:
 				ab.is_holding = false
 				ab.stop_charging()
 				ab.cancel_windup()
+		return
+
+	if not active_modal_slot.is_empty() and Input.is_action_just_pressed("ui_cancel"):
+		cancel_active_modal()
 		return
 
 	var slot_action_map = {
@@ -2264,7 +2277,32 @@ func _process_abilities_input(delta: float) -> void:
 			else:
 				ab.active_indicator.hide()
 
-		if ab.is_charge_ability():
+		if ab.has_ui_modal():
+			var modal_cfg = ab.ui_modal
+			var is_hold = (modal_cfg.interaction_mode == AbilityPipeline.ModalInteractionMode.HOLD_AND_RELEASE)
+			if is_hold:
+				if Input.is_action_just_pressed(action_name):
+					if is_transformed and slot_key == "Q":
+						# Recasting Q while transformed breaks transformation
+						break_transformation()
+					elif out_of_mana:
+						pass
+					elif ab.can_cast(self):
+						open_ability_modal(slot_key, ab)
+					else:
+						buffer_ability(effective_slot)
+
+				if Input.is_action_just_released(action_name) and active_modal_slot == slot_key:
+					close_and_resolve_modal(slot_key, ab)
+			else:
+				# TOGGLE_AND_CLICK
+				if Input.is_action_just_pressed(action_name):
+					if active_modal_slot == slot_key:
+						cancel_active_modal()
+					elif not out_of_mana and ab.can_cast(self):
+						open_ability_modal(slot_key, ab)
+
+		elif ab.is_charge_ability():
 			if Input.is_action_just_pressed(action_name):
 				if out_of_mana:
 					pass # Cannot input without mana: cannot charge while mana is regenerating, do not buffer
@@ -2334,6 +2372,64 @@ func _process_abilities_input(delta: float) -> void:
 				if not out_of_mana and ab.can_cast(self):
 					try_cast_ability(effective_slot)
 
+func open_ability_modal(slot_key: String, ab: AbilityClass) -> void:
+	if not active_modal_slot.is_empty():
+		cancel_active_modal()
+
+	var cost = ab.get_mana_cost(self)
+	if cost > 0.0:
+		consume_mana(cost)
+
+	active_modal_slot = slot_key
+	is_mouse_hijacked = true
+	var mouse_screen_pos = get_viewport().get_mouse_position() if get_viewport() else Vector2.ZERO
+	ab.open_modal(self, mouse_screen_pos)
+
+func close_and_resolve_modal(slot_key: String, ab: AbilityClass) -> void:
+	if active_modal_slot != slot_key:
+		return
+	var choice = ab.close_and_select_modal()
+	active_modal_slot = ""
+	is_mouse_hijacked = false
+	resolve_modal_choice(slot_key, ab, choice)
+
+func cancel_active_modal() -> void:
+	if active_modal_slot.is_empty():
+		return
+	var slot = active_modal_slot
+	var ab = get_ability_for_slot(slot)
+	active_modal_slot = ""
+	is_mouse_hijacked = false
+	if ab and ab is AbilityClass:
+		ab.cancel_modal()
+		resolve_modal_choice(slot, ab, "cancel")
+
+func resolve_modal_choice(slot_key: String, ab: AbilityClass, choice: String) -> void:
+	if active_modal_slot == slot_key:
+		active_modal_slot = ""
+	is_mouse_hijacked = false
+
+	var modal_cfg = ab.ui_modal if ab else null
+	var cost = ab.get_mana_cost(self) if ab else 0.0
+
+	if choice == "cancel":
+		var refund_pct = modal_cfg.cancel_refund_percent if modal_cfg else 0.0
+		if refund_pct > 0.0 and cost > 0.0:
+			restore_mana(cost * refund_pct)
+		var cancel_cd = modal_cfg.cancel_cooldown if modal_cfg else 0.0
+		if cancel_cd > 0.0:
+			start_ability_cooldown(slot_key, cancel_cd)
+		if has_method("_on_modal_cancelled"):
+			call("_on_modal_cancelled", slot_key)
+	else:
+		# Valid choice made: refund initial reserved mana so try_cast_ability / consume_resources can perform normal check & deduction
+		if cost > 0.0:
+			restore_mana(cost)
+		if has_method("_on_modal_option_selected"):
+			call("_on_modal_option_selected", slot_key, choice)
+		var eff_slot = get_effective_slot(slot_key)
+		try_cast_ability(eff_slot)
+
 func try_cast_ability(slot_key: String, charge_ratio: float = 0.0) -> bool:
 	var eff_slot = get_effective_slot(slot_key)
 	var ab = get_ability_for_slot(eff_slot)
@@ -2358,6 +2454,8 @@ func try_cast_ability(slot_key: String, charge_ratio: float = 0.0) -> bool:
 	# Transformation handling: moving & dashing does not break it, but attacking or casting other abilities does
 	if is_transformed:
 		if eff_slot == "SHIFT" and transformation_properties.get("can_dash", true):
+			pass
+		elif (ab is TransformationEffect or (ab and ab.effect_instance is TransformationEffect)):
 			pass
 		else:
 			break_transformation()
@@ -2396,6 +2494,8 @@ func request_cast_ability(slot_key: String, origin: Vector3, direction: Vector3,
 		break_invisibility()
 	if is_transformed:
 		if slot_key == "SHIFT" and transformation_properties.get("can_dash", true):
+			pass
+		elif (ab is TransformationEffect or (ab and ab.effect_instance is TransformationEffect)):
 			pass
 		else:
 			break_transformation()

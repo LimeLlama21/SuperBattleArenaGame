@@ -20,6 +20,7 @@ static func _ensure_initialized() -> void:
 	_register_builtin("morrigan", "res://characters/morrigan/morrigan_data.gd", "res://characters/morrigan/morrigan.tscn")
 	_register_builtin("monkey", "res://characters/monkey/monkey_data.gd", "res://characters/monkey/monkey.tscn")
 	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
+	_register_builtin("artist", "res://characters/artist/artist_data.gd", "res://characters/artist/artist.tscn")
 
 static func _register_builtin(key: String, data_script_path: String, scene_path: String) -> void:
 	var data: CharacterData = null
@@ -86,7 +87,7 @@ static func get_character_scene(key: String) -> PackedScene:
 static func get_all_character_keys() -> Array[String]:
 	_ensure_initialized()
 	var unique_keys: Array[String] = []
-	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "silene"]
+	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "silene", "artist"]
 	for k in canonical:
 		if _registry.has(k) and not unique_keys.has(k):
 			unique_keys.append(k)
@@ -111,6 +112,7 @@ static func get_display_name(key: String) -> String:
 		"morrigan": return "Morrigan"
 		"monkey": return "The Great Sage"
 		"silene": return "Saint Silene"
+		"artist": return "The Painted Sage"
 		_: return key.capitalize()
 
 static func create_player_instance(key: String) -> BasePlayer:

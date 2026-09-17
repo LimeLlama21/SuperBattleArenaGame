@@ -49,10 +49,30 @@ func _setup_character_kit() -> void:
 		if not default_staff_material and staff_facing.mesh:
 			default_staff_material = staff_facing.mesh.material
 
-	if is_local_player():
-		radial_wheel = RadialSelectionWheel.new()
-		add_child(radial_wheel)
-		radial_wheel.option_selected.connect(_on_radial_option_selected)
+	var q_ab = abilities.get("Q")
+	if q_ab and q_ab is AbilityClass:
+		q_ab.ui_modal = AbilityPipeline.create_ui_modal({
+			"type": AbilityPipeline.UIModalType.RADIAL_WHEEL,
+			"interaction_mode": AbilityPipeline.ModalInteractionMode.HOLD_AND_RELEASE,
+			"cancel_cooldown": Q_CANCEL_COOLDOWN,
+			"cancel_refund_percent": 0.5,
+			"options": [
+				{
+					"id": "tree",
+					"label": "🌲 TREE",
+					"color": Color(0.12, 0.60, 0.28, 0.95),
+					"inactive_color": Color(0.12, 0.28, 0.16, 0.70),
+					"arc_color": Color(0.35, 1.0, 0.55, 1.0)
+				},
+				{
+					"id": "rock",
+					"label": "🪨 ROCK",
+					"color": Color(0.70, 0.48, 0.20, 0.95),
+					"inactive_color": Color(0.28, 0.22, 0.16, 0.70),
+					"arc_color": Color(1.0, 0.80, 0.30, 1.0)
+				}
+			]
+		})
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
 	if sync and sync.replication_config:
@@ -60,8 +80,6 @@ func _setup_character_kit() -> void:
 		_add_sync_property(sync.replication_config, NodePath(".:stone_monkey_active_timer"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 
 func character_handles_slot(slot_key: String) -> bool:
-	if slot_key == "Q":
-		return true
 	if slot_key == "R" and ult_recast_window > 0.0:
 		return true
 	return false
@@ -163,52 +181,25 @@ func _set_stone_material(is_stone: bool) -> void:
 		else:
 			staff_facing.material_override = default_staff_material if default_staff_material else null
 
-# --- Input Handling for Q Radial Menu and R Recast ---
+# --- Input Handling for R Recast ---
 func _handle_character_input(_delta: float) -> void:
-	if is_stunned() or is_silenced():
-		if radial_wheel and radial_wheel.is_wheel_open:
-			is_mouse_hijacked = false
-			radial_wheel.cancel_wheel()
-		return
-
-	# Q: 72 Forms Radial Selection Wheel
-	if Input.is_action_just_pressed("ability_two"):
-		if is_transformed:
-			# Recasting Q breaks transformation
-			break_transformation()
-		elif can_cast_ability_slot("Q") and has_mana(Q_MANA_COST):
-			if radial_wheel:
-				consume_mana(Q_MANA_COST)
-				is_mouse_hijacked = true
-				radial_wheel.open(get_viewport().get_mouse_position())
-	
-	if Input.is_action_just_released("ability_two"):
-		if radial_wheel and radial_wheel.is_wheel_open:
-			is_mouse_hijacked = false
-			var choice = radial_wheel.close_and_select()
-			_process_radial_choice(choice)
-
 	# R: Recast Rush Flurry
 	if ult_recast_window > 0.0:
 		if Input.is_action_just_pressed("ability_four"):
 			_execute_ult_recast_rush()
 
-func _on_radial_option_selected(_option_name: String) -> void:
-	pass
+func _on_modal_option_selected(slot_key: String, option_id: String) -> void:
+	if slot_key == "Q":
+		pending_prop_type = option_id
 
-func _process_radial_choice(choice: String) -> void:
-	if choice == "cancel":
-		# Cancel refunds half mana (5 mana) and triggers reduced cooldown (2.5s)
-		current_mana = min(max_mana, current_mana + (Q_MANA_COST / 2.0))
-		start_ability_cooldown("Q", Q_CANCEL_COOLDOWN)
+func _on_modal_cancelled(slot_key: String) -> void:
+	if slot_key == "Q":
 		if is_multiplayer_match() and not multiplayer.is_server():
 			request_cancel_q.rpc_id(1)
-	elif choice in ["tree", "rock"]:
-		pending_prop_type = choice
-		if is_multiplayer_match() and not multiplayer.is_server():
-			request_transform_prop.rpc_id(1, choice)
-		else:
-			_server_execute_72_forms(choice)
+
+func _process_radial_choice(choice: String) -> void:
+	var q_ab = abilities.get("Q") as AbilityClass
+	resolve_modal_choice("Q", q_ab, choice)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_cancel_q() -> void:

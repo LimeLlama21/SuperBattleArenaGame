@@ -45,6 +45,10 @@ const AbilityHitboxClass = preload("res://ability/hitboxes/ability_hitbox.gd")
 @export var min_damage: float = 0.0
 @export var max_damage: float = 0.0
 
+@export_group("UI Modal Settings")
+var ui_modal: AbilityPipeline.PipelineUIModal = null
+var active_modal_instance: Node = null
+
 var effect_instance = null
 var current_cooldown: float = 0.0
 var current_charges: int = 1
@@ -110,6 +114,55 @@ func is_charge_ability() -> bool:
 	if effect_instance and effect_instance != self and effect_instance.has_method("is_charge_ability"):
 		return effect_instance.is_charge_ability()
 	return false
+
+func has_ui_modal() -> bool:
+	return ui_modal != null and ui_modal.modal_type != AbilityPipeline.UIModalType.NONE
+
+func get_modal_options(caster: Node) -> Array:
+	if not ui_modal:
+		return []
+	if not ui_modal.dynamic_options_func.is_empty() and is_instance_valid(caster) and caster.has_method(ui_modal.dynamic_options_func):
+		var dynamic_opts = caster.call(ui_modal.dynamic_options_func, slot_key)
+		if dynamic_opts is Array:
+			return dynamic_opts
+	return ui_modal.options
+
+func open_modal(caster: Node, at_pos: Vector2 = Vector2.ZERO) -> Node:
+	if not has_ui_modal():
+		return null
+	if not active_modal_instance or not is_instance_valid(active_modal_instance):
+		if ui_modal.custom_modal_scene:
+			active_modal_instance = ui_modal.custom_modal_scene.instantiate()
+		elif ui_modal.modal_type == AbilityPipeline.UIModalType.RADIAL_WHEEL:
+			active_modal_instance = RadialSelectionWheel.new()
+			if ui_modal.deadzone_radius > 0.0:
+				active_modal_instance.deadzone_radius = ui_modal.deadzone_radius
+			if ui_modal.outer_radius > 0.0:
+				active_modal_instance.outer_radius = ui_modal.outer_radius
+		if active_modal_instance:
+			if is_instance_valid(caster):
+				caster.add_child(active_modal_instance)
+			elif get_tree() and get_tree().root:
+				get_tree().root.add_child(active_modal_instance)
+			else:
+				add_child(active_modal_instance)
+
+	if active_modal_instance and active_modal_instance.has_method("open"):
+		var opts = get_modal_options(caster)
+		active_modal_instance.open(at_pos, opts)
+	return active_modal_instance
+
+func close_and_select_modal() -> String:
+	if active_modal_instance and is_instance_valid(active_modal_instance) and active_modal_instance.has_method("close_and_select"):
+		return active_modal_instance.close_and_select()
+	return "cancel"
+
+func cancel_modal() -> void:
+	if active_modal_instance and is_instance_valid(active_modal_instance):
+		if active_modal_instance.has_method("cancel_wheel"):
+			active_modal_instance.cancel_wheel()
+		elif active_modal_instance.has_method("cancel"):
+			active_modal_instance.cancel()
 
 func should_show_indicator() -> bool:
 	if not show_indicator:
@@ -526,6 +579,12 @@ static func create_from_config(cfg: Dictionary) -> Ability:
 				if r_node:
 					def_trigger.rider_instances.append(r_node)
 			effect_node.trigger_instances.append(def_trigger)
+
+	if cfg.has("ui_modal"):
+		if cfg["ui_modal"] is Dictionary:
+			ab.ui_modal = AbilityPipeline.create_ui_modal(cfg["ui_modal"])
+		elif cfg["ui_modal"] is AbilityPipeline.PipelineUIModal:
+			ab.ui_modal = cfg["ui_modal"]
 
 	ab.setup()
 	return ab

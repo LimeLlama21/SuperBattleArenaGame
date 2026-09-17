@@ -103,6 +103,13 @@ static func build_ability(cfg: Dictionary) -> Ability:
 					def_trigger.rider_instances.append(r_node)
 			effect_node.trigger_instances.append(def_trigger)
 
+	# 4. UI Modal Property
+	if cfg.has("ui_modal"):
+		if cfg["ui_modal"] is Dictionary:
+			ab.ui_modal = AbilityPipeline.create_ui_modal(cfg["ui_modal"])
+		elif cfg["ui_modal"] is AbilityPipeline.PipelineUIModal:
+			ab.ui_modal = cfg["ui_modal"]
+
 	ab.setup()
 	return ab
 
