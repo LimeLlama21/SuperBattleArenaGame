@@ -58,7 +58,24 @@ roughness = 0.4
 material = SubResource("Mat_Wall")
 size = Vector3(4.5, 8, 1.2)
 
+[sub_resource type="BoxShape3D" id="Shape_NorthBase"]
+size = Vector3(22, 1, 14)
+
+[sub_resource type="BoxMesh" id="Mesh_NorthBase"]
+material = SubResource("Mat_Floor")
+size = Vector3(22, 1, 14)
+
 [node name="MapChasm" type="Node3D" unique_id=1839355572]
+
+[node name="NorthBaseFloor" type="StaticBody3D" parent="." unique_id=1999123456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -24)
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NorthBaseFloor" unique_id=1999123457]
+shape = SubResource("Shape_NorthBase")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NorthBaseFloor" unique_id=1999123458]
+mesh = SubResource("Mesh_NorthBase")
 
 [node name="WestBaseFloor" type="StaticBody3D" parent="." unique_id=103142728]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, -0.5, 0)

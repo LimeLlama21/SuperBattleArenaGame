@@ -1,12 +1,11 @@
 [gd_scene format=3 uid="uid://cyulrhfo6xm6a"]
 
-[ext_resource type="Script" path="res://characters/asparsas/asparsas.gd" id="1_asparsas"]
-[ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
-[ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
-[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
-[ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
-[ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
+[ext_resource type="Script" uid="uid://cuwqiw15mtppn" path="res://characters/asparsas/asparsas.gd" id="1_asparsas"]
+[ext_resource type="PackedScene" uid="uid://cdjy3oq13w80j" path="res://player/player_hud.tscn" id="3_player_hud"]
 [ext_resource type="PackedScene" path="res://ability/effects/stance_block_effect.tscn" id="ext_eff_block"]
+[ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
+[ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
 [ext_resource type="PackedScene" path="res://ability/effects/projectile_effect.tscn" id="ext_eff_proj"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
@@ -175,91 +174,86 @@ billboard = 1
 double_sided = false
 no_depth_test = true
 
-[node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]
+[node name="PlayerHUD" parent="." unique_id=951310218 instance=ExtResource("3_player_hud")]
 
-[node name="Abilities" type="Node" parent="."]
+[node name="Abilities" type="Node" parent="." unique_id=1855423176]
 
-[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
-slot_key = "LMB"
-ability_id = "dive_slash"
-ability_name = "Slash"
-icon_symbol = "🗡️"
-description = "Swift dual-blade strike dealing 32.0 damage."
-cooldown = 0.45
-windup_time = 0.18
+[node name="LMB" parent="Abilities" unique_id=1721753902 instance=ExtResource("ext_eff_melee")]
 hitbox_type = 1
 hitbox_radius = 3.4
-hitbox_angle_deg = 100.0
 hitbox_height = 2.4
+hitbox_angle_deg = 100.0
 damage_amount = 32.0
+ability_id = "dive_slash"
+ability_name = "Slash"
+description = "Swift dual-blade strike dealing 32.0 damage."
+icon_symbol = "🗡️"
+cooldown = 0.45
+windup_time = 0.18
 
-[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+[node name="RMB" parent="Abilities" unique_id=1317656593 instance=ExtResource("ext_eff_melee")]
+hitbox_type = 1
+hitbox_radius = 3.0
+hitbox_height = 2.4
+hitbox_angle_deg = 135.0
+damage_amount = 65.0
+heal_scale_with_marks = true
 slot_key = "RMB"
 ability_id = "dive_heavy_cleave"
 ability_name = "Heavy Cleave"
-icon_symbol = "⚔️"
 description = "Wide sweep dealing 65.0 damage and detonating rupture marks for burst damage and 11-15% missing HP heal."
+icon_symbol = "⚔️"
 cooldown = 6.0
 cast_on_press = false
 windup_time = 0.18
-hitbox_type = 1
-hitbox_radius = 3.0
-hitbox_angle_deg = 135.0
-hitbox_height = 2.4
-damage_amount = 65.0
-heal_scale_with_marks = true
-heal_min_missing_hp_pct = 0.11
-heal_max_missing_hp_pct = 0.15
-heal_apply_to_self = true
 
-[node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
+[node name="SHIFT" parent="Abilities" unique_id=276656212 instance=ExtResource("ext_eff_dash")]
+impulse = 26.0
 slot_key = "SHIFT"
 ability_id = "dive_dash_or_crash"
 ability_name = "Vault / Aerial Crash"
-icon_symbol = "🦅"
 description = "Quick ground dash or crashing plunge from the air."
+icon_symbol = "🦅"
 cooldown = 0.85
-impulse = 26.0
 
-[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_proj")]
-slot_key = "Q"
-ability_id = "dive_earth_tremor"
-ability_name = "Earth Tremor"
-icon_symbol = "🌋"
-description = "Slams the earth, unleashing a traveling seismic tremor that deals 18.0 damage, slows enemies, and raises temporary terrain."
-cooldown = 8.0
-cast_on_press = false
-windup_time = 0.35
+[node name="Q" parent="Abilities" unique_id=46686093 instance=ExtResource("ext_eff_proj")]
 speed = 28.0
 max_range = 14.0
 projectile_size = 1.5
 pierces = true
 custom_effect_type = "dive_earth_tremor"
-damage_amount = 18.0
-slow_intensity = 0.40
-slow_duration = 2.0
 hitbox_type = 2
 hitbox_length = 14.0
 hitbox_width = 1.5
+damage_amount = 18.0
+slow_duration = 2.0
+slow_intensity = 0.4
+slot_key = "Q"
+ability_id = "dive_earth_tremor"
+ability_name = "Earth Tremor"
+description = "Slams the earth, unleashing a traveling seismic tremor that deals 18.0 damage, slows enemies, and raises temporary terrain."
+icon_symbol = "🌋"
+cooldown = 8.0
+cast_on_press = false
+windup_time = 0.35
 
-[node name="E" parent="Abilities" instance=ExtResource("ext_eff_block")]
+[node name="E" parent="Abilities" unique_id=956626425 instance=ExtResource("ext_eff_block")]
 slot_key = "E"
 ability_id = "dive_deflecting_guard"
 ability_name = "Deflecting Guard"
-icon_symbol = "🛡️"
 description = "Raises defensive stance mitigating incoming damage."
+icon_symbol = "🛡️"
 cooldown = 4.0
-block_duration = 3.0
 
-[node name="R" parent="Abilities" instance=ExtResource("ext_eff_buff")]
-slot_key = "R"
-ability_id = "dive_tectonic_uprising"
-ability_name = "Tectonic Uprising"
-icon_symbol = "👑"
-description = "Empowered surge granting massive movement speed."
-cooldown = 24.0
+[node name="R" parent="Abilities" unique_id=106613879 instance=ExtResource("ext_eff_buff")]
 buff_name = "TectonicUprising"
 buff_duration = 6.0
 status_type = "speed_boost"
-status_intensity = 0.35
 status_duration = 6.0
+status_intensity = 0.35
+slot_key = "R"
+ability_id = "dive_tectonic_uprising"
+ability_name = "Tectonic Uprising"
+description = "Empowered surge granting massive movement speed."
+icon_symbol = "👑"
+cooldown = 24.0

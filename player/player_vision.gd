@@ -55,12 +55,12 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 	var obstacles: Array[Dictionary] = []
 	if not main_node:
 		return obstacles
-
+	
 	var bodies: Array[StaticBody3D] = []
 	var arena = main_node.get_node_or_null("Arena")
 	if arena:
 		bodies.append_array(_get_all_static_bodies_recursive(arena))
-
+	
 	var temp_terrain = main_node.get_node_or_null("TemporaryTerrain")
 	if temp_terrain:
 		for child in temp_terrain.get_children():
@@ -68,7 +68,7 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 				bodies.append(child)
 			elif child is Node3D:
 				bodies.append_array(_get_all_static_bodies_recursive(child))
-
+	
 	for body in bodies:
 		if not body.is_inside_tree() or not body.is_visible_in_tree():
 			continue
@@ -83,7 +83,7 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 		var obs_segments: Array[PackedVector2Array] = []
 		var top_y: float = -9999.0
 		var bottom_y: float = 9999.0
-
+		
 		if shape is BoxShape3D:
 			var size = (shape as BoxShape3D).size
 			var hx = size.x * 0.5
@@ -104,7 +104,7 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 				var cw = xform * c
 				top_y = max(top_y, cw.y)
 				bottom_y = min(bottom_y, cw.y)
-
+			
 			# 2D corners in counter-clockwise order
 			var p0 = xform * Vector3(-hx, 0, -hz)
 			var p1 = xform * Vector3(hx, 0, -hz)
@@ -121,7 +121,7 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 				PackedVector2Array([v2, v3]),
 				PackedVector2Array([v3, v0])
 			]
-
+		
 		elif shape is CylinderShape3D:
 			var cyl = shape as CylinderShape3D
 			var rad = cyl.radius
@@ -139,7 +139,7 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 			for i in range(segs):
 				var next_i = (i + 1) % segs
 				obs_segments.append(PackedVector2Array([obs_verts[i], obs_verts[next_i]]))
-
+		
 		elif shape is ConvexPolygonShape3D:
 			var poly = shape as ConvexPolygonShape3D
 			for p in poly.points:
@@ -151,7 +151,7 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 				for i in range(obs_verts.size()):
 					var next_i = (i + 1) % obs_verts.size()
 					obs_segments.append(PackedVector2Array([obs_verts[i], obs_verts[next_i]]))
-
+		
 		if obs_verts.size() >= 3:
 			obstacles.append({
 				"name": body.name,

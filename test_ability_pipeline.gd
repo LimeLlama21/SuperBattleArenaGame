@@ -2309,6 +2309,13 @@ func test_artist_the_painted_sage_kit() -> void:
 	assert(CharacterRegistry.has_character("artist") == true, "CharacterRegistry must have 'artist'")
 	assert(CharacterRegistry.get_display_name("artist") == "The Painted Sage", "Display name must be 'The Painted Sage'")
 
+	var main_script = load("res://main.gd")
+	assert(main_script != null, "main.gd must load")
+	assert(main_script.CHARACTERS.has("artist"), "main.gd CHARACTERS must contain 'artist'")
+	assert(main_script.CHARACTER_DISPLAY_NAMES.has("artist"), "main.gd CHARACTER_DISPLAY_NAMES must contain 'artist'")
+	assert(main_script.CHARACTER_DISPLAY_NAMES["artist"] == "The Painted Sage", "main.gd artist display name must be 'The Painted Sage'")
+	assert(main_script.get_character_display_name("artist") == "The Painted Sage", "main.gd get_character_display_name('artist') must be 'The Painted Sage'")
+
 	var artist = CharacterRegistry.create_player_instance("artist") as ArtistClass
 	assert(artist != null, "Must successfully instantiate Artist character")
 	root.add_child(artist)
@@ -2327,8 +2334,10 @@ func test_artist_the_painted_sage_kit() -> void:
 	var ult_ab = artist.abilities.get("R")
 	assert(ult_ab != null, "R must be configured for Vancian ult")
 	assert(ult_ab.has_ui_modal() == true, "R must have ui_modal configured")
-	assert(ult_ab.ui_modal.modal_type == AbilityPipeline.UIModalType.CUSTOM, "R modal must be CUSTOM")
-	assert(ult_ab.ui_modal.interaction_mode == AbilityPipeline.ModalInteractionMode.TOGGLE_AND_CLICK, "Interaction mode must be TOGGLE_AND_CLICK")
+	assert(ult_ab.ui_modal.modal_type == AbilityPipeline.UIModalType.RADIAL_WHEEL, "R modal must be RADIAL_WHEEL")
+	assert(ult_ab.ui_modal.click_to_cast == true, "R modal preset must detail click_to_cast")
+	assert(ult_ab.ui_modal.confirm_mode == AbilityPipeline.ModalConfirmMode.CLICK_TO_CAST_RMB_CANCEL, "R modal preset confirm_mode must be CLICK_TO_CAST_RMB_CANCEL")
+	assert(ult_ab.ui_modal.interaction_mode == AbilityPipeline.ModalInteractionMode.HOLD_AND_RELEASE, "Interaction mode must default to HOLD_AND_RELEASE for radial wheel preset")
 	assert(ult_ab.ui_modal.cancel_cooldown == 1.0, "Cancel cooldown must be 1.0s")
 	assert(ult_ab.cooldown == 3.0, "Cast cooldown must be 3.0s")
 	print("  ✓ Identity, metadata, null primary/spells, dash, and R pipeline modal verified.")
@@ -2372,24 +2381,188 @@ func test_artist_the_painted_sage_kit() -> void:
 	var earth_res = HanziPointCloudRecognizer.recognize(earth_test_strokes)
 	assert(earth_res.get("element") == "earth", "Recognizer must match 'earth'")
 	assert(earth_res.get("hanzi") == "土", "Hanzi must be '土'")
-	print("  ✓ $P Point-Cloud Recognizer for Fire (火), Water (水), Air (风), and Earth (土) verified.")
+
+	# Progressive stroke-by-stroke narrowing check (evaluating after every stroke)
+	var earth_stroke_1 = [earth_test_strokes[0]]
+	var earth_stroke_1_res = HanziPointCloudRecognizer.recognize(earth_stroke_1)
+	assert(earth_stroke_1_res.get("element") == "earth", "Stroke 1 of Earth must immediately narrow down to 'earth'")
+	assert(earth_stroke_1_res.get("candidates").size() == 4, "Candidates list must contain all 4 elements")
+	assert(earth_stroke_1_res.get("candidates")[0]["element"] == "earth", "Leading candidate after stroke 1 must be earth")
+
+	var water_stroke_1 = [water_test_strokes[0]]
+	var water_stroke_1_res = HanziPointCloudRecognizer.recognize(water_stroke_1)
+	assert(water_stroke_1_res.get("element") == "water", "Stroke 1 of Water must immediately narrow down to 'water'")
+	assert(water_stroke_1_res.get("candidates")[0]["element"] == "water", "Leading candidate after stroke 1 must be water")
+
+	var air_stroke_1 = [air_test_strokes[0]]
+	var air_stroke_1_res = HanziPointCloudRecognizer.recognize(air_stroke_1)
+	assert(air_stroke_1_res.get("element") == "air", "Stroke 1 of Air must immediately narrow down to 'air'")
+
+	var fire_stroke_1 = [fire_test_strokes[0]]
+	var fire_stroke_1_res = HanziPointCloudRecognizer.recognize(fire_stroke_1)
+	assert(fire_stroke_1_res.get("element") == "fire", "Stroke 1 of Fire must immediately narrow down to 'fire'")
+	print("  ✓ $P Point-Cloud Recognizer for Fire (火), Water (水), Air (风), and Earth (土) and stroke-by-stroke narrowing verified.")
 
 	# 4. Vancian Dynamic Options Initial State
+	assert(artist.vancian_slots.size() == 4, "vancian_slots must be a fixed size array of 4")
+	for i in range(4):
+		assert(artist.vancian_slots[i] == null, "Initial slot %d must be null for blank slot" % i)
+
 	var initial_opts = artist.get_vancian_modal_options("R")
 	assert(initial_opts.size() == 4, "Must have 4 Vancian slots")
 	for i in range(4):
 		assert(initial_opts[i].get("is_empty") == true, "Initial slot %d must be empty" % i)
 
-	# 5. Inscribe Spell Scribing Flow & 1-second Cooldown
-	artist.vancian_slots[0] = "fire"
-	artist._on_modal_option_selected("R", "inscribed:0:fire")
+	# 5. Radial Modal Wheel & Drawing State Transitions
+	var r_modal = ult_ab.active_modal_instance as VancianHanziModal
+	assert(r_modal != null, "active_modal_instance must be VancianHanziModal")
+	assert(r_modal.is_inside_tree(), "VancianHanziModal must be attached to the SceneTree")
+	assert(r_modal.container != null, "Modal container must be instantiated")
+
+	artist.open_ability_modal("R", ult_ab)
+	assert(artist.active_modal_slot == "R", "active_modal_slot must be 'R'")
+	assert(artist.is_mouse_hijacked == true, "Mouse must be hijacked when modal is open")
+	assert(r_modal.is_modal_open == true, "Modal must be open")
+	assert(r_modal.container.visible == true, "Modal container must be visible")
+	assert(r_modal.current_state == VancianHanziModal.State.WHEEL, "Modal must start in WHEEL state")
+	assert(VancianHanziModal.TOP_LEFT_ELEMENTS.size() == 4, "Must have 4 elements in top left")
+	assert(VancianHanziModal.TOP_LEFT_ELEMENTS[0]["id"] == "fire" and VancianHanziModal.TOP_LEFT_ELEMENTS[0]["english"] == "Fire", "Top-left elem 0 must be Fire")
+	assert(VancianHanziModal.TOP_LEFT_ELEMENTS[1]["id"] == "water" and VancianHanziModal.TOP_LEFT_ELEMENTS[1]["english"] == "Water", "Top-left elem 1 must be Water")
+	assert(VancianHanziModal.TOP_LEFT_ELEMENTS[2]["id"] == "earth" and VancianHanziModal.TOP_LEFT_ELEMENTS[2]["english"] == "Earth", "Top-left elem 2 must be Earth")
+	assert(VancianHanziModal.TOP_LEFT_ELEMENTS[3]["id"] == "air" and VancianHanziModal.TOP_LEFT_ELEMENTS[3]["english"] == "Air", "Top-left elem 3 must be Air")
+
+	# Selecting a blank slot on release of key transitions to drawing menu
+	r_modal.current_hovered_option = "empty_0"
+	artist.close_and_resolve_modal("R", ult_ab)
+	assert(r_modal.current_state == VancianHanziModal.State.DRAWING, "Selecting blank slot on release of key must transition to DRAWING")
+	assert(r_modal.selected_slot_index == 0, "Selected slot index must be 0")
+	var canvas_rect = r_modal._get_drawing_canvas_rect()
+	assert(is_equal_approx(canvas_rect.size.x, canvas_rect.size.y), "Canvas must be a square")
+
+	# 6. Verify Auto-complete and Disabled Manual Card Selection
+	assert(is_equal_approx(VancianHanziModal.CONFIDENCE_THRESHOLD, 0.75), "Confidence threshold must be 0.75 (75%)")
+	assert(VancianHanziModal.REQUIRED_STROKES["earth"] == 3, "Earth requires 3 strokes")
+	assert(VancianHanziModal.REQUIRED_STROKES["water"] == 3, "Water requires 3 strokes")
+	assert(VancianHanziModal.REQUIRED_STROKES["fire"] == 4, "Fire requires 4 strokes")
+	assert(VancianHanziModal.REQUIRED_STROKES["air"] == 4, "Air requires 4 strokes")
+
+	# A: Clicking top-left card must NOT manually select element
+	var card_click = InputEventMouseButton.new()
+	card_click.button_index = MOUSE_BUTTON_LEFT
+	card_click.pressed = true
+	card_click.position = r_modal._get_top_left_card_rect(0).position + Vector2(10, 10)
+	r_modal._handle_drawing_input(card_click)
+	assert(r_modal.selected_top_left_element == "", "Clicking top-left card must NOT manually select an element")
+	assert(artist.vancian_slots[0] == null, "Clicking top-left card must not inscribe slot")
+
+	# B: Clicking former inscribe button location must have no effect
+	var old_inscribe_pos = Vector2(canvas_rect.position.x + 20, canvas_rect.end.y + 25)
+	r_modal._handle_canvas_button_clicks(old_inscribe_pos)
+	assert(artist.vancian_slots[0] == null, "Former inscribe location must not inscribe")
+
+	# C: Clear button clears strokes
+	r_modal.all_strokes.append([canvas_rect.position + Vector2(10, 10), canvas_rect.position + Vector2(50, 50)])
+	assert(r_modal.all_strokes.size() == 1, "Stroke added for clear test")
+	var clear_pos = Vector2(canvas_rect.position.x + 80, canvas_rect.end.y + 25)
+	r_modal._handle_canvas_button_clicks(clear_pos)
+	assert(r_modal.all_strokes.is_empty(), "Clear button must clear all strokes")
+
+	# D: Auto-complete on last stroke (Earth = 3 strokes)
+	var e_s1: Array[Vector2] = [canvas_rect.position + canvas_rect.size * Vector2(0.31, 0.41), canvas_rect.position + canvas_rect.size * Vector2(0.69, 0.41)]
+	var e_s2: Array[Vector2] = [canvas_rect.position + canvas_rect.size * Vector2(0.50, 0.16), canvas_rect.position + canvas_rect.size * Vector2(0.50, 0.84)]
+	var e_s3: Array[Vector2] = [canvas_rect.position + canvas_rect.size * Vector2(0.16, 0.84), canvas_rect.position + canvas_rect.size * Vector2(0.84, 0.84)]
+
+	# Stroke 1: Should evaluate and narrow down, but NOT auto-complete yet
+	r_modal.all_strokes.append(e_s1)
+	r_modal._evaluate_drawing()
+	assert(r_modal.current_state == VancianHanziModal.State.DRAWING, "Stroke 1/3 must not auto-complete")
+	assert(r_modal.selected_top_left_element == "earth", "Stroke 1 must narrow down to earth candidate")
+	assert(artist.vancian_slots[0] == null, "Slot 0 must not be filled after stroke 1")
+
+	# Stroke 2: Should evaluate, but NOT auto-complete yet
+	r_modal.all_strokes.append(e_s2)
+	r_modal._evaluate_drawing()
+	assert(r_modal.current_state == VancianHanziModal.State.DRAWING, "Stroke 2/3 must not auto-complete")
+	assert(artist.vancian_slots[0] == null, "Slot 0 must not be filled after stroke 2")
+
+	# Stroke 3: Final stroke! Must auto-complete since score >= 75%
+	var inscribed_state = {"received": false, "slot": -1, "elem": ""}
+	var on_inscribed = func(s_idx: int, elem: String):
+		inscribed_state["received"] = true
+		inscribed_state["slot"] = s_idx
+		inscribed_state["elem"] = elem
+	r_modal.spell_inscribed.connect(on_inscribed)
+
+	r_modal.all_strokes.append(e_s3)
+	r_modal._evaluate_drawing()
+
+	assert(inscribed_state["received"] == true, "spell_inscribed signal must be emitted on auto-complete")
+	assert(inscribed_state["slot"] == 0, "Inscribed slot must be 0")
+	assert(inscribed_state["elem"] == "earth", "Inscribed element must be earth")
+	assert(artist.vancian_slots[0] == "earth", "Slot 0 must be automatically filled with earth")
+	assert(r_modal.is_modal_open == false, "Auto-complete must close the canvas and return to normal state")
+	assert(artist.active_modal_slot == "", "Active modal slot must be cleared")
+	assert(artist.is_mouse_hijacked == false, "Mouse hijack must be released on canvas exit")
+	r_modal.spell_inscribed.disconnect(on_inscribed)
+
+	# 7. Inscribe Spell Scribing Flow & 1-second Cooldown
 	assert(is_equal_approx(ult_ab.current_cooldown, 1.0), "Inscribing a spell must apply 1.0s cooldown")
+
+	# Test that exiting canvas via RMB/cancel also returns to normal state
+	artist.start_ability_cooldown("R", 0.0)
+	artist.open_ability_modal("R", ult_ab)
+	r_modal.current_hovered_option = "empty_1"
+	artist.close_and_resolve_modal("R", ult_ab)
+	assert(r_modal.current_state == VancianHanziModal.State.DRAWING, "Opened drawing canvas for slot 1")
+	# Cancel out of drawing canvas
+	r_modal.cancel_modal()
+	assert(r_modal.is_modal_open == false, "Exiting canvas via cancel must return to normal state, not wheel")
+	assert(artist.active_modal_slot == "", "Modal slot must be empty")
+	assert(artist.is_mouse_hijacked == false, "Mouse must not be hijacked")
+	assert(is_equal_approx(ult_ab.current_cooldown, 1.0), "Exiting canvas must apply 1.0s cooldown")
 
 	# Verify updated options
 	var updated_opts = artist.get_vancian_modal_options("R")
 	assert(updated_opts[0].get("is_empty") == false, "Slot 0 should now be prepared")
-	assert(updated_opts[0].get("id") == "cast:0:fire", "Slot 0 id should be cast:0:fire")
+	assert(updated_opts[0].get("id") == "cast:0:earth", "Slot 0 id should be cast:0:earth")
 	assert(updated_opts[1].get("is_empty") == true, "Slot 1 should still be empty")
+
+	# Reopening modal and selecting filled slot on release of key enters primed state
+	artist.start_ability_cooldown("R", 0.0)
+	artist.open_ability_modal("R", ult_ab)
+	assert(r_modal.current_state == VancianHanziModal.State.WHEEL, "Modal reopened in WHEEL state")
+	r_modal.current_hovered_option = "cast:0:earth"
+	artist.close_and_resolve_modal("R", ult_ab)
+	assert(artist.active_modal_slot == "", "Modal slot must be cleared upon cast selection")
+	assert(ult_ab.is_primed_for_cast == true, "Ability must enter primed cast state via preset")
+	assert(artist.is_primed_for_cast == true, "Artist must report primed cast state via delegation")
+	assert(ult_ab.primed_choice == "cast:0:earth", "Primed choice must be cast:0:earth")
+	assert(artist.active_element == "earth", "Active element must be earth")
+	assert(ult_ab.handles_slot_input("LMB") == true, "Ability preset must intercept LMB while primed")
+	assert(ult_ab.handles_slot_input("RMB") == true, "Ability preset must intercept RMB while primed")
+	assert(artist.character_handles_slot("LMB") == true, "Artist must intercept LMB while primed")
+	assert(artist.character_handles_slot("RMB") == true, "Artist must intercept RMB while primed")
+	assert(artist.vancian_slots[0] == "earth", "Spell must NOT be expended until actually cast")
+
+	# Test RMB Cancel: cancels primed state, preserves spell in slot, applies 1.0s cooldown
+	artist.cancel_primed_spell()
+	assert(artist.is_primed_for_cast == false, "Cancelling must exit primed state")
+	assert(artist.character_handles_slot("LMB") == false, "Artist must release LMB after cancel")
+	assert(artist.character_handles_slot("RMB") == false, "Artist must release RMB after cancel")
+	assert(artist.vancian_slots[0] == "earth", "Cancelling with RMB must preserve spell in slot")
+	assert(is_equal_approx(ult_ab.current_cooldown, 1.0), "Cancelling primed spell must apply 1.0s cooldown")
+
+	# Re-prime and test LMB Cast: casts spell, expends slot, applies 3.0s cooldown
+	ult_ab.current_cooldown = 0.0
+	artist.enter_primed_cast_state(0, "earth")
+	assert(artist.is_primed_for_cast == true, "Re-entered primed state")
+	var cast_success = artist.cast_primed_spell()
+	assert(cast_success == true, "cast_primed_spell must succeed")
+	assert(artist.is_primed_for_cast == false, "Casting must exit primed state")
+	assert(artist.vancian_slots[0] == null, "Cast spell must expend slot back to null")
+	assert(is_equal_approx(ult_ab.current_cooldown, 3.0), "Casting prepared spell must apply 3.0s cooldown")
+	assert(artist.character_handles_slot("LMB") == false, "LMB released after cast")
+	assert(artist.character_handles_slot("RMB") == false, "RMB released after cast")
 
 	# Inscribe second slot
 	artist.vancian_slots[1] = "water"
@@ -2398,20 +2571,21 @@ func test_artist_the_painted_sage_kit() -> void:
 	assert(opts2[1].get("is_empty") == false, "Slot 1 should now be prepared")
 	assert(opts2[1].get("id") == "cast:1:water", "Slot 1 id should be cast:1:water")
 
-	# 6. Modal Cancel 1-second Cooldown
+	# 7. Modal Cancel 1-second Cooldown
 	artist._on_modal_cancelled("R")
 	assert(is_equal_approx(ult_ab.current_cooldown, 1.0), "Canceling modal must apply 1.0s cooldown")
-	print("  ✓ Vancian slot preparation, dynamic options, and 1.0s drawing/cancel cooldown verified.")
+	print("  ✓ Vancian slot preparation, dynamic options, primed state, and 1.0s drawing/cancel cooldown verified.")
 
-	# 7. Casting Prepared Ammo & 3-second Cooldown
-	ult_ab.current_cooldown = 0.0
-	artist._on_modal_option_selected("R", "cast:0:fire")
-	assert(artist.vancian_slots[0] == "", "Casting must expend slot 0 ammunition")
+	# 8. Fire Payload & Casting Prepared Ammo
+	artist.start_ability_cooldown("R", 0.0)
+	artist.vancian_slots[0] = "fire"
+	artist.enter_primed_cast_state(0, "fire")
 	assert(artist.active_element == "fire", "Active element must be set to fire")
 	assert(ult_ab.damage_amount == 75.0, "Fire payload damage must be 75.0")
-	var cast_success = artist.try_cast_ability("R")
-	assert(cast_success == true, "try_cast_ability(R) must succeed for prepared spell")
-	assert(is_equal_approx(ult_ab.current_cooldown, 3.0), "Casting prepared spell must apply 3.0s cooldown")
+	var fire_cast = artist.cast_primed_spell()
+	assert(fire_cast == true, "cast_primed_spell(fire) must succeed")
+	assert(artist.vancian_slots[0] == null, "Casting must expend slot 0 ammunition to null")
+	assert(is_equal_approx(ult_ab.current_cooldown, 3.0), "Casting fire spell must apply 3.0s cooldown")
 	print("  ✓ Ammunition expenditure, elemental payload application, and 3.0s cast cooldown verified.")
 
 	# Cleanup

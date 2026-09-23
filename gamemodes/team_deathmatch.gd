@@ -3,10 +3,11 @@ extends GameMode
 
 func _init() -> void:
 	id = "tdm"
-	display_name = "Team Deathmatch (TDM)"
-	short_name = "TDM"
-	description = "Two teams enter the arena. The team that eliminates all opponents wins the match."
+	display_name = "Team Deathmatch (3v3v3)"
+	short_name = "3v3v3"
+	description = "Three teams enter the arena in a 3v3v3 showdown. The last surviving team wins the match."
 	is_team_based = true
+	team_count = 3
 	has_rounds = false
 	round_win_target = 1
 	max_rounds = 1

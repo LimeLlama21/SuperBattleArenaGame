@@ -64,7 +64,24 @@ size = Vector3(8, 1, 10)
 material = SubResource("Mat_IslandFloor")
 size = Vector3(8, 1, 10)
 
+[sub_resource type="BoxShape3D" id="Shape_NorthBase"]
+size = Vector3(22, 1, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_NorthBase"]
+material = SubResource("Mat_IslandFloor")
+size = Vector3(22, 1, 16)
+
 [node name="MapIslands" type="Node3D" unique_id=1499461938]
+
+[node name="Island_NorthBase" type="StaticBody3D" parent="." unique_id=1888123456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -24)
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_NorthBase" unique_id=1888123457]
+shape = SubResource("Shape_NorthBase")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_NorthBase" unique_id=1888123458]
+mesh = SubResource("Mesh_NorthBase")
 
 [node name="Island_WestBase" type="StaticBody3D" parent="." unique_id=1498818518]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, -0.5, 0)

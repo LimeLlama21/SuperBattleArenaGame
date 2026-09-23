@@ -16,6 +16,9 @@ var description: String = "Eliminate all players on the opposing team to win the
 ## Whether players are partitioned into Team 1 vs Team 2
 var is_team_based: bool = true
 
+## Number of teams participating in team-based modes
+var team_count: int = 3
+
 ## Whether the match is divided into discrete rounds (e.g. Best of Five)
 var has_rounds: bool = false
 
@@ -44,7 +47,7 @@ func _init() -> void:
 	pass
 
 ## Check whether there is an insufficient player count to continue or start the match.
-## Returns true if a deficit exists (e.g. fewer than 2 players in FFA, or one team empty).
+## Returns true if a deficit exists (e.g. fewer than 2 players in FFA, or any required team empty).
 func check_player_deficits(connected_players: Dictionary, is_peer_pending_disconnect_callable: Callable) -> bool:
 	if not is_team_based:
 		var active_count = 0
@@ -55,22 +58,30 @@ func check_player_deficits(connected_players: Dictionary, is_peer_pending_discon
 			return false
 		return active_count < 2
 	
-	var t1_count = 0
-	var t2_count = 0
+	var team_counts = {1: 0, 2: 0, 3: 0}
+	var total_active = 0
 	for pid in connected_players.keys():
 		if is_peer_pending_disconnect_callable.call(int(pid)):
 			continue
 		var p = connected_players[pid]
-		if p.get("team", 1) == 1:
-			t1_count += 1
-		elif p.get("team", 1) == 2:
-			t2_count += 1
-	return (t1_count == 0 or t2_count == 0)
+		var t = int(p.get("team", 1))
+		if team_counts.has(t):
+			team_counts[t] += 1
+		else:
+			team_counts[t] = 1
+		total_active += 1
+	
+	if OS.is_debug_build() and total_active >= 1:
+		return false
+	
+	if team_count >= 3:
+		return (team_counts.get(1, 0) == 0 or team_counts.get(2, 0) == 0 or team_counts.get(3, 0) == 0)
+	return (team_counts.get(1, 0) == 0 or team_counts.get(2, 0) == 0)
 
 ## Evaluate match/round status from player entities.
 ## Returns Dictionary with:
 ##   - "over": bool (whether the round or match has concluded)
-##   - "winner": String ("TEAM 1", "TEAM 2", "DRAW", or player winner name, or "" if undecided)
+##   - "winner": String ("TEAM 1", "TEAM 2", "TEAM 3", "DRAW", or player winner name, or "" if undecided)
 ##   - "is_round_only": bool (true if this ends a round rather than the entire match)
 func evaluate_combat_status(players_container: Node3D, connected_players: Dictionary) -> Dictionary:
 	var result = {
@@ -83,50 +94,53 @@ func evaluate_combat_status(players_container: Node3D, connected_players: Dictio
 		# FFA modes evaluate by timer or kill targets, not last-man-standing
 		return result
 	
-	var total_t1 = 0
-	var total_t2 = 0
-	var alive_t1 = 0
-	var alive_t2 = 0
+	var team_totals = {1: 0, 2: 0, 3: 0}
+	var team_alives = {1: 0, 2: 0, 3: 0}
 	var alive_players: Array = []
 	
 	for p in players_container.get_children():
 		if p is Node3D:
 			var t = p.get("team_id")
+			if t == null:
+				continue
+			t = int(t)
 			var dead = p.get("is_dead") == true or (p.get("current_health") != null and p.current_health <= 0.0)
-			if t == 1:
-				total_t1 += 1
-				if not dead:
-					alive_t1 += 1
-					alive_players.append(p)
-			elif t == 2:
-				total_t2 += 1
-				if not dead:
-					alive_t2 += 1
-					alive_players.append(p)
-			else:
-				if not dead:
-					alive_players.append(p)
+			
+			if not team_totals.has(t):
+				team_totals[t] = 0
+				team_alives[t] = 0
+			team_totals[t] += 1
+			if not dead:
+				team_alives[t] += 1
+				alive_players.append(p)
 	
-	if total_t1 > 0 and total_t2 > 0:
-		if alive_t1 == 0 and alive_t2 == 0:
+	var participating_teams: Array = []
+	var surviving_teams: Array = []
+	for t in team_totals.keys():
+		if team_totals[t] > 0:
+			participating_teams.append(t)
+			if team_alives.get(t, 0) > 0:
+				surviving_teams.append(t)
+	
+	if participating_teams.size() >= 2:
+		if surviving_teams.is_empty():
 			result["over"] = true
 			result["winner"] = "DRAW"
 			result["is_round_only"] = has_rounds
-		elif alive_t1 == 0 and alive_t2 > 0:
+		elif surviving_teams.size() == 1:
 			result["over"] = true
-			result["winner"] = "TEAM 2"
+			var win_team = surviving_teams[0]
+			result["winner"] = "TEAM %d" % win_team
 			result["is_round_only"] = has_rounds
-		elif alive_t2 == 0 and alive_t1 > 0:
-			result["over"] = true
-			result["winner"] = "TEAM 1"
-			result["is_round_only"] = has_rounds
-	elif total_t1 > 0 or total_t2 > 0:
-		var total_active = total_t1 + total_t2
-		var total_alive = alive_t1 + alive_t2
-		if total_alive == 0:
+		else:
+			result["over"] = false
+	elif participating_teams.size() == 1:
+		var total_active = alive_players.size()
+		var only_team = participating_teams[0]
+		if team_alives.get(only_team, 0) == 0:
 			result["over"] = true
 			result["winner"] = "DRAW"
-		elif total_active > 1 and total_alive <= 1:
+		elif team_totals.get(only_team, 0) > 1 and total_active <= 1:
 			result["over"] = true
 			if alive_players.size() == 1:
 				var winner = alive_players[0]
@@ -162,5 +176,7 @@ func format_timer(time_left: float) -> String:
 	return "⏱ %s: %02d:%02d" % [display_name.to_upper(), mins, secs]
 
 ## Format scoreboard header string for round-based modes
-func format_scoreboard_header(score_t1: int, score_t2: int) -> String:
+func format_scoreboard_header(score_t1: int, score_t2: int, score_t3: int = 0) -> String:
+	if team_count >= 3:
+		return "TEAM 1 [ %d ]  —  TEAM 2 [ %d ]  —  TEAM 3 [ %d ]" % [score_t1, score_t2, score_t3]
 	return "TEAM 1  [ %d ]   —   [ %d ]  TEAM 2" % [score_t1, score_t2]

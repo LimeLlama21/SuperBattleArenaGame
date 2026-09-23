@@ -46,36 +46,35 @@ visible = false
 [node name="Team1_Spawns" type="Node3D" parent="SpawnPoints"]
 
 [node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -10)
-
-[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -5)
 
-[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 0)
 
-[node name="Spawn4" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 5)
-
-[node name="Spawn5" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 10)
 
 [node name="Team2_Spawns" type="Node3D" parent="SpawnPoints"]
 
 [node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -10)
-
-[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -5)
 
-[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 0)
 
-[node name="Spawn4" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 5)
 
-[node name="Spawn5" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 10)
+[node name="Team3_Spawns" type="Node3D" parent="SpawnPoints"]
+
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team3_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.1, -24)
+
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team3_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -24)
+
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team3_Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, -24)
 
 [node name="Players" type="Node3D" parent="."]
 
@@ -380,7 +379,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 13
-text = "TEAM 1 (LEFT / BLUE)"
+text = "TEAM 1 (BLUE)"
 horizontal_alignment = 1
 
 [node name="T1Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
@@ -398,16 +397,6 @@ custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
-[node name="T1Slot3" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
-custom_minimum_size = Vector2(0, 32)
-layout_mode = 2
-text = "[ Slot 4 : Open ]"
-
-[node name="T1Slot4" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
-custom_minimum_size = Vector2(0, 32)
-layout_mode = 2
-text = "[ Slot 5 : Open ]"
-
 [node name="VBoxTeam2" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -417,7 +406,7 @@ theme_override_constants/separation = 6
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.4, 0.35, 1)
 theme_override_font_sizes/font_size = 13
-text = "TEAM 2 (RIGHT / RED)"
+text = "TEAM 2 (RED)"
 horizontal_alignment = 1
 
 [node name="T2Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
@@ -435,15 +424,32 @@ custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
-[node name="T2Slot3" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
-custom_minimum_size = Vector2(0, 32)
+[node name="VBoxTeam3" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
 layout_mode = 2
-text = "[ Slot 4 : Open ]"
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
-[node name="T2Slot4" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+[node name="Team3Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.25, 0.9, 0.45, 1)
+theme_override_font_sizes/font_size = 13
+text = "TEAM 3 (GREEN)"
+horizontal_alignment = 1
+
+[node name="T3Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
-text = "[ Slot 5 : Open ]"
+text = "[ Slot 1 : Open ]"
+
+[node name="T3Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 2 : Open ]"
+
+[node name="T3Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+text = "[ Slot 3 : Open ]"
 
 [node name="HBoxLobbyActions" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
 layout_mode = 2

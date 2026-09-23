@@ -75,6 +75,11 @@ enum ModalInteractionMode {
 	TOGGLE_AND_CLICK  # Press key to open -> click to confirm
 }
 
+enum ModalConfirmMode {
+	INSTANT_CAST,             # Immediate cast upon release-to-confirm selection
+	CLICK_TO_CAST_RMB_CANCEL  # Primed targeting state: LMB casts, RMB cancels (replaces primary/secondary mappings)
+}
+
 # --- Critical Hit Constants ---
 const CRIT_DAMAGE_MULTIPLIER: float = 2.0 # Standard critical strike deals double damage (200%)
 
@@ -82,6 +87,8 @@ const CRIT_DAMAGE_MULTIPLIER: float = 2.0 # Standard critical strike deals doubl
 class PipelineUIModal extends RefCounted:
 	var modal_type: UIModalType = UIModalType.NONE
 	var interaction_mode: ModalInteractionMode = ModalInteractionMode.HOLD_AND_RELEASE
+	var confirm_mode: ModalConfirmMode = ModalConfirmMode.INSTANT_CAST
+	var click_to_cast: bool = false # Preset convenience flag: when true, selection primes ability (LMB cast, RMB cancel)
 	var options: Array = [] # Array of Dictionary: { "id": String, "label": String, "icon": Variant, "color": Color, "description": String }
 	var dynamic_options_func: String = "" # Method name on caster called to retrieve dynamic options at runtime
 	var cancel_cooldown: float = 0.0 # Reduced cooldown applied if modal is canceled
@@ -233,7 +240,25 @@ static func create_ability(cfg: Dictionary) -> AbilityDefinition:
 static func create_ui_modal(cfg: Dictionary) -> PipelineUIModal:
 	var m = PipelineUIModal.new()
 	m.modal_type = parse_ui_modal_type(cfg.get("type", cfg.get("modal_type", UIModalType.NONE)))
-	m.interaction_mode = parse_modal_interaction_mode(cfg.get("interaction_mode", cfg.get("mode", ModalInteractionMode.HOLD_AND_RELEASE)))
+	
+	# RADIAL_WHEEL Preset defaults:
+	# 1. Radial wheels consistently trigger on release of the key, not on click (HOLD_AND_RELEASE).
+	# 2. May optionally configure click_to_cast (CLICK_TO_CAST_RMB_CANCEL) for primed casting.
+	if m.modal_type == UIModalType.RADIAL_WHEEL:
+		m.interaction_mode = ModalInteractionMode.HOLD_AND_RELEASE
+	else:
+		m.interaction_mode = parse_modal_interaction_mode(cfg.get("interaction_mode", cfg.get("mode", ModalInteractionMode.HOLD_AND_RELEASE)))
+	
+	if cfg.has("interaction_mode") or cfg.has("mode"):
+		m.interaction_mode = parse_modal_interaction_mode(cfg.get("interaction_mode", cfg.get("mode", m.interaction_mode)))
+
+	m.confirm_mode = parse_modal_confirm_mode(cfg.get("confirm_mode", cfg.get("post_select_mode", ModalConfirmMode.INSTANT_CAST)))
+	if cfg.get("click_to_cast", false) or cfg.get("cast_on_click", false):
+		m.confirm_mode = ModalConfirmMode.CLICK_TO_CAST_RMB_CANCEL
+		m.click_to_cast = true
+	elif m.confirm_mode == ModalConfirmMode.CLICK_TO_CAST_RMB_CANCEL:
+		m.click_to_cast = true
+
 	m.options = cfg.get("options", []).duplicate(true)
 	m.dynamic_options_func = cfg.get("dynamic_options_func", "")
 	m.cancel_cooldown = cfg.get("cancel_cooldown", 0.0)
@@ -243,6 +268,11 @@ static func create_ui_modal(cfg: Dictionary) -> PipelineUIModal:
 	m.custom_modal_scene = cfg.get("custom_modal_scene", null)
 	m.custom_params = cfg.get("custom_params", {})
 	return m
+
+static func create_radial_wheel_modal(cfg: Dictionary = {}) -> PipelineUIModal:
+	var c = cfg.duplicate(true)
+	c["type"] = UIModalType.RADIAL_WHEEL
+	return create_ui_modal(c)
 
 static func create_effect(cfg: Dictionary) -> PipelineEffect:
 	var eff = PipelineEffect.new()
@@ -412,3 +442,15 @@ static func parse_modal_interaction_mode(val: Variant) -> ModalInteractionMode:
 			"HOLD_AND_RELEASE", "HOLD": return ModalInteractionMode.HOLD_AND_RELEASE
 			"TOGGLE_AND_CLICK", "TOGGLE", "CLICK": return ModalInteractionMode.TOGGLE_AND_CLICK
 	return ModalInteractionMode.HOLD_AND_RELEASE
+
+static func parse_modal_confirm_mode(val: Variant) -> ModalConfirmMode:
+	if val is ModalConfirmMode:
+		return val
+	if val is int:
+		return val as ModalConfirmMode
+	if val is String:
+		var upper = val.to_upper()
+		match upper:
+			"INSTANT_CAST", "INSTANT": return ModalConfirmMode.INSTANT_CAST
+			"CLICK_TO_CAST_RMB_CANCEL", "CLICK_TO_CAST", "CLICK", "PRIMED": return ModalConfirmMode.CLICK_TO_CAST_RMB_CANCEL
+	return ModalConfirmMode.INSTANT_CAST

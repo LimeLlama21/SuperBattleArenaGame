@@ -45,9 +45,14 @@ const AbilityHitboxClass = preload("res://ability/hitboxes/ability_hitbox.gd")
 @export var min_damage: float = 0.0
 @export var max_damage: float = 0.0
 
-@export_group("UI Modal Settings")
 var ui_modal: AbilityPipeline.PipelineUIModal = null
 var active_modal_instance: Node = null
+
+# Primed Targeting State (Detailed in PipelineUIModal preset via confirm_mode / click_to_cast)
+var is_primed_for_cast: bool = false
+var primed_choice: String = ""
+var primed_frame: int = 0
+var primed_hud: CanvasLayer = null
 
 var effect_instance = null
 var current_cooldown: float = 0.0
@@ -139,8 +144,10 @@ func open_modal(caster: Node, at_pos: Vector2 = Vector2.ZERO) -> Node:
 				active_modal_instance.deadzone_radius = ui_modal.deadzone_radius
 			if ui_modal.outer_radius > 0.0:
 				active_modal_instance.outer_radius = ui_modal.outer_radius
-		if active_modal_instance:
-			if is_instance_valid(caster):
+
+	if active_modal_instance:
+		if not active_modal_instance.is_inside_tree():
+			if is_instance_valid(caster) and caster.is_inside_tree():
 				caster.add_child(active_modal_instance)
 			elif get_tree() and get_tree().root:
 				get_tree().root.add_child(active_modal_instance)
@@ -163,6 +170,126 @@ func cancel_modal() -> void:
 			active_modal_instance.cancel_wheel()
 		elif active_modal_instance.has_method("cancel"):
 			active_modal_instance.cancel()
+
+func get_caster() -> Node:
+	var p = get_parent()
+	if p and p.name == "Abilities":
+		return p.get_parent()
+	return p
+
+func enter_primed_state(caster: Node, choice: String) -> void:
+	is_primed_for_cast = true
+	primed_choice = choice
+	primed_frame = Engine.get_physics_frames()
+	_update_primed_hud(true, caster)
+	if caster and caster.has_method("_on_ability_primed"):
+		caster.call("_on_ability_primed", slot_key, choice)
+
+func cancel_primed_state(caster: Node = null) -> void:
+	if not is_primed_for_cast:
+		return
+	is_primed_for_cast = false
+	var prev_choice = primed_choice
+	primed_choice = ""
+	_update_primed_hud(false, caster)
+	var c = caster if caster else get_caster()
+	if c:
+		if c.has_method("_on_ability_primed_cancelled"):
+			c.call("_on_ability_primed_cancelled", slot_key, prev_choice)
+		var cd = ui_modal.cancel_cooldown if ui_modal else 1.0
+		if cd > 0.0 and c.has_method("start_ability_cooldown"):
+			c.start_ability_cooldown(slot_key, cd)
+
+func cast_primed_spell(caster: Node = null) -> bool:
+	if not is_primed_for_cast:
+		return false
+	var choice = primed_choice
+	is_primed_for_cast = false
+	primed_choice = ""
+	_update_primed_hud(false, caster)
+	var c = caster if caster else get_caster()
+	if c:
+		if c.has_method("_on_ability_primed_cast"):
+			c.call("_on_ability_primed_cast", slot_key, choice)
+		if c.has_method("try_cast_ability"):
+			var success = c.try_cast_ability(slot_key)
+			var cd = cooldown if cooldown > 0.0 else 3.0
+			if c.has_method("start_ability_cooldown"):
+				c.start_ability_cooldown(slot_key, cd)
+			return success
+	return false
+
+func handles_slot_input(check_slot: String) -> bool:
+	# While primed for cast, replaces primary (LMB) and secondary (RMB) mappings
+	if is_primed_for_cast and (check_slot == "LMB" or check_slot == "RMB"):
+		return true
+	return false
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_primed_for_cast:
+		return
+	if Engine.get_physics_frames() <= primed_frame:
+		return
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			cast_primed_spell(get_caster())
+			if get_viewport():
+				get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			cancel_primed_state(get_caster())
+			if get_viewport():
+				get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_cancel"):
+		cancel_primed_state(get_caster())
+		if get_viewport():
+			get_viewport().set_input_as_handled()
+
+func _update_primed_hud(p_show: bool, caster: Node = null) -> void:
+	var target_parent = caster if (caster and caster.is_inside_tree()) else (get_caster() if get_caster() and get_caster().is_inside_tree() else self)
+	if not target_parent or not target_parent.is_inside_tree():
+		return
+	if not primed_hud:
+		if not p_show:
+			return
+		primed_hud = CanvasLayer.new()
+		primed_hud.name = "PrimedCastHUD"
+		var panel = PanelContainer.new()
+		panel.name = "Panel"
+		panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		panel.offset_top = -140
+		panel.offset_bottom = -75
+		panel.offset_left = -180
+		panel.offset_right = 180
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		var sb = StyleBoxFlat.new()
+		sb.bg_color = Color(0.08, 0.10, 0.14, 0.90)
+		sb.border_width_bottom = 2
+		sb.border_width_top = 2
+		sb.border_width_left = 2
+		sb.border_width_right = 2
+		sb.border_color = Color(0.4, 0.8, 1.0, 0.8)
+		sb.corner_radius_bottom_left = 8
+		sb.corner_radius_bottom_right = 8
+		sb.corner_radius_top_left = 8
+		sb.corner_radius_top_right = 8
+		panel.add_theme_stylebox_override("panel", sb)
+
+		var lbl = Label.new()
+		lbl.name = "Label"
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.text = "🎯 TARGETING PRIMED\n[LMB] Cast Spell  |  [RMB] Cancel"
+		panel.add_child(lbl)
+		primed_hud.add_child(panel)
+		target_parent.add_child(primed_hud)
+
+	if primed_hud:
+		if p_show:
+			primed_hud.show()
+		else:
+			primed_hud.hide()
+
 
 func should_show_indicator() -> bool:
 	if not show_indicator:
@@ -354,6 +481,17 @@ func has_hitbox() -> bool:
 	return hb != null and "shape_type" in hb and hb.shape_type != AbilityPipeline.HitboxShape.NONE
 
 func process_lifecycle(delta: float) -> void:
+	if is_primed_for_cast:
+		var caster = get_caster()
+		if caster:
+			if ("is_dead" in caster and caster.is_dead) or (caster.has_method("is_stunned") and caster.is_stunned()) or (caster.has_method("is_silenced") and caster.is_silenced()) or (caster.has_method("is_bound") and caster.is_bound()):
+				cancel_primed_state(caster)
+		if is_primed_for_cast and Engine.get_physics_frames() > primed_frame:
+			if Input.is_action_just_pressed("shoot"):
+				cast_primed_spell(caster)
+			elif Input.is_action_just_pressed("ability_one") or Input.is_action_just_pressed("ui_cancel"):
+				cancel_primed_state(caster)
+
 	if is_winding_up:
 		process_windup(delta)
 	if current_cooldown > 0.0:

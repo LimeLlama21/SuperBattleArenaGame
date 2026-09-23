@@ -553,8 +553,26 @@ func _update_team_visuals() -> void:
 	var local_team = get_local_player_team()
 	var is_same_team = (team_id == local_team) or (name == str(local_id))
 	
-	var model_color = Color(0.18, 0.58, 1.0, 1.0) if is_same_team else Color(0.95, 0.20, 0.20, 1.0)
-	var emissive_color = Color(0.08, 0.25, 0.5, 1.0) if is_same_team else Color(0.45, 0.08, 0.08, 1.0)
+	var model_color: Color
+	var emissive_color: Color
+	var health_color: Color
+
+	if is_same_team:
+		model_color = Color(0.18, 0.58, 1.0, 1.0)
+		emissive_color = Color(0.08, 0.25, 0.5, 1.0)
+		health_color = Color(0.18, 0.65, 1.0, 1.0)
+	elif team_id == 3:
+		model_color = Color(0.20, 0.85, 0.40, 1.0)
+		emissive_color = Color(0.08, 0.45, 0.18, 1.0)
+		health_color = Color(0.22, 0.88, 0.44, 1.0)
+	elif team_id == 2:
+		model_color = Color(0.95, 0.20, 0.20, 1.0)
+		emissive_color = Color(0.45, 0.08, 0.08, 1.0)
+		health_color = Color(1.0, 0.25, 0.25, 1.0)
+	else:
+		model_color = Color(0.25, 0.45, 0.95, 1.0)
+		emissive_color = Color(0.10, 0.18, 0.50, 1.0)
+		health_color = Color(0.35, 0.55, 1.0, 1.0)
 
 	if mesh_inst:
 		var mat = mesh_inst.material_override as StandardMaterial3D
@@ -582,7 +600,7 @@ func _update_team_visuals() -> void:
 			fill_sb.corner_radius_bottom_left = 4
 		
 		if fill_sb is StyleBoxFlat:
-			fill_sb.bg_color = Color(0.18, 0.65, 1.0, 1.0) if is_same_team else Color(1.0, 0.25, 0.25, 1.0)
+			fill_sb.bg_color = health_color
 			health_bar.add_theme_stylebox_override("fill", fill_sb)
 
 # --- Damage, Shields & Health Management ---
@@ -2115,7 +2133,11 @@ func _on_damage_taken_hook(_amount: float, _attacker_id: int, _action_type: int)
 func _on_character_damage_dealt(_target: Node, _amount: float, _action_type: int) -> void:
 	pass
 
-func character_handles_slot(_slot_key: String) -> bool:
+func character_handles_slot(slot_key: String) -> bool:
+	for ab_key in abilities:
+		var ab = abilities[ab_key]
+		if ab is AbilityClass and ab.handles_slot_input(slot_key):
+			return true
 	return false
 
 func get_effective_max_speed(current_speed: float) -> float:
@@ -2383,12 +2405,36 @@ func open_ability_modal(slot_key: String, ab: AbilityClass) -> void:
 	active_modal_slot = slot_key
 	is_mouse_hijacked = true
 	var mouse_screen_pos = get_viewport().get_mouse_position() if get_viewport() else Vector2.ZERO
-	ab.open_modal(self, mouse_screen_pos)
+	var inst = ab.open_modal(self, mouse_screen_pos)
+	if inst:
+		if inst.has_signal("option_selected") and not inst.option_selected.is_connected(_on_modal_instance_option_selected):
+			inst.option_selected.connect(_on_modal_instance_option_selected.bind(slot_key, ab))
+		if inst.has_signal("cancelled") and not inst.cancelled.is_connected(_on_modal_instance_cancelled):
+			inst.cancelled.connect(_on_modal_instance_cancelled.bind(slot_key, ab))
+
+func _on_modal_instance_option_selected(choice: String, slot_key: String, ab: AbilityClass) -> void:
+	if choice == "cancel":
+		if not active_modal_slot.is_empty():
+			cancel_active_modal()
+	elif choice == "drawing":
+		# In drawing menu; keep modal open and mouse hijacked
+		pass
+	else:
+		active_modal_slot = ""
+		is_mouse_hijacked = false
+		resolve_modal_choice(slot_key, ab, choice)
+
+func _on_modal_instance_cancelled(_slot_key: String, _ab: AbilityClass) -> void:
+	if not active_modal_slot.is_empty():
+		cancel_active_modal()
 
 func close_and_resolve_modal(slot_key: String, ab: AbilityClass) -> void:
 	if active_modal_slot != slot_key:
 		return
 	var choice = ab.close_and_select_modal()
+	if choice == "drawing":
+		# In drawing menu; keep modal open and mouse hijacked
+		return
 	active_modal_slot = ""
 	is_mouse_hijacked = false
 	resolve_modal_choice(slot_key, ab, choice)
@@ -2425,10 +2471,20 @@ func resolve_modal_choice(slot_key: String, ab: AbilityClass, choice: String) ->
 		# Valid choice made: refund initial reserved mana so try_cast_ability / consume_resources can perform normal check & deduction
 		if cost > 0.0:
 			restore_mana(cost)
+		var should_auto_cast = true
 		if has_method("_on_modal_option_selected"):
-			call("_on_modal_option_selected", slot_key, choice)
-		var eff_slot = get_effective_slot(slot_key)
-		try_cast_ability(eff_slot)
+			var res = call("_on_modal_option_selected", slot_key, choice)
+			if res is bool and res == false:
+				should_auto_cast = false
+
+		# If the ability's preset specifies click_to_cast, enter primed state instead of auto-casting
+		if modal_cfg and (modal_cfg.click_to_cast or modal_cfg.confirm_mode == AbilityPipeline.ModalConfirmMode.CLICK_TO_CAST_RMB_CANCEL):
+			should_auto_cast = false
+			ab.enter_primed_state(self, choice)
+
+		if should_auto_cast:
+			var eff_slot = get_effective_slot(slot_key)
+			try_cast_ability(eff_slot)
 
 func try_cast_ability(slot_key: String, charge_ratio: float = 0.0) -> bool:
 	var eff_slot = get_effective_slot(slot_key)

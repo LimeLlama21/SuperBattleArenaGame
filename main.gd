@@ -12,7 +12,8 @@ const CHARACTERS: Dictionary = {
 	"reaper": preload("res://characters/reaper/reaper.tscn"),
 	"morrigan": preload("res://characters/morrigan/morrigan.tscn"),
 	"monkey": preload("res://characters/monkey/monkey.tscn"),
-	"silene": preload("res://characters/silene/silene.tscn")
+	"silene": preload("res://characters/silene/silene.tscn"),
+	"artist": preload("res://characters/artist/artist.tscn")
 }
 
 const CHARACTER_DISPLAY_NAMES: Dictionary = {
@@ -23,6 +24,7 @@ const CHARACTER_DISPLAY_NAMES: Dictionary = {
 	"morrigan": "Morrigan",
 	"monkey": "The Great Sage",
 	"silene": "Saint Silene",
+	"artist": "The Painted Sage",
 	"dummy": "Training Dummy"
 }
 
@@ -86,6 +88,7 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var select_morrigan_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMorrigan")
 @onready var select_monkey_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMonkey")
 @onready var select_silene_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectSilene")
+@onready var select_artist_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectArtist")
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
 @onready var team_header: Label = get_node_or_null("UI/LobbyRoom/VBox/TeamSection/TeamHeader")
@@ -107,6 +110,7 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var switch_morrigan_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMorrigan")
 @onready var switch_monkey_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMonkey")
 @onready var switch_silene_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchSilene")
+@onready var switch_artist_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchArtist")
 
 @onready var switch_map_standard: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapStandard")
 @onready var switch_map_colosseum: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapColosseum")
@@ -118,28 +122,31 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var t1_slots: Array[Button] = [
 	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot0,
 	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot1,
-	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot2,
-	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot3,
-	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot4
+	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot2
 ]
 
 @onready var t2_slots: Array[Button] = [
 	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2/T2Slot0,
 	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2/T2Slot1,
-	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2/T2Slot2,
-	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2/T2Slot3,
-	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2/T2Slot4
+	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2/T2Slot2
+]
+
+@onready var t3_slots: Array[Button] = [
+	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3/T3Slot0,
+	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3/T3Slot1,
+	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3/T3Slot2
 ]
 
 var selected_character: String = "poke"
 var connected_players: Dictionary = {}
 var match_in_progress: bool = false
 var is_training_mode: bool = false
-var game_mode: String = "tdm" # "tdm" = Team Deathmatch, "dm" = Deathmatch (FFA), "bo5" = Best of Five
+var game_mode: String = "tdm" # "tdm" = Team Deathmatch (3v3v3), "dm" = Deathmatch (FFA), "bo5" = Best of Five
 var current_room_code: String = ""
 
 var bo5_score_t1: int = 0
 var bo5_score_t2: int = 0
+var bo5_score_t3: int = 0
 var _bo5_round_transition_active: bool = false
 
 # --- Disconnection Failsafe System ---
@@ -244,6 +251,7 @@ var scoreboard_status_label: Label = null
 var scoreboard_team_container: HBoxContainer = null
 var scoreboard_t1_list: VBoxContainer = null
 var scoreboard_t2_list: VBoxContainer = null
+var scoreboard_t3_list: VBoxContainer = null
 
 var scoreboard_dm_container: VBoxContainer = null
 var scoreboard_dm_scroll: ScrollContainer = null
@@ -334,6 +342,8 @@ func _ready() -> void:
 		select_monkey_button = Button.new()
 		select_monkey_button.name = "SelectMonkey"
 		select_monkey_button.text = "The Great Sage (Select)"
+		select_monkey_button.custom_minimum_size = Vector2(0, 38)
+		select_monkey_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hbox_select.add_child(select_monkey_button)
 	if select_monkey_button:
 		select_monkey_button.pressed.connect(func(): _select_character("monkey"))
@@ -341,9 +351,20 @@ func _ready() -> void:
 		select_silene_button = Button.new()
 		select_silene_button.name = "SelectSilene"
 		select_silene_button.text = "Saint Silene (Select)"
+		select_silene_button.custom_minimum_size = Vector2(0, 38)
+		select_silene_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hbox_select.add_child(select_silene_button)
 	if select_silene_button:
 		select_silene_button.pressed.connect(func(): _select_character("silene"))
+	if hbox_select and not select_artist_button:
+		select_artist_button = Button.new()
+		select_artist_button.name = "SelectArtist"
+		select_artist_button.text = "The Painted Sage (Select)"
+		select_artist_button.custom_minimum_size = Vector2(0, 38)
+		select_artist_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox_select.add_child(select_artist_button)
+	if select_artist_button:
+		select_artist_button.pressed.connect(func(): _select_character("artist"))
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
@@ -363,17 +384,31 @@ func _ready() -> void:
 	if switch_char_tab and not switch_monkey_btn:
 		switch_monkey_btn = Button.new()
 		switch_monkey_btn.name = "SwitchMonkey"
-		switch_monkey_btn.text = "The Great Sage"
+		switch_monkey_btn.text = "🐒 The Great Sage (Trickster - 160 HP)"
+		switch_monkey_btn.custom_minimum_size = Vector2(0, 34)
 		switch_char_tab.add_child(switch_monkey_btn)
 	if switch_monkey_btn:
 		switch_monkey_btn.pressed.connect(func(): _switch_training_character("monkey"))
 	if switch_char_tab and not switch_silene_btn:
 		switch_silene_btn = Button.new()
 		switch_silene_btn.name = "SwitchSilene"
-		switch_silene_btn.text = "Saint Silene"
+		switch_silene_btn.text = "🐉 Saint Silene (Juggernaut - 320 HP)"
+		switch_silene_btn.custom_minimum_size = Vector2(0, 34)
 		switch_char_tab.add_child(switch_silene_btn)
 	if switch_silene_btn:
 		switch_silene_btn.pressed.connect(func(): _switch_training_character("silene"))
+	if switch_char_tab and not switch_artist_btn:
+		switch_artist_btn = Button.new()
+		switch_artist_btn.name = "SwitchArtist"
+		switch_artist_btn.text = "🖌️ The Painted Sage (Calligrapher - 200 HP)"
+		switch_artist_btn.custom_minimum_size = Vector2(0, 34)
+		switch_char_tab.add_child(switch_artist_btn)
+	if switch_artist_btn:
+		switch_artist_btn.pressed.connect(func(): _switch_training_character("artist"))
+	if switch_char_tab:
+		var switch_info = switch_char_tab.get_node_or_null("SwitchInfo")
+		if switch_info:
+			switch_char_tab.move_child(switch_info, -1)
 	
 	if map_option:
 		map_option.item_selected.connect(_on_map_option_selected)
@@ -393,6 +428,7 @@ func _ready() -> void:
 		var s_idx = i
 		t1_slots[i].pressed.connect(func(): _on_slot_clicked(1, s_idx))
 		t2_slots[i].pressed.connect(func(): _on_slot_clicked(2, s_idx))
+		t3_slots[i].pressed.connect(func(): _on_slot_clicked(3, s_idx))
 	
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
@@ -428,6 +464,8 @@ func _select_character(char_key: String) -> void:
 		select_monkey_button.text = "The Great Sage (Select)"
 	if select_silene_button:
 		select_silene_button.text = "Saint Silene (Select)"
+	if select_artist_button:
+		select_artist_button.text = "The Painted Sage (Select)"
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Arash (Selected)"
@@ -454,6 +492,10 @@ func _select_character(char_key: String) -> void:
 		if select_silene_button:
 			select_silene_button.text = "★ Saint Silene (Selected)"
 		char_desc_label.text = "SAINT SILENE: The Dragon of Silene (320 HP). Passive [Draconic Ferocity]: Flat bonus damage on all abilities. [LMB]: Claw Swipe (Annulus Sector). [Shift]: Dragon Leap/Rush (Grab & Slam, Wall Stop, Unstoppable when Charged). [RMB]: Dragon Bite (Annulus Sector % Max HP DMG & Heal). [Q]: Tail Lash (Annulus Sector Stun & DMG). [E]: Dragonfire Breath (Height-scaling Cone DOT, Terrain raycast). [R]: Primal Roar (Annulus Sector Silence & Drag) + Persistent +10 Max HP per takedown."
+	elif char_key == "artist":
+		if select_artist_button:
+			select_artist_button.text = "★ The Painted Sage (Selected)"
+		char_desc_label.text = "THE PAINTED SAGE: Calligrapher (200 HP). Passive [Ink Alchemy]: Elemental talisman ink alchemy. [Shift]: Brush Step (Swift evasive dash). [R]: Ink Alchemy (Vancian talisman wheel: Inscribe Hanzi [火 Fire, 水 Water, 风 Air, 土 Earth] to prepare spells, or recast to unleash prepared elements)."
 	
 	if connected_players.has(1):
 		connected_players[1]["character"] = selected_character
@@ -476,14 +518,16 @@ func set_game_mode(mode_str: String) -> void:
 	game_mode = mode_str
 	bo5_score_t1 = 0
 	bo5_score_t2 = 0
+	bo5_score_t3 = 0
 	if _is_network_active() and multiplayer.is_server():
-		sync_bo5_score.rpc(0, 0)
+		sync_bo5_score.rpc(0, 0, 0)
 		sync_lobby_state.rpc(connected_players, game_mode)
 
 @rpc("authority", "call_local", "reliable")
-func sync_bo5_score(s1: int, s2: int) -> void:
+func sync_bo5_score(s1: int, s2: int, s3: int = 0) -> void:
 	bo5_score_t1 = s1
 	bo5_score_t2 = s2
+	bo5_score_t3 = s3
 	if scoreboard_panel and scoreboard_panel.visible:
 		_update_scoreboard_content()
 
@@ -501,8 +545,8 @@ func _on_slot_clicked(team: int, slot: int) -> void:
 		request_team_slot.rpc_id(1, team, slot)
 
 func _find_first_available_slot() -> Dictionary:
-	for s in range(5):
-		for t in [1, 2]:
+	for s in range(3):
+		for t in [1, 2, 3]:
 			var occupied = false
 			for pid in connected_players.keys():
 				var p = connected_players[pid]
@@ -971,10 +1015,11 @@ func _refresh_lobby_ui() -> void:
 
 	if game_mode == "dm":
 		if team_header:
-			team_header.text = "2. Free For All Deathmatch (10 Max - Free For All):"
+			team_header.text = "2. Free For All Deathmatch (9 Max - Free For All):"
 		
 		var p_ids = connected_players.keys()
-		for s in range(5):
+		for s in range(3):
+			# Column 1: Fighters 1-3
 			var btn1 = t1_slots[s]
 			var idx1 = s
 			if idx1 < p_ids.size():
@@ -989,8 +1034,9 @@ func _refresh_lobby_ui() -> void:
 			else:
 				btn1.text = "[ Fighter %d : Open ]" % (idx1 + 1)
 			
+			# Column 2: Fighters 4-6
 			var btn2 = t2_slots[s]
-			var idx2 = s + 5
+			var idx2 = s + 3
 			if idx2 < p_ids.size():
 				var pid = p_ids[idx2]
 				var occupant = connected_players[pid]
@@ -1003,6 +1049,21 @@ func _refresh_lobby_ui() -> void:
 			else:
 				btn2.text = "[ Fighter %d : Open ]" % (idx2 + 1)
 
+			# Column 3: Fighters 7-9
+			var btn3 = t3_slots[s]
+			var idx3 = s + 6
+			if idx3 < p_ids.size():
+				var pid = p_ids[idx3]
+				var occupant = connected_players[pid]
+				var char_name = get_character_display_name(occupant.get("character", "poke")).to_upper()
+				var p_name = occupant.get("name", "Player")
+				if str(pid) == str(my_id):
+					btn3.text = "★ %s [%s] (YOU)" % [p_name, char_name]
+				else:
+					btn3.text = "• %s [%s]" % [p_name, char_name]
+			else:
+				btn3.text = "[ Fighter %d : Open ]" % (idx3 + 1)
+
 		if is_server:
 			var can_start = connected_players.size() >= 2 or (connected_players.size() >= 1 and OS.is_debug_build())
 			start_match_button.disabled = not can_start
@@ -1012,17 +1073,18 @@ func _refresh_lobby_ui() -> void:
 				start_match_button.text = "CANNOT START (Need 2+ players for Deathmatch)"
 		return
 	
-	# TDM / Bo5 Mode
+	# TDM / Bo5 Mode (3v3v3)
 	if team_header:
 		if game_mode == "bo5":
-			team_header.text = "2. Select Team & Slot (Best of Five - 5v5 Max):"
+			team_header.text = "2. Select Team & Slot (Best of Five 3v3v3 - 9 Max):"
 		else:
-			team_header.text = "2. Select Team & Slot (5v5 Max):"
+			team_header.text = "2. Select Team & Slot (3v3v3 - 9 Max):"
 	var t1_count = 0
 	var t2_count = 0
+	var t3_count = 0
 	
 	# Team 1 slots
-	for s in range(5):
+	for s in range(3):
 		var btn = t1_slots[s]
 		var occupant = null
 		var occ_id = null
@@ -1045,7 +1107,7 @@ func _refresh_lobby_ui() -> void:
 			btn.text = "[ + Slot %d : Join Team 1 ]" % (s + 1)
 			
 	# Team 2 slots
-	for s in range(5):
+	for s in range(3):
 		var btn = t2_slots[s]
 		var occupant = null
 		var occ_id = null
@@ -1067,14 +1129,37 @@ func _refresh_lobby_ui() -> void:
 		else:
 			btn.text = "[ + Slot %d : Join Team 2 ]" % (s + 1)
 
+	# Team 3 slots
+	for s in range(3):
+		var btn = t3_slots[s]
+		var occupant = null
+		var occ_id = null
+		for pid in connected_players.keys():
+			var p = connected_players[pid]
+			if int(p.get("team", 1)) == 3 and int(p.get("slot", 0)) == s:
+				occupant = p
+				occ_id = pid
+				t3_count += 1
+				break
+		
+		if occupant != null:
+			var char_name = get_character_display_name(occupant.get("character", "poke")).to_upper()
+			var p_name = occupant.get("name", "Player")
+			if str(occ_id) == str(my_id):
+				btn.text = "★ %s [%s] (YOU)" % [p_name, char_name]
+			else:
+				btn.text = "• %s [%s]" % [p_name, char_name]
+		else:
+			btn.text = "[ + Slot %d : Join Team 3 ]" % (s + 1)
+
 	if is_server:
-		var can_start = (t1_count >= 1 and t2_count >= 1)
+		var can_start = (t1_count >= 1 and t2_count >= 1 and t3_count >= 1) or (OS.is_debug_build() and (t1_count + t2_count + t3_count) >= 1)
 		start_match_button.disabled = not can_start
 		if can_start:
 			if game_mode == "bo5":
-				start_match_button.text = "START BEST OF FIVE (%d vs %d)" % [t1_count, t2_count]
+				start_match_button.text = "START BEST OF FIVE (%d vs %d vs %d)" % [t1_count, t2_count, t3_count]
 			else:
-				start_match_button.text = "START MATCH (%d vs %d)" % [t1_count, t2_count]
+				start_match_button.text = "START MATCH (%d vs %d vs %d)" % [t1_count, t2_count, t3_count]
 		else:
 			start_match_button.text = "CANNOT START (Need 1+ player on each team)"
 
@@ -1123,18 +1208,25 @@ func _on_start_match_pressed() -> void:
 
 	var t1_count = 0
 	var t2_count = 0
+	var t3_count = 0
 	for pid in connected_players.keys():
 		var p = connected_players[pid]
-		if p.get("team", 1) == 1:
+		var t = int(p.get("team", 1))
+		if t == 1:
 			t1_count += 1
-		elif p.get("team", 1) == 2:
+		elif t == 2:
 			t2_count += 1
-	if t1_count < 1 or t2_count < 1:
+		elif t == 3:
+			t3_count += 1
+	if not OS.is_debug_build() and (t1_count < 1 or t2_count < 1 or t3_count < 1):
+		return
+	if (t1_count + t2_count + t3_count) < 1:
 		return
 	if game_mode == "bo5":
 		bo5_score_t1 = 0
 		bo5_score_t2 = 0
-		sync_bo5_score.rpc(0, 0)
+		bo5_score_t3 = 0
+		sync_bo5_score.rpc(0, 0, 0)
 	for k in connected_players.keys():
 		connected_players[k]["kills"] = 0
 		connected_players[k]["deaths"] = 0
@@ -1262,16 +1354,21 @@ func start_game() -> void:
 			var all_spawns: Array = []
 			var t1_spawns = spawn_points.get_node_or_null("Team1_Spawns")
 			var t2_spawns = spawn_points.get_node_or_null("Team2_Spawns")
+			var t3_spawns = spawn_points.get_node_or_null("Team3_Spawns")
 			if t1_spawns:
 				for sp in t1_spawns.get_children():
 					all_spawns.append(sp.global_position)
 			if t2_spawns:
 				for sp in t2_spawns.get_children():
 					all_spawns.append(sp.global_position)
+			if t3_spawns:
+				for sp in t3_spawns.get_children():
+					all_spawns.append(sp.global_position)
 			if all_spawns.is_empty():
 				all_spawns = [
-					Vector3(-24.0, 0.1, -10.0), Vector3(-24.0, 0.1, -5.0), Vector3(-24.0, 0.1, 0.0), Vector3(-24.0, 0.1, 5.0), Vector3(-24.0, 0.1, 10.0),
-					Vector3(24.0, 0.1, -10.0), Vector3(24.0, 0.1, -5.0), Vector3(24.0, 0.1, 0.0), Vector3(24.0, 0.1, 5.0), Vector3(24.0, 0.1, 10.0)
+					Vector3(-24.0, 0.1, -5.0), Vector3(-24.0, 0.1, 0.0), Vector3(-24.0, 0.1, 5.0),
+					Vector3(24.0, 0.1, -5.0), Vector3(24.0, 0.1, 0.0), Vector3(24.0, 0.1, 5.0),
+					Vector3(-5.0, 0.1, -24.0), Vector3(0.0, 0.1, -24.0), Vector3(5.0, 0.1, -24.0)
 				]
 
 			var p_idx = 0
@@ -1296,33 +1393,43 @@ func start_game() -> void:
 				}
 				player_spawner.spawn(spawn_payload)
 		else:
-			# Team Deathmatch (TDM - 5v5) and Best of Five
+			# Team Deathmatch (3v3v3) and Best of Five
 			for pid in connected_players.keys():
 				var p_info = connected_players[pid]
 				var char_choice = p_info.get("character", "poke")
-				var p_team = p_info.get("team", 1)
-				var p_slot = p_info.get("slot", 0)
+				var p_team = int(p_info.get("team", 1))
+				var p_slot = int(p_info.get("slot", 0))
 				
 				var spawn_pos = Vector3.ZERO
+				var rot_facing = 0.0
 				if p_team == 1:
 					var t1_spawns = spawn_points.get_node_or_null("Team1_Spawns")
 					if t1_spawns and t1_spawns.get_child_count() > p_slot:
 						spawn_pos = t1_spawns.get_child(p_slot).global_position
 					else:
-						spawn_pos = Vector3(-24.0, 0.1, (p_slot - 2.0) * 5.0)
-				else:
+						spawn_pos = Vector3(-24.0, 0.1, (p_slot - 1.0) * 5.0)
+					rot_facing = 0.0
+				elif p_team == 2:
 					var t2_spawns = spawn_points.get_node_or_null("Team2_Spawns")
 					if t2_spawns and t2_spawns.get_child_count() > p_slot:
 						spawn_pos = t2_spawns.get_child(p_slot).global_position
 					else:
-						spawn_pos = Vector3(24.0, 0.1, (p_slot - 2.0) * 5.0)
+						spawn_pos = Vector3(24.0, 0.1, (p_slot - 1.0) * 5.0)
+					rot_facing = PI
+				else:
+					var t3_spawns = spawn_points.get_node_or_null("Team3_Spawns")
+					if t3_spawns and t3_spawns.get_child_count() > p_slot:
+						spawn_pos = t3_spawns.get_child(p_slot).global_position
+					else:
+						spawn_pos = Vector3((p_slot - 1.0) * 5.0, 0.1, -24.0)
+					rot_facing = PI
 				
 				var spawn_payload = {
 					"peer_id": pid,
 					"character": char_choice,
 					"team_id": p_team,
 					"pos": spawn_pos,
-					"rot_y": 0.0 if p_team == 1 else PI,
+					"rot_y": rot_facing,
 					"items": p_info.get("items", []),
 					"gold": p_info.get("gold", 0),
 					"silene_bonus_hp": p_info.get("silene_bonus_hp", 0.0)
@@ -1371,6 +1478,7 @@ func get_all_spawn_positions() -> Array[Vector3]:
 	if spawn_points:
 		var t1 = spawn_points.get_node_or_null("Team1_Spawns")
 		var t2 = spawn_points.get_node_or_null("Team2_Spawns")
+		var t3 = spawn_points.get_node_or_null("Team3_Spawns")
 		if t1:
 			for sp in t1.get_children():
 				if sp is Node3D:
@@ -1379,10 +1487,15 @@ func get_all_spawn_positions() -> Array[Vector3]:
 			for sp in t2.get_children():
 				if sp is Node3D:
 					result.append(sp.global_position)
+		if t3:
+			for sp in t3.get_children():
+				if sp is Node3D:
+					result.append(sp.global_position)
 	if result.is_empty():
 		result = [
-			Vector3(-24.0, 0.1, -10.0), Vector3(-24.0, 0.1, -5.0), Vector3(-24.0, 0.1, 0.0), Vector3(-24.0, 0.1, 5.0), Vector3(-24.0, 0.1, 10.0),
-			Vector3(24.0, 0.1, -10.0), Vector3(24.0, 0.1, -5.0), Vector3(24.0, 0.1, 0.0), Vector3(24.0, 0.1, 5.0), Vector3(24.0, 0.1, 10.0)
+			Vector3(-24.0, 0.1, -5.0), Vector3(-24.0, 0.1, 0.0), Vector3(-24.0, 0.1, 5.0),
+			Vector3(24.0, 0.1, -5.0), Vector3(24.0, 0.1, 0.0), Vector3(24.0, 0.1, 5.0),
+			Vector3(-5.0, 0.1, -24.0), Vector3(0.0, 0.1, -24.0), Vector3(5.0, 0.1, -24.0)
 		]
 	return result
 
@@ -1394,17 +1507,23 @@ func get_respawn_position(player_node: Node) -> Vector3:
 		spawns = get_all_spawn_positions()
 	else:
 		# Team-based: pick team spawns
-		var p_team = player_node.get("team_id") if player_node else 1
-		var team_container_name = "Team1_Spawns" if p_team == 1 else "Team2_Spawns"
+		var p_team = int(player_node.get("team_id")) if player_node and player_node.get("team_id") != null else 1
+		var team_container_name = "Team1_Spawns" if p_team == 1 else ("Team2_Spawns" if p_team == 2 else "Team3_Spawns")
 		var t_spawns = spawn_points.get_node_or_null(team_container_name) if spawn_points else null
 		if t_spawns:
 			for sp in t_spawns.get_children():
 				if sp is Node3D:
 					spawns.append(sp.global_position)
 		if spawns.is_empty():
-			var default_x = -24.0 if p_team == 1 else 24.0
-			for z in [-10.0, -5.0, 0.0, 5.0, 10.0]:
-				spawns.append(Vector3(default_x, 0.1, z))
+			if p_team == 1:
+				for z in [-5.0, 0.0, 5.0]:
+					spawns.append(Vector3(-24.0, 0.1, z))
+			elif p_team == 2:
+				for z in [-5.0, 0.0, 5.0]:
+					spawns.append(Vector3(24.0, 0.1, z))
+			else:
+				for x in [-5.0, 0.0, 5.0]:
+					spawns.append(Vector3(x, 0.1, -24.0))
 
 	if spawns.is_empty():
 		return Vector3(-24.0, 0.1, 0.0)
@@ -1526,6 +1645,8 @@ func _handle_bo5_round_end(round_winner: String) -> void:
 		bo5_score_t1 += 1
 	elif round_winner == "TEAM 2":
 		bo5_score_t2 += 1
+	elif round_winner == "TEAM 3":
+		bo5_score_t3 += 1
 	
 	var mode = GameModes.get_mode(game_mode)
 	var round_gold = mode.gold_per_round if mode else 100
@@ -1535,22 +1656,23 @@ func _handle_bo5_round_end(round_winner: String) -> void:
 		if p_node and p_node.has_method("sync_inventory"):
 			p_node.sync_inventory.rpc(p_node.item_slots, connected_players[pid]["gold"])
 	
-	sync_bo5_score.rpc(bo5_score_t1, bo5_score_t2)
+	sync_bo5_score.rpc(bo5_score_t1, bo5_score_t2, bo5_score_t3)
 	
 	var bo5_mode: BestOfFiveMode = mode as BestOfFiveMode
-	var match_winner = bo5_mode.check_match_winner(bo5_score_t1, bo5_score_t2) if bo5_mode else ("TEAM 1" if bo5_score_t1 >= 3 else ("TEAM 2" if bo5_score_t2 >= 3 else ""))
+	var match_winner = bo5_mode.check_match_winner(bo5_score_t1, bo5_score_t2, bo5_score_t3) if bo5_mode else ("TEAM 1" if bo5_score_t1 >= 3 else ("TEAM 2" if bo5_score_t2 >= 3 else ("TEAM 3" if bo5_score_t3 >= 3 else "")))
 	if not match_winner.is_empty():
 		end_match.rpc(match_winner)
 	else:
-		end_round.rpc(round_winner, bo5_score_t1, bo5_score_t2)
+		end_round.rpc(round_winner, bo5_score_t1, bo5_score_t2, bo5_score_t3)
 
 @rpc("any_peer", "call_local", "reliable")
-func end_round(round_winner: String, score1: int, score2: int) -> void:
+func end_round(round_winner: String, score1: int, score2: int, score3: int = 0) -> void:
 	if not _is_sender_host():
 		return
 	match_in_progress = false
 	bo5_score_t1 = score1
 	bo5_score_t2 = score2
+	bo5_score_t3 = score3
 	_bo5_round_transition_active = true
 	
 	if scoreboard_panel and scoreboard_panel.visible:
@@ -1559,11 +1681,11 @@ func end_round(round_winner: String, score1: int, score2: int) -> void:
 	if round_winner == "DRAW":
 		winner_label.text = "ROUND OVER!\nDRAW!"
 		if match_over_sub_label:
-			match_over_sub_label.text = "Score: Team 1 [%d] - [%d] Team 2\nReplaying round in 3 seconds..." % [score1, score2]
+			match_over_sub_label.text = "Score: Team 1 [%d] - [%d] Team 2 - [%d] Team 3\nReplaying round in 3 seconds..." % [score1, score2, score3]
 	else:
 		winner_label.text = "ROUND OVER!\n%s WINS THE ROUND!" % round_winner.to_upper()
 		if match_over_sub_label:
-			match_over_sub_label.text = "Score: Team 1 [%d] - [%d] Team 2\nNext round starting in 3 seconds..." % [score1, score2]
+			match_over_sub_label.text = "Score: Team 1 [%d] - [%d] Team 2 - [%d] Team 3\nNext round starting in 3 seconds..." % [score1, score2, score3]
 	
 	match_over_panel.show()
 	
@@ -2198,7 +2320,7 @@ func _setup_scoreboard_ui() -> void:
 	scoreboard_score_container.add_child(scoreboard_score_sublabel)
 	
 	scoreboard_status_label = Label.new()
-	scoreboard_status_label.text = "TEAM 1: 0/0 ALIVE    |    TEAM 2: 0/0 ALIVE"
+	scoreboard_status_label.text = "TEAM 1: 0/0 ALIVE    |    TEAM 2: 0/0 ALIVE    |    TEAM 3: 0/0 ALIVE"
 	scoreboard_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	scoreboard_status_label.add_theme_font_size_override("font_size", 13)
 	scoreboard_status_label.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
@@ -2207,7 +2329,7 @@ func _setup_scoreboard_ui() -> void:
 	var sep1 = HSeparator.new()
 	main_vbox.add_child(sep1)
 	
-	# 1. Team-based 2-column container (TDM, Bo5, Training)
+	# 1. Team-based 3-column container (TDM, Bo5, Training)
 	scoreboard_team_container = HBoxContainer.new()
 	scoreboard_team_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scoreboard_team_container.add_theme_constant_override("separation", 16)
@@ -2317,6 +2439,60 @@ func _setup_scoreboard_ui() -> void:
 	scoreboard_t2_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scoreboard_t2_list.add_theme_constant_override("separation", 4)
 	t2_scroll.add_child(scoreboard_t2_list)
+
+	var v_sep2 = VSeparator.new()
+	scoreboard_team_container.add_child(v_sep2)
+	
+	# Team 3 Column
+	var t3_vbox = VBoxContainer.new()
+	t3_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t3_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	t3_vbox.add_theme_constant_override("separation", 4)
+	scoreboard_team_container.add_child(t3_vbox)
+	
+	var t3_header = Label.new()
+	t3_header.text = "TEAM 3 (GREEN)"
+	t3_header.add_theme_font_size_override("font_size", 14)
+	t3_header.add_theme_color_override("font_color", Color(0.25, 0.9, 0.45))
+	t3_vbox.add_child(t3_header)
+	
+	var t3_sub_hdr = HBoxContainer.new()
+	t3_sub_hdr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var t3_lbl_p = Label.new()
+	t3_lbl_p.text = "PLAYER"
+	t3_lbl_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t3_lbl_p.add_theme_font_size_override("font_size", 11)
+	t3_lbl_p.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	t3_sub_hdr.add_child(t3_lbl_p)
+	var t3_lbl_s = Label.new()
+	t3_lbl_s.text = "STATUS"
+	t3_lbl_s.custom_minimum_size = Vector2(85, 0)
+	t3_lbl_s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	t3_lbl_s.add_theme_font_size_override("font_size", 11)
+	t3_lbl_s.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	t3_sub_hdr.add_child(t3_lbl_s)
+	var t3_lbl_k = Label.new()
+	t3_lbl_k.text = "K / D / A"
+	t3_lbl_k.custom_minimum_size = Vector2(75, 0)
+	t3_lbl_k.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	t3_lbl_k.add_theme_font_size_override("font_size", 11)
+	t3_lbl_k.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	t3_sub_hdr.add_child(t3_lbl_k)
+	t3_vbox.add_child(t3_sub_hdr)
+	
+	var t3_scroll = ScrollContainer.new()
+	t3_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	t3_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t3_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	t3_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	t3_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	t3_vbox.add_child(t3_scroll)
+	
+	scoreboard_t3_list = VBoxContainer.new()
+	scoreboard_t3_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_t3_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_t3_list.add_theme_constant_override("separation", 4)
+	t3_scroll.add_child(scoreboard_t3_list)
 	
 	# 2. Deathmatch Single-List Scrollable Container (DM)
 	scoreboard_dm_container = VBoxContainer.new()
@@ -2406,6 +2582,9 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if scoreboard_t2_list:
 		for c in scoreboard_t2_list.get_children():
 			c.queue_free()
+	if scoreboard_t3_list:
+		for c in scoreboard_t3_list.get_children():
+			c.queue_free()
 	if scoreboard_dm_list:
 		for c in scoreboard_dm_list.get_children():
 			c.queue_free()
@@ -2413,9 +2592,9 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if scoreboard_score_container:
 		if current_scoreboard_mode.has_rounds and not is_training_mode:
 			scoreboard_score_container.visible = true
-			scoreboard_score_label.text = current_scoreboard_mode.format_scoreboard_header(bo5_score_t1, bo5_score_t2)
+			scoreboard_score_label.text = current_scoreboard_mode.format_scoreboard_header(bo5_score_t1, bo5_score_t2, bo5_score_t3)
 			if match_in_progress:
-				var current_round = bo5_score_t1 + bo5_score_t2 + 1
+				var current_round = bo5_score_t1 + bo5_score_t2 + bo5_score_t3 + 1
 				scoreboard_score_sublabel.text = "%s • FIRST TO %d WINS (ROUND %d)" % [current_scoreboard_mode.display_name.to_upper(), current_scoreboard_mode.round_win_target, current_round]
 			else:
 				scoreboard_score_sublabel.text = "%s • FIRST TO %d WINS" % [current_scoreboard_mode.display_name.to_upper(), current_scoreboard_mode.round_win_target]
@@ -2487,7 +2666,7 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 			scoreboard_dm_scroll.scroll_vertical = dm_scroll_pos
 		return
 	
-	# Team Deathmatch / Best of Five Layout
+	# Team Deathmatch / Best of Five Layout (3v3v3)
 	if scoreboard_team_container: scoreboard_team_container.visible = true
 	if scoreboard_dm_container: scoreboard_dm_container.visible = false
 	if scoreboard_score_container:
@@ -2497,10 +2676,12 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	var t1_total = 0
 	var t2_alive = 0
 	var t2_total = 0
+	var t3_alive = 0
+	var t3_total = 0
 	
 	for pid in connected_players.keys():
 		var p_data = connected_players[pid]
-		var team = p_data.get("team", 1)
+		var team = int(p_data.get("team", 1))
 		var p_name = p_data.get("name", "Player " + str(pid))
 		var char_key = p_data.get("character", "poke")
 		var p_node = players_container.get_node_or_null(str(pid))
@@ -2524,10 +2705,16 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 			var row = _create_scoreboard_player_row(pid, p_name, char_key, p_node, is_alive, k, d, a, false)
 			if scoreboard_t2_list:
 				scoreboard_t2_list.add_child(row)
+		elif team == 3:
+			t3_total += 1
+			if is_alive: t3_alive += 1
+			var row = _create_scoreboard_player_row(pid, p_name, char_key, p_node, is_alive, k, d, a, false)
+			if scoreboard_t3_list:
+				scoreboard_t3_list.add_child(row)
 	
 	if match_in_progress:
 		var map_str = ("  •  MAP: " + MAP_NAMES[current_map_id].to_upper()) if (current_map_id >= 0 and current_map_id < MAP_NAMES.size()) else ""
-		scoreboard_status_label.text = ("TEAM 1: %d/%d ALIVE    |    TEAM 2: %d/%d ALIVE" % [t1_alive, t1_total, t2_alive, t2_total]) + map_str
+		scoreboard_status_label.text = ("TEAM 1: %d/%d ALIVE    |    TEAM 2: %d/%d ALIVE    |    TEAM 3: %d/%d ALIVE" % [t1_alive, t1_total, t2_alive, t2_total, t3_alive, t3_total]) + map_str
 	else:
 		scoreboard_status_label.text = "LOBBY ROSTER (%d Connected Players)" % connected_players.size()
 
