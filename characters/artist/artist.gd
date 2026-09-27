@@ -23,8 +23,10 @@ func _ready() -> void:
 	_setup_abilities_kit()
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "artist"
 	if character_name.is_empty() or character_name == "Character":
-		character_name = "The Painted Sage"
+		character_name = "Artist"
 	if display_name.is_empty() or display_name == "Character":
 		display_name = "The Painted Sage"
 

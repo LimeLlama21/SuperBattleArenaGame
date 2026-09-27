@@ -12,6 +12,7 @@ var home_position: Vector3 = Vector3.ZERO
 @onready var mesh_instance: MeshInstance3D = get_node_or_null("MeshInstance3D")
 
 func _setup_character_kit() -> void:
+	id = "dummy"
 	character_name = "Training Dummy"
 	display_name = "Training Dummy"
 	team_id = 2

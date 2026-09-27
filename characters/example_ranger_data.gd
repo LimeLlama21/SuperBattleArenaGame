@@ -9,6 +9,7 @@ static func create() -> CharacterData:
 	var data = CharacterData.new()
 	
 	# --- 1. Identity ---
+	data.id = "ranger"
 	data.character_name = "Ranger"
 	data.display_name = "Swift Ranger"
 	data.archetype = "Sharpshooter"

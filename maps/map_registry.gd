@@ -6,25 +6,29 @@ const ID_TRAINING: int = -1
 const ID_COLOSSEUM: int = 0
 const ID_CHASM: int = 1
 const ID_ISLANDS: int = 2
+const ID_EXPANSE: int = 3
 
 ## Arena map display names
 const MAP_NAMES: Array[String] = [
 	"Colosseum",
 	"The Jagged Chasm",
-	"Shattered Archipelago"
+	"Shattered Archipelago",
+	"The Great Expanse"
 ]
 
 ## Preloaded map scenes
 const MAP_COLOSSEUM_SCENE: PackedScene = preload("res://maps/map_colosseum.tscn")
 const MAP_CHASM_SCENE: PackedScene = preload("res://maps/map_chasm.tscn")
 const MAP_ISLANDS_SCENE: PackedScene = preload("res://maps/map_islands.tscn")
+const MAP_EXPANSE_SCENE: PackedScene = preload("res://maps/map_expanse.tscn")
 const MAP_TRAINING_SCENE: PackedScene = preload("res://maps/map_training.tscn")
 
-## Array of standard competitive arena scenes indexed by map ID (0, 1, 2)
+## Array of standard competitive arena scenes indexed by map ID (0, 1, 2, 3)
 const ARENA_SCENES: Array[PackedScene] = [
 	MAP_COLOSSEUM_SCENE,
 	MAP_CHASM_SCENE,
-	MAP_ISLANDS_SCENE
+	MAP_ISLANDS_SCENE,
+	MAP_EXPANSE_SCENE
 ]
 
 static func get_map_name(map_id: int) -> String:

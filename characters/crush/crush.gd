@@ -20,6 +20,8 @@ const CRUSH_CHARGE_SPEED: float = 28.0
 const CRUSH_CHARGE_TURN_SPEED: float = 1.8
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "crush"
 	var data = CrushData.create()
 	load_character_data(data)
 

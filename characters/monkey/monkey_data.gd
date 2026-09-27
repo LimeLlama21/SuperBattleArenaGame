@@ -5,6 +5,7 @@ const MonkeyKingData = MonkeyData
 
 static func create() -> CharacterData:
 	var data = CharacterData.new()
+	data.id = "monkey"
 	data.character_name = "Monkey"
 	data.display_name = "The Great Sage"
 	data.archetype = "Trickster"

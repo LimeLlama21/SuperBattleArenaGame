@@ -95,6 +95,7 @@ corner_radius_bottom_left = 4
 [node name="Crush" type="CharacterBody3D" unique_id=2132967885]
 collision_layer = 2
 script = ExtResource("1_crush")
+id = "crush"
 character_name = "Crush"
 display_name = "Heracles"
 max_health = 320.0

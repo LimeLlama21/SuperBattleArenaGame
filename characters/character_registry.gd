@@ -21,6 +21,7 @@ static func _ensure_initialized() -> void:
 	_register_builtin("monkey", "res://characters/monkey/monkey_data.gd", "res://characters/monkey/monkey.tscn")
 	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
 	_register_builtin("artist", "res://characters/artist/artist_data.gd", "res://characters/artist/artist.tscn")
+	_register_builtin("cleodolinda", "res://characters/cleodolinda/cleodolinda_data.gd", "res://characters/cleodolinda/cleodolinda.tscn")
 
 static func _register_builtin(key: String, data_script_path: String, scene_path: String) -> void:
 	var data: CharacterData = null
@@ -28,6 +29,8 @@ static func _register_builtin(key: String, data_script_path: String, scene_path:
 		var script = load(data_script_path)
 		if script and script.has_method("create"):
 			data = script.create()
+	if data and data.id.is_empty():
+		data.id = key.to_lower()
 	var scene: PackedScene = null
 	if ResourceLoader.exists(scene_path):
 		scene = load(scene_path) as PackedScene
@@ -41,6 +44,8 @@ static func _register_builtin(key: String, data_script_path: String, scene_path:
 
 static func register_character(key: String, data: CharacterData, scene: PackedScene = null) -> void:
 	_ensure_initialized()
+	if data and data.id.is_empty():
+		data.id = key.to_lower()
 	_registry[key.to_lower()] = {
 		"data": data,
 		"scene": scene
@@ -56,6 +61,8 @@ static func get_character_data(key: String) -> CharacterData:
 	if entry:
 		var d = entry.get("data")
 		if d:
+			if d.id.is_empty():
+				d.id = key.to_lower()
 			return d
 		# Fallback: recreate via script if needed
 		var s_path = entry.get("data_script", "")
@@ -63,6 +70,8 @@ static func get_character_data(key: String) -> CharacterData:
 			var scr = load(s_path)
 			if scr and scr.has_method("create"):
 				var created = scr.create()
+				if created and created.id.is_empty():
+					created.id = key.to_lower()
 				entry["data"] = created
 				return created
 	return null
@@ -101,8 +110,6 @@ static func get_display_name(key: String) -> String:
 	var data = get_character_data(k)
 	if data and not data.display_name.is_empty():
 		return data.display_name
-	if data and not data.character_name.is_empty():
-		return data.character_name
 	
 	match k:
 		"poke": return "Arash"
@@ -113,11 +120,27 @@ static func get_display_name(key: String) -> String:
 		"monkey": return "The Great Sage"
 		"silene": return "Saint Silene"
 		"artist": return "The Painted Sage"
-		_: return key.capitalize()
+		"cleodolinda": return "Cleo"
+		"dummy": return "Training Dummy"
+		_:
+			if data and not data.character_name.is_empty():
+				return data.character_name
+			return key.capitalize()
+
+static func get_character_id_by_display_name(name_or_key: String) -> String:
+	_ensure_initialized()
+	var clean = name_or_key.strip_edges().to_lower()
+	for k in get_all_character_keys():
+		if k.to_lower() == clean:
+			return k
+		if get_display_name(k).to_lower() == clean:
+			return k
+	return clean
 
 static func create_player_instance(key: String) -> BasePlayer:
 	_ensure_initialized()
-	var scene = get_character_scene(key)
+	var k = key.to_lower()
+	var scene = get_character_scene(k)
 	var player: BasePlayer = null
 	if scene:
 		player = scene.instantiate() as BasePlayer
@@ -126,7 +149,25 @@ static func create_player_instance(key: String) -> BasePlayer:
 		player = base_sc.instantiate() as BasePlayer
 	
 	if player:
-		var data = get_character_data(key)
+		player.id = k
+		var data = get_character_data(k)
 		if data:
 			player.load_character_data(data)
+		if player.id.is_empty():
+			player.id = k
+		if player.display_name.is_empty() or player.display_name == "Character":
+			player.display_name = get_display_name(k)
 	return player
+
+static func get_enabled_character_keys() -> Array[String]:
+	var script = load("res://characters/enabled_characters.gd")
+	if script and script.has_method("get_enabled_characters"):
+		return script.get_enabled_characters()
+	return get_all_character_keys()
+
+static func is_character_enabled(key: String) -> bool:
+	var script = load("res://characters/enabled_characters.gd")
+	if script and script.has_method("is_character_enabled"):
+		return script.is_character_enabled(key)
+	return has_character(key)
+

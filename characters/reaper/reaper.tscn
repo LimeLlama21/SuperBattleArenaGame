@@ -117,6 +117,7 @@ corner_radius_bottom_left = 4
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_reaper")
+id = "reaper"
 character_name = "Reaper"
 display_name = "Keres"
 max_health = 200.0

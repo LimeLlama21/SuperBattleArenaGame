@@ -3,6 +3,7 @@ extends RefCounted
 
 static func create() -> CharacterData:
 	var data = CharacterData.new()
+	data.id = "crush"
 	data.character_name = "Crush"
 	data.display_name = "Heracles"
 	data.archetype = "Juggernaut"

@@ -17,6 +17,9 @@ radius = 0.6
 [node name="TrainingDummy" type="CharacterBody3D" unique_id=200591829]
 collision_layer = 2
 script = ExtResource("1_dummy")
+id = "dummy"
+character_name = "Training Dummy"
+display_name = "Training Dummy"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=767893959]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

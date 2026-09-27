@@ -68,6 +68,7 @@ corner_radius_bottom_left = 4
 [node name="Morrigan" type="CharacterBody3D" unique_id=377419315]
 collision_layer = 2
 script = ExtResource("1_morrigan")
+id = "morrigan"
 character_name = "Morrigan"
 display_name = "Morrigan"
 max_health = 180.0

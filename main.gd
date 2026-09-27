@@ -4,6 +4,7 @@ const PORT: int = 7000
 
 const CharacterRegistry = preload("res://characters/character_registry.gd")
 const CharacterData = preload("res://characters/character_data.gd")
+const EnabledCharacters = preload("res://characters/enabled_characters.gd")
 
 const CHARACTERS: Dictionary = {
 	"poke": preload("res://characters/poke/poke.tscn"),
@@ -13,7 +14,8 @@ const CHARACTERS: Dictionary = {
 	"morrigan": preload("res://characters/morrigan/morrigan.tscn"),
 	"monkey": preload("res://characters/monkey/monkey.tscn"),
 	"silene": preload("res://characters/silene/silene.tscn"),
-	"artist": preload("res://characters/artist/artist.tscn")
+	"artist": preload("res://characters/artist/artist.tscn"),
+	"cleodolinda": preload("res://characters/cleodolinda/cleodolinda.tscn")
 }
 
 const CHARACTER_DISPLAY_NAMES: Dictionary = {
@@ -25,6 +27,7 @@ const CHARACTER_DISPLAY_NAMES: Dictionary = {
 	"monkey": "The Great Sage",
 	"silene": "Saint Silene",
 	"artist": "The Painted Sage",
+	"cleodolinda": "Cleo",
 	"dummy": "Training Dummy"
 }
 
@@ -38,6 +41,7 @@ static func get_character_display_name(char_key: String) -> String:
 @export var fence_zone_scene: PackedScene = preload("res://ability/zones/fence_zone.tscn")
 @export var orbital_laser_zone_scene: PackedScene = preload("res://ability/zones/orbital_laser_zone.tscn")
 @export var rail_trail_zone_scene: PackedScene = preload("res://ability/zones/rail_trail_zone.tscn")
+@export var battle_royale_zone_scene: PackedScene = preload("res://zones/battle_royale_zone.tscn")
 
 @export var training_dummy_scene: PackedScene = preload("res://training_dummy.tscn")
 
@@ -116,6 +120,7 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var switch_map_colosseum: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapColosseum")
 @onready var switch_map_chasm: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapChasm")
 @onready var switch_map_islands: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapIslands")
+@onready var switch_map_expanse: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapExpanse")
 
 @onready var settings_panel: PanelContainer = $UI/SettingsMenu
 
@@ -262,11 +267,12 @@ var _scoreboard_refresh_timer: float = 0.0
 const MAP_COLOSSEUM_SCENE: PackedScene = MapRegistry.MAP_COLOSSEUM_SCENE
 const MAP_CHASM_SCENE: PackedScene = MapRegistry.MAP_CHASM_SCENE
 const MAP_ISLANDS_SCENE: PackedScene = MapRegistry.MAP_ISLANDS_SCENE
+const MAP_EXPANSE_SCENE: PackedScene = MapRegistry.MAP_EXPANSE_SCENE
 const MAP_NAMES: Array[String] = MapRegistry.MAP_NAMES
 
 var arena_maps: Array[Node3D] = []
 var current_map_id: int = -1
-var training_selected_map: int = -1 # -1: Standard Training Map, 0: Colosseum, 1: The Jagged Chasm, 2: Shattered Archipelago
+var training_selected_map: int = -1 # -1: Standard Training Map, 0: Colosseum, 1: The Jagged Chasm, 2: Shattered Archipelago, 3: The Great Expanse
 var selected_custom_map: int = -1 # -1: Random Map, 0: Colosseum, etc.
 var map_banner_label: Label = null
 
@@ -420,6 +426,8 @@ func _ready() -> void:
 		switch_map_chasm.pressed.connect(func(): _switch_training_map(1))
 	if switch_map_islands:
 		switch_map_islands.pressed.connect(func(): _switch_training_map(2))
+	if switch_map_expanse:
+		switch_map_expanse.pressed.connect(func(): _switch_training_map(3))
 	
 	if settings_panel and settings_panel.has_signal("settings_closed"):
 		settings_panel.settings_closed.connect(_on_settings_closed)
@@ -449,9 +457,40 @@ func _ready() -> void:
 	escape_panel.hide()
 	if settings_panel:
 		settings_panel.hide()
-	_select_character("poke")
+	_refresh_character_selection_ui()
+	var default_char = "poke"
+	if not EnabledCharacters.is_character_enabled(default_char):
+		var en = EnabledCharacters.get_enabled_characters()
+		if not en.is_empty():
+			default_char = en[0]
+	_select_character(default_char)
+
+func _refresh_character_selection_ui() -> void:
+	if select_poke_button: select_poke_button.visible = EnabledCharacters.is_character_enabled("poke")
+	if select_crush_button: select_crush_button.visible = EnabledCharacters.is_character_enabled("crush")
+	if select_asparsas_button: select_asparsas_button.visible = EnabledCharacters.is_character_enabled("asparsas")
+	if select_reaper_button: select_reaper_button.visible = EnabledCharacters.is_character_enabled("reaper")
+	if select_morrigan_button: select_morrigan_button.visible = EnabledCharacters.is_character_enabled("morrigan")
+	if select_monkey_button: select_monkey_button.visible = EnabledCharacters.is_character_enabled("monkey")
+	if select_silene_button: select_silene_button.visible = EnabledCharacters.is_character_enabled("silene")
+	if select_artist_button: select_artist_button.visible = EnabledCharacters.is_character_enabled("artist")
+
+	if switch_poke_btn: switch_poke_btn.visible = EnabledCharacters.is_character_enabled("poke")
+	if switch_crush_btn: switch_crush_btn.visible = EnabledCharacters.is_character_enabled("crush")
+	if switch_asparsas_btn: switch_asparsas_btn.visible = EnabledCharacters.is_character_enabled("asparsas")
+	if switch_reaper_btn: switch_reaper_btn.visible = EnabledCharacters.is_character_enabled("reaper")
+	if switch_morrigan_btn: switch_morrigan_btn.visible = EnabledCharacters.is_character_enabled("morrigan")
+	if switch_monkey_btn: switch_monkey_btn.visible = EnabledCharacters.is_character_enabled("monkey")
+	if switch_silene_btn: switch_silene_btn.visible = EnabledCharacters.is_character_enabled("silene")
+	if switch_artist_btn: switch_artist_btn.visible = EnabledCharacters.is_character_enabled("artist")
 
 func _select_character(char_key: String) -> void:
+	if not EnabledCharacters.is_character_enabled(char_key):
+		var en = EnabledCharacters.get_enabled_characters()
+		if not en.is_empty():
+			char_key = en[0]
+		else:
+			return
 	selected_character = char_key
 	select_poke_button.text = "Arash (Select)"
 	select_crush_button.text = "Heracles (Select)"
@@ -519,6 +558,7 @@ func set_game_mode(mode_str: String) -> void:
 	bo5_score_t1 = 0
 	bo5_score_t2 = 0
 	bo5_score_t3 = 0
+	call_deferred("_refresh_battle_royale_zones_for_mode")
 	if _is_network_active() and multiplayer.is_server():
 		sync_bo5_score.rpc(0, 0, 0)
 		sync_lobby_state.rpc(connected_players, game_mode)
@@ -928,6 +968,9 @@ func request_lobby_sync() -> void:
 func register_player_to_server(char_key: String) -> void:
 	if not multiplayer.is_server():
 		return
+	if not EnabledCharacters.is_character_enabled(char_key):
+		var en = EnabledCharacters.get_enabled_characters()
+		char_key = en[0] if not en.is_empty() else "poke"
 	var sender_id = multiplayer.get_remote_sender_id()
 	var target_key = null
 	for k in connected_players.keys():
@@ -949,6 +992,8 @@ func register_player_to_server(char_key: String) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func update_player_character(char_key: String) -> void:
 	if not multiplayer.is_server():
+		return
+	if not EnabledCharacters.is_character_enabled(char_key):
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
 	for k in connected_players.keys():
@@ -1435,6 +1480,7 @@ func start_game() -> void:
 					"silene_bonus_hp": p_info.get("silene_bonus_hp", 0.0)
 				}
 				player_spawner.spawn(spawn_payload)
+		call_deferred("_refresh_battle_royale_zones_for_mode")
 
 func _custom_spawn_player(data: Variant) -> Node:
 	var char_key = data.get("character", "poke")
@@ -2164,8 +2210,61 @@ func spawn_rail_trail_zone(pos: Vector3, rot_y: float, length: float = 70.0, wid
 		return
 	hazard_spawner.spawn(data)
 
+func spawn_battle_royale_zone(pos: Vector3 = Vector3.ZERO, radius: float = 35.0, initial_wait: float = 60.0, wait_t: float = 60.0, dps_val: float = 10.0, min_dist: float = 40.0) -> Node:
+	if is_multiplayer_match() and not multiplayer.is_server():
+		return null
+	var data = {
+		"type": "battle_royale_zone",
+		"pos": pos,
+		"radius": radius,
+		"initial_wait_time": initial_wait,
+		"wait_time": wait_t,
+		"dps": dps_val,
+		"min_dist": min_dist
+	}
+	if not is_multiplayer_match():
+		var zone = _custom_spawn_hazard_zone(data)
+		hazard_container.add_child(zone, true)
+		return zone
+	return hazard_spawner.spawn(data)
+
+func _refresh_battle_royale_zones_for_mode() -> void:
+	var is_main_mode = (game_mode == "tdm" and not is_training_mode)
+	
+	# Update all existing zones in the scene tree (e.g. embedded in maps or hazards)
+	var active_zone_found = false
+	for zone in get_tree().get_nodes_in_group("battle_royale_zone"):
+		if is_instance_valid(zone) and zone.has_method("evaluate_mode_activity"):
+			zone.evaluate_mode_activity()
+			if zone.visible and zone.get("current_state") != 0:
+				active_zone_found = true
+	
+	# If in main game mode (TDM), match is in progress, and no embedded zone is active, spawn one!
+	if is_main_mode and match_in_progress and not active_zone_found:
+		if not is_multiplayer_match() or multiplayer.is_server():
+			spawn_battle_royale_zone(Vector3.ZERO, 35.0, 60.0, 60.0, 10.0, 40.0)
+	elif not is_main_mode:
+		# Ensure any dynamically spawned battle royale zone in hazard container is cleaned up
+		for h in hazard_container.get_children():
+			if h.is_in_group("battle_royale_zone") or h.name.begins_with("BattleRoyaleZone"):
+				h.queue_free()
+
 func _custom_spawn_hazard_zone(data: Variant) -> Node:
-	if data.get("type") == "orbital_laser":
+	if data.get("type") == "battle_royale_zone":
+		var br_zone = battle_royale_zone_scene.instantiate()
+		br_zone.position = data.get("pos", Vector3.ZERO)
+		if data.has("radius"):
+			br_zone.zone_radius = data["radius"]
+		if data.has("initial_wait_time"):
+			br_zone.initial_wait_time = data["initial_wait_time"]
+		if data.has("wait_time"):
+			br_zone.wait_time = data["wait_time"]
+		if data.has("dps"):
+			br_zone.damage_per_second = data["dps"]
+		if data.has("min_dist"):
+			br_zone.min_relocation_distance = data["min_dist"]
+		return br_zone
+	elif data.get("type") == "orbital_laser":
 		var laser = orbital_laser_zone_scene.instantiate()
 		laser.position = data["pos"]
 		laser.radius = data.get("rad", 3.8)
@@ -2841,6 +2940,13 @@ func _setup_arena_maps() -> void:
 	islands.process_mode = Node.PROCESS_MODE_DISABLED
 	arena_node.add_child(islands)
 	arena_maps.append(islands)
+	
+	var expanse = MAP_EXPANSE_SCENE.instantiate()
+	expanse.name = "MapExpanse"
+	expanse.visible = false
+	expanse.process_mode = Node.PROCESS_MODE_DISABLED
+	arena_node.add_child(expanse)
+	arena_maps.append(expanse)
 
 func _setup_map_banner_ui() -> void:
 	var ui_node = get_node_or_null("UI")
@@ -2907,6 +3013,8 @@ func sync_active_map(map_id: int) -> void:
 	if training_map:
 		training_map.visible = show_training_arena
 		training_map.process_mode = Node.PROCESS_MODE_INHERIT if show_training_arena else Node.PROCESS_MODE_DISABLED
+	
+	call_deferred("_refresh_battle_royale_zones_for_mode")
 	
 	if map_banner_label:
 		if map_id >= 0 and map_id < MAP_NAMES.size():
@@ -3294,6 +3402,8 @@ func _open_escape_menu() -> void:
 
 func _switch_training_character(new_char_key: String) -> void:
 	if not is_training_mode:
+		return
+	if not EnabledCharacters.is_character_enabled(new_char_key):
 		return
 	selected_character = new_char_key
 	

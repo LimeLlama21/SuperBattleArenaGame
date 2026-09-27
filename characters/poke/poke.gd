@@ -32,6 +32,8 @@ var is_overcharge_active: bool = false
 const OVERCHARGE_BONUS_DAMAGE: float = 30.0
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "poke"
 	var data = PokeData.create()
 	load_character_data(data)
 

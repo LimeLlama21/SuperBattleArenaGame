@@ -16,11 +16,22 @@ signal armor_charges_changed(current: int, max_val: int)
 signal projectile_damage_resisted(attacker_id: int, original_amount: float)
 
 # --- Character Identification & Team ---
+@export var id: String = "" # Canonical identifier matching folder name & code references (e.g. "poke", "silene")
 @export var character_name: String = "Character"
-@export var display_name: String = "Character"
+@export var display_name: String = "Character" # Player-facing display name (e.g. "Arash", "Saint Silene")
+
+var character_id: String:
+	get: return id
+	set(value): id = value
 
 func get_display_name() -> String:
-	return display_name if not display_name.is_empty() else character_name
+	if not display_name.is_empty() and display_name != "Character":
+		return display_name
+	if not character_name.is_empty() and character_name != "Character":
+		return character_name
+	if not id.is_empty():
+		return CharacterRegistry.get_display_name(id)
+	return "Character"
 
 @export var team_id: int = 1:
 	set(value):
@@ -1391,8 +1402,19 @@ func load_character_data(data: CharacterData) -> void:
 	if not data:
 		return
 	character_data = data
-	character_name = data.character_name
-	display_name = data.display_name if not data.display_name.is_empty() else data.character_name
+	if not data.id.is_empty():
+		id = data.id
+	if not data.character_name.is_empty():
+		character_name = data.character_name
+	elif not data.id.is_empty() and (character_name.is_empty() or character_name == "Character"):
+		character_name = data.id
+	
+	if not data.display_name.is_empty():
+		display_name = data.display_name
+	elif not data.character_name.is_empty() and data.character_name != "Character":
+		display_name = data.character_name
+	elif not data.id.is_empty():
+		display_name = data.id.capitalize()
 	
 	# Vitals & Defense
 	base_max_health = data.max_health

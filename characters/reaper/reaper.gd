@@ -25,6 +25,8 @@ var reaper_tether_active: bool = false
 @onready var ult_visual: Node3D = get_node_or_null("UltVisual")
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "reaper"
 	var data = ReaperData.create()
 	load_character_data(data)
 

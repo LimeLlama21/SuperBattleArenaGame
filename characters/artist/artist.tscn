@@ -55,7 +55,8 @@ corner_radius_bottom_left = 4
 [node name="Artist" type="CharacterBody3D"]
 collision_layer = 2
 script = ExtResource("1_artist")
-character_name = "The Painted Sage"
+id = "artist"
+character_name = "Artist"
 display_name = "The Painted Sage"
 max_health = 200.0
 current_health = 200.0

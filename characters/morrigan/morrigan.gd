@@ -46,6 +46,8 @@ const CROWSTORM_DURATION: float = 2.0
 @onready var crow_container: Node3D = get_node_or_null("CrowContainer")
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "morrigan"
 	var data = MorriganData.create()
 	load_character_data(data)
 

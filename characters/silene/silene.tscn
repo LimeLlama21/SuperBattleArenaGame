@@ -52,6 +52,7 @@ properties/1/replication_mode = 1
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_silene")
+id = "silene"
 character_name = "The Dragon of Silene"
 display_name = "Saint Silene"
 max_health = 320.0

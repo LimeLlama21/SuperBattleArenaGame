@@ -54,6 +54,7 @@ corner_radius_bottom_left = 4
 [node name="Poke" type="CharacterBody3D" unique_id=1504492069]
 collision_layer = 2
 script = ExtResource("1_poke")
+id = "poke"
 character_name = "Poke"
 display_name = "Arash"
 max_health = 160.0

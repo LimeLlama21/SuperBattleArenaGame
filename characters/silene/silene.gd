@@ -44,6 +44,8 @@ const FIRE_BREATH_MAX_ANGLE: float = 95.0
 var _fire_mesh_instance: MeshInstance3D = null
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "silene"
 	if character_name.is_empty() or character_name == "Character":
 		character_name = "The Dragon of Silene"
 	if display_name.is_empty() or display_name == "Character":

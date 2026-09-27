@@ -35,6 +35,8 @@ const TREE_SCENE_PATH: String = "res://assets/Tree1.glb"
 const ROCK_SCENE_PATH: String = "res://assets/RockPlatform2.glb"
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "monkey"
 	var data = MonkeyKingData.create()
 	load_character_data(data)
 

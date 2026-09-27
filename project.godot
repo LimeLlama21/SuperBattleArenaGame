@@ -16,17 +16,12 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="SuperBattleArena"
 run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.7", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 SettingsManager="*res://settings_manager.gd"
-
-[display]
-
-window/size/viewport_width=2304
-window/size/viewport_height=1296
 
 [input]
 

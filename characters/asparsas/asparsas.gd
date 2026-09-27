@@ -39,11 +39,13 @@ const CRASH_RADIUS: float = 6.0
 @onready var crash_visual: Node3D = get_node_or_null("CrashVisual")
 
 func _setup_character_kit() -> void:
+	if id.is_empty():
+		id = "asparsas"
 	var data = AsparsasData.create()
 	load_character_data(data)
-	if character_name == "Asparsas" or character_name.is_empty():
-		character_name = "Urvashi"
-	if display_name == "Asparsas" or display_name.is_empty():
+	if id.is_empty():
+		id = "asparsas"
+	if display_name.is_empty() or display_name == "Asparsas" or display_name == "Character":
 		display_name = "Urvashi"
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer

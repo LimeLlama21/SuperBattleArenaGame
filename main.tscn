@@ -625,6 +625,11 @@ custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "⚔ Shattered Archipelago"
 
+[node name="SwitchMapExpanse" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "⚔ The Great Expanse"
+
 [node name="SettingsMenu" type="PanelContainer" parent="UI"]
 visible = false
 anchors_preset = 8

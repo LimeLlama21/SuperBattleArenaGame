@@ -1,0 +1,194 @@
+[gd_scene load_steps=18 format=3 uid="uid://proc_anim_demo_001"]
+
+[ext_resource type="Script" path="res://procedural_animation/procedural_anim_demo.gd" id="1_demo"]
+[ext_resource type="Script" path="res://procedural_animation/procedural_demo_player.gd" id="2_player"]
+[ext_resource type="Script" path="res://procedural_animation/procedural_locomotion_controller.gd" id="3_controller"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.18, 0.25, 0.38, 1)
+sky_horizon_color = Color(0.55, 0.65, 0.75, 1)
+ground_bottom_color = Color(0.12, 0.14, 0.18, 1)
+ground_horizon_color = Color(0.35, 0.40, 0.45, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.6, 0.65, 0.75, 1)
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.18, 0.20, 0.25, 1)
+metallic = 0.2
+roughness = 0.6
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector2(60, 60)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(60, 0.2, 60)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_platform"]
+albedo_color = Color(0.28, 0.32, 0.40, 1)
+metallic = 0.3
+roughness = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_platform1"]
+material = SubResource("StandardMaterial3D_platform")
+size = Vector3(4, 0.4, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_platform1"]
+size = Vector3(4, 0.4, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_platform2"]
+material = SubResource("StandardMaterial3D_platform")
+size = Vector3(4, 0.8, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_platform2"]
+size = Vector3(4, 0.8, 4)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.35
+height = 1.8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.08, 0.10, 0.14, 0.88)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.18, 0.55, 0.95, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="ProceduralAnimDemo" type="Node3D"]
+script = ExtResource("1_demo")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 10, 20, 10)
+shadow_enabled = true
+
+[node name="Environment" type="Node3D" parent="."]
+
+[node name="Floor" type="StaticBody3D" parent="Environment"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Environment/Floor"]
+mesh = SubResource("PlaneMesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Environment/Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Platform1" type="StaticBody3D" parent="Environment"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -6)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Environment/Platform1"]
+mesh = SubResource("BoxMesh_platform1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Environment/Platform1"]
+shape = SubResource("BoxShape3D_platform1")
+
+[node name="Platform2" type="StaticBody3D" parent="Environment"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, -11)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Environment/Platform2"]
+mesh = SubResource("BoxMesh_platform2")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Environment/Platform2"]
+shape = SubResource("BoxShape3D_platform2")
+
+[node name="DemoPlayer" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("2_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DemoPlayer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="ProceduralLocomotionController" type="Node3D" parent="DemoPlayer"]
+script = ExtResource("3_controller")
+
+[node name="CameraMount" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraMount"]
+transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, 0, 3.2, 5.2)
+current = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="UI" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="Panel" parent="CanvasLayer/UI"]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 380.0
+offset_bottom = 290.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 17
+text = "PROCEDURAL ANIMATION (GDScript)"
+
+[node name="SpeedLabel" type="Label" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+text = "Speed: 0.00 m/s"
+
+[node name="StateLabel" type="Label" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+text = "Gait State: IDLE"
+
+[node name="PhaseLabel" type="Label" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+text = "Phase L: 0.00 | Phase R: 0.50"
+
+[node name="HSeparator" type="HSeparator" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+
+[node name="SpringsButton" type="Button" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+text = "Spring Dynamics: ON"
+
+[node name="RaycastButton" type="Button" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+text = "Terrain Raycast IK: ON"
+
+[node name="Instructions" type="Label" parent="CanvasLayer/UI/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "WASD: Move | Shift: Sprint | Space: Jump"

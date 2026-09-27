@@ -1,0 +1,198 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://zones/battle_royale_zone.gd" id="1_zone"]
+[ext_resource type="Shader" path="res://zones/battle_royale_zone.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wall"]
+render_priority = 0
+shader = ExtResource("2_shader")
+shader_parameter/base_color = Color(0.12, 0.65, 1, 0.35)
+shader_parameter/rim_color = Color(0.45, 0.95, 1, 0.9)
+shader_parameter/warning_color = Color(1, 0.35, 0.1, 0.85)
+shader_parameter/rim_power = 2.2
+shader_parameter/scanline_speed = 1.5
+shader_parameter/scanline_frequency = 12.0
+shader_parameter/pulse_speed = 2.5
+shader_parameter/warning_intensity = 0.0
+shader_parameter/height_fade_range = 0.15
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_wall"]
+material = SubResource("ShaderMaterial_wall")
+top_radius = 35.0
+bottom_radius = 35.0
+height = 60.0
+radial_segments = 64
+rings = 1
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ring"]
+transparency = 1
+albedo_color = Color(0.15, 0.85, 1, 0.8)
+emission_enabled = true
+emission = Color(0.2, 0.9, 1, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="TorusMesh" id="TorusMesh_ring"]
+material = SubResource("StandardMaterial3D_ring")
+inner_radius = 34.65
+outer_radius = 35.35
+rings = 64
+ring_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_telegraph"]
+transparency = 1
+albedo_color = Color(1, 0.8, 0.2, 0.75)
+emission_enabled = true
+emission = Color(1, 0.75, 0.15, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="TorusMesh" id="TorusMesh_telegraph"]
+material = SubResource("StandardMaterial3D_telegraph")
+inner_radius = 34.7
+outer_radius = 35.3
+rings = 64
+ring_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_telegraph_center"]
+transparency = 1
+albedo_color = Color(1, 0.8, 0.2, 0.18)
+emission_enabled = true
+emission = Color(1, 0.75, 0.1, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_telegraph_center"]
+material = SubResource("StandardMaterial3D_telegraph_center")
+top_radius = 34.7
+bottom_radius = 34.7
+height = 0.08
+radial_segments = 48
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_guideline"]
+transparency = 1
+albedo_color = Color(1, 0.85, 0.25, 0.45)
+emission_enabled = true
+emission = Color(1, 0.8, 0.2, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_guideline"]
+material = SubResource("StandardMaterial3D_guideline")
+size = Vector3(0.6, 0.06, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud"]
+bg_color = Color(0.08, 0.1, 0.15, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.25, 0.6, 0.9, 0.7)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_left = 8
+corner_radius_bottom_right = 8
+expand_margin_left = 12.0
+expand_margin_top = 4.0
+expand_margin_right = 12.0
+expand_margin_bottom = 4.0
+
+[node name="BattleRoyaleZone" type="Node3D"]
+script = ExtResource("1_zone")
+
+[node name="WallMesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 28, 0)
+mesh = SubResource("CylinderMesh_wall")
+
+[node name="GroundRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+mesh = SubResource("TorusMesh_ring")
+
+[node name="TelegraphMarker" type="Node3D" parent="."]
+top_level = true
+visible = false
+
+[node name="TelegraphRing" type="MeshInstance3D" parent="TelegraphMarker"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
+mesh = SubResource("TorusMesh_telegraph")
+
+[node name="TelegraphCenter" type="MeshInstance3D" parent="TelegraphMarker"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("CylinderMesh_telegraph_center")
+
+[node name="GuideLine" type="MeshInstance3D" parent="."]
+top_level = true
+visible = false
+mesh = SubResource("BoxMesh_guideline")
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="StatusContainer" type="PanelContainer" parent="HUDLayer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -160.0
+offset_top = 18.0
+offset_right = 160.0
+offset_bottom = 54.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hud")
+
+[node name="TimerLabel" type="Label" parent="HUDLayer/StatusContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "SAFE ZONE: 01:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WarningContainer" type="VBoxContainer" parent="HUDLayer"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -180.0
+offset_right = 250.0
+offset_bottom = -100.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="WarningLabel" type="Label" parent="HUDLayer/WarningContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0.25, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 18
+text = "⚠️ OUTSIDE SAFE ZONE: TAKING DAMAGE ⚠️
+Return to ring"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ArrowIndicator" type="Control" parent="HUDLayer/WarningContainer"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ArrowLabel" type="Label" parent="HUDLayer/WarningContainer/ArrowIndicator"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -12.0
+offset_right = 20.0
+offset_bottom = 12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.2, 1)
+theme_override_font_sizes/font_size = 20
+text = "⬆"
+horizontal_alignment = 1
+vertical_alignment = 1

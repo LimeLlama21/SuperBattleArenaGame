@@ -67,6 +67,7 @@ corner_radius_bottom_left = 4
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_monkey")
+id = "monkey"
 character_name = "Monkey"
 display_name = "The Great Sage"
 max_health = 160.0

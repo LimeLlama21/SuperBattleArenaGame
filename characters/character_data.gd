@@ -3,8 +3,9 @@ extends Resource
 
 # --- Base Character Identification ---
 @export_group("Identity")
+@export var id: String = "" # Canonical identifier matching folder name & code references (e.g. "poke", "asparsas")
 @export var character_name: String = ""
-@export var display_name: String = ""
+@export var display_name: String = "" # Player-facing display name (e.g. "Arash", "Urvashi")
 @export var archetype: String = "" # e.g. "Sharpshooter", "Skirmisher", "Juggernaut", "Reaper"
 @export_multiline var description: String = ""
 
@@ -63,7 +64,18 @@ var ground_friction: float:
 @export var passive_data: Dictionary = {}
 
 func get_display_name() -> String:
-	return display_name if not display_name.is_empty() else character_name
+	if not display_name.is_empty():
+		return display_name
+	if not character_name.is_empty():
+		return character_name
+	return id.capitalize() if not id.is_empty() else "Character"
+
+func get_id() -> String:
+	if not id.is_empty():
+		return id
+	if not character_name.is_empty():
+		return character_name.to_lower()
+	return ""
 
 func get_ability_for_slot(slot_key: String) -> Variant:
 	match slot_key.to_upper():

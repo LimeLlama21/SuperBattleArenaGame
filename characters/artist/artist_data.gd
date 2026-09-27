@@ -3,7 +3,8 @@ extends RefCounted
 
 static func create() -> CharacterData:
 	var data = CharacterData.new()
-	data.character_name = "The Painted Sage"
+	data.id = "artist"
+	data.character_name = "Artist"
 	data.display_name = "The Painted Sage"
 	data.archetype = "Calligrapher"
 	data.description = "The Painted Sage, master of ink alchemy and Vancian talismans. Prepares elemental Hanzi with celestial brushstrokes and unleashes prepared magic in battle."

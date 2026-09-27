@@ -100,7 +100,8 @@ corner_radius_bottom_left = 4
 [node name="Asparsas" type="CharacterBody3D" unique_id=581126200]
 collision_layer = 2
 script = ExtResource("1_asparsas")
-character_name = "Urvashi"
+id = "asparsas"
+character_name = "Asparsas"
 display_name = "Urvashi"
 max_health = 240.0
 current_health = 240.0

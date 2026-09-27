@@ -1,0 +1,671 @@
+[gd_scene format=3 uid="uid://dmexpanse01"]
+
+[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/Tree1.glb" id="1_tree"]
+[ext_resource type="PackedScene" uid="uid://c3e0mp1yumadk" path="res://assets/RockPlatform2.glb" id="2_rock"]
+[ext_resource type="PackedScene" path="res://zones/battle_royale_zone.tscn" id="3_zone"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_Quadrant"]
+size = Vector3(110, 1, 110)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Gray"]
+albedo_color = Color(0.26, 0.29, 0.34, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="Mesh_QuarterGray"]
+material = SubResource("Mat_Gray")
+size = Vector3(110, 1, 110)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Green"]
+albedo_color = Color(0.18, 0.34, 0.22, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="Mesh_QuarterGreen"]
+material = SubResource("Mat_Green")
+size = Vector3(110, 1, 110)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Orange"]
+albedo_color = Color(0.55, 0.32, 0.16, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="Mesh_QuarterOrange"]
+material = SubResource("Mat_Orange")
+size = Vector3(110, 1, 110)
+
+[sub_resource type="StandardMaterial3D" id="Mat_Brown"]
+albedo_color = Color(0.32, 0.22, 0.16, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_Brown_High"]
+albedo_color = Color(0.40, 0.28, 0.20, 1)
+roughness = 0.75
+
+[sub_resource type="StandardMaterial3D" id="Mat_Rock_Gray"]
+albedo_color = Color(0.38, 0.42, 0.48, 1)
+metallic = 0.1
+roughness = 0.65
+
+[sub_resource type="StandardMaterial3D" id="Mat_Rock_Orange"]
+albedo_color = Color(0.68, 0.42, 0.24, 1)
+metallic = 0.05
+roughness = 0.7
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_G1"]
+size = Vector3(16, 2, 14)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_G1"]
+material = SubResource("Mat_Rock_Gray")
+size = Vector3(16, 2, 14)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_G2"]
+size = Vector3(20, 3, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_G2"]
+material = SubResource("Mat_Rock_Gray")
+size = Vector3(20, 3, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_G3"]
+size = Vector3(14, 1.6, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_G3"]
+material = SubResource("Mat_Rock_Gray")
+size = Vector3(14, 1.6, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_G4"]
+size = Vector3(18, 2.4, 18)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_G4"]
+material = SubResource("Mat_Rock_Gray")
+size = Vector3(18, 2.4, 18)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_G5"]
+size = Vector3(22, 4, 20)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_G5"]
+material = SubResource("Mat_Rock_Gray")
+size = Vector3(22, 4, 20)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_O1"]
+size = Vector3(18, 2, 14)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_O1"]
+material = SubResource("Mat_Rock_Orange")
+size = Vector3(18, 2, 14)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_O2"]
+size = Vector3(16, 3, 20)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_O2"]
+material = SubResource("Mat_Rock_Orange")
+size = Vector3(16, 3, 20)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_O3"]
+size = Vector3(18, 1.6, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_O3"]
+material = SubResource("Mat_Rock_Orange")
+size = Vector3(18, 1.6, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_O4"]
+size = Vector3(22, 2.4, 18)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_O4"]
+material = SubResource("Mat_Rock_Orange")
+size = Vector3(22, 2.4, 18)
+
+[sub_resource type="BoxShape3D" id="Shape_Rock_O5"]
+size = Vector3(24, 4.4, 22)
+
+[sub_resource type="BoxMesh" id="Mesh_Rock_O5"]
+material = SubResource("Mat_Rock_Orange")
+size = Vector3(24, 4.4, 22)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_Hub"]
+size = Vector3(26, 1, 20)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_Hub"]
+material = SubResource("Mat_Brown")
+size = Vector3(26, 1, 20)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_CenterLink"]
+size = Vector3(14, 1, 12)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_CenterLink"]
+material = SubResource("Mat_Brown")
+size = Vector3(14, 1, 12)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_East1"]
+size = Vector3(22, 1, 18)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_East1"]
+material = SubResource("Mat_Brown")
+size = Vector3(22, 1, 18)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_FarEast"]
+size = Vector3(24, 1, 20)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_FarEast"]
+material = SubResource("Mat_Brown")
+size = Vector3(24, 1, 20)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_StepN"]
+size = Vector3(8, 1, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_StepN"]
+material = SubResource("Mat_Brown")
+size = Vector3(8, 1, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_MidPlateau"]
+size = Vector3(24, 1.8, 22)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_MidPlateau"]
+material = SubResource("Mat_Brown_High")
+size = Vector3(24, 1.8, 22)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_StepPlat"]
+size = Vector3(10, 1, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_StepPlat"]
+material = SubResource("Mat_Brown")
+size = Vector3(10, 1, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_WestStep"]
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_WestStep"]
+material = SubResource("Mat_Brown")
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_SW"]
+size = Vector3(18, 1, 22)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_SW"]
+material = SubResource("Mat_Brown")
+size = Vector3(18, 1, 22)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_MidS"]
+size = Vector3(16, 1, 14)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_MidS"]
+material = SubResource("Mat_Brown")
+size = Vector3(16, 1, 14)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_Ridge"]
+size = Vector3(12, 1, 26)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_Ridge"]
+material = SubResource("Mat_Brown")
+size = Vector3(12, 1, 26)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_S1"]
+size = Vector3(22, 1, 24)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_S1"]
+material = SubResource("Mat_Brown")
+size = Vector3(22, 1, 24)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_S2"]
+size = Vector3(24, 1, 22)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_S2"]
+material = SubResource("Mat_Brown")
+size = Vector3(24, 1, 22)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_Step1"]
+size = Vector3(9, 1, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_Step1"]
+material = SubResource("Mat_Brown")
+size = Vector3(9, 1, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_Step2"]
+size = Vector3(8, 1, 9)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_Step2"]
+material = SubResource("Mat_Brown")
+size = Vector3(8, 1, 9)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_Corner"]
+size = Vector3(22, 1, 24)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_Corner"]
+material = SubResource("Mat_Brown")
+size = Vector3(22, 1, 24)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_OuterE"]
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_OuterE"]
+material = SubResource("Mat_Brown")
+size = Vector3(14, 1, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_Island_DeepS"]
+size = Vector3(18, 1, 12)
+
+[sub_resource type="BoxMesh" id="Mesh_Island_DeepS"]
+material = SubResource("Mat_Brown")
+size = Vector3(18, 1, 12)
+
+[node name="MapExpanse" type="Node3D"]
+
+[node name="Floor_Gray" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55, -0.5, -55)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor_Gray"]
+shape = SubResource("BoxShape3D_Quadrant")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor_Gray"]
+mesh = SubResource("Mesh_QuarterGray")
+
+[node name="Floor_Green" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, -0.5, -55)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor_Green"]
+shape = SubResource("BoxShape3D_Quadrant")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor_Green"]
+mesh = SubResource("Mesh_QuarterGreen")
+
+[node name="Floor_Orange" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55, -0.5, 55)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor_Orange"]
+shape = SubResource("BoxShape3D_Quadrant")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor_Orange"]
+mesh = SubResource("Mesh_QuarterOrange")
+
+[node name="Tree_1" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 20, 0, -20)
+
+[node name="Tree_2" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 35, 0, -15)
+
+[node name="Tree_3" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 15, 0, -45)
+
+[node name="Tree_4" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 45, 0, -55)
+
+[node name="Tree_5" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 0, -48)
+
+[node name="Tree_6" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 60, 0, -62)
+
+[node name="Tree_7" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(0.95, 0, 0, 0, 0.95, 0, 0, 0, 0.95, 40, 0, -68)
+
+[node name="Tree_8" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 58, 0, -42)
+
+[node name="Tree_9" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 80, 0, -25)
+
+[node name="Tree_10" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0, -50)
+
+[node name="Tree_11" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.35, 0, 0, 0, 1.35, 0, 0, 0, 1.35, 85, 0, -70)
+
+[node name="Tree_12" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.05, 0, 0, 0, 1.05, 0, 0, 0, 1.05, 65, 0, -85)
+
+[node name="Tree_13" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 30, 0, -80)
+
+[node name="Tree_14" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 90, 0, -35)
+
+[node name="Tree_15" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 25, 0, -92)
+
+[node name="Tree_16" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 50, 0, -95)
+
+[node name="Tree_17" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 78, 0, -90)
+
+[node name="Tree_18" parent="." instance=ExtResource("1_tree")]
+transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 92, 0, -82)
+
+[node name="RockPlat_Gray_1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 1, -35)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Gray_1"]
+shape = SubResource("Shape_Rock_G1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Gray_1"]
+mesh = SubResource("Mesh_Rock_G1")
+
+[node name="DecoRock" parent="RockPlat_Gray_1" instance=ExtResource("2_rock")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1, 0)
+
+[node name="RockPlat_Gray_2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -70, 1.5, -25)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Gray_2"]
+shape = SubResource("Shape_Rock_G2")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Gray_2"]
+mesh = SubResource("Mesh_Rock_G2")
+
+[node name="DecoRock" parent="RockPlat_Gray_2" instance=ExtResource("2_rock")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 1.5, 0)
+
+[node name="RockPlat_Gray_3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 0.8, -75)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Gray_3"]
+shape = SubResource("Shape_Rock_G3")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Gray_3"]
+mesh = SubResource("Mesh_Rock_G3")
+
+[node name="RockPlat_Gray_4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65, 1.2, -70)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Gray_4"]
+shape = SubResource("Shape_Rock_G4")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Gray_4"]
+mesh = SubResource("Mesh_Rock_G4")
+
+[node name="DecoRock" parent="RockPlat_Gray_4" instance=ExtResource("2_rock")]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 0, 1.2, 0)
+
+[node name="RockPlat_Gray_5" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85, 2, -85)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Gray_5"]
+shape = SubResource("Shape_Rock_G5")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Gray_5"]
+mesh = SubResource("Mesh_Rock_G5")
+
+[node name="DecoRock" parent="RockPlat_Gray_5" instance=ExtResource("2_rock")]
+transform = Transform3D(1.8, 0, 0, 0, 1.8, 0, 0, 0, 1.8, 0, 2, 0)
+
+[node name="RockPlat_Orange_1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 1, 35)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Orange_1"]
+shape = SubResource("Shape_Rock_O1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Orange_1"]
+mesh = SubResource("Mesh_Rock_O1")
+
+[node name="DecoRock" parent="RockPlat_Orange_1" instance=ExtResource("2_rock")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1, 0)
+
+[node name="RockPlat_Orange_2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72, 1.5, 28)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Orange_2"]
+shape = SubResource("Shape_Rock_O2")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Orange_2"]
+mesh = SubResource("Mesh_Rock_O2")
+
+[node name="DecoRock" parent="RockPlat_Orange_2" instance=ExtResource("2_rock")]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 0, 1.5, 0)
+
+[node name="RockPlat_Orange_3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 0.8, 70)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Orange_3"]
+shape = SubResource("Shape_Rock_O3")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Orange_3"]
+mesh = SubResource("Mesh_Rock_O3")
+
+[node name="RockPlat_Orange_4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -68, 1.2, 68)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Orange_4"]
+shape = SubResource("Shape_Rock_O4")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Orange_4"]
+mesh = SubResource("Mesh_Rock_O4")
+
+[node name="DecoRock" parent="RockPlat_Orange_4" instance=ExtResource("2_rock")]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 0, 1.2, 0)
+
+[node name="RockPlat_Orange_5" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86, 2.2, 86)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RockPlat_Orange_5"]
+shape = SubResource("Shape_Rock_O5")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RockPlat_Orange_5"]
+mesh = SubResource("Mesh_Rock_O5")
+
+[node name="DecoRock" parent="RockPlat_Orange_5" instance=ExtResource("2_rock")]
+transform = Transform3D(1.8, 0, 0, 0, 1.8, 0, 0, 0, 1.8, 0, 2.2, 0)
+
+[node name="Island_SE_Hub" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, -0.5, 12)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_Hub"]
+shape = SubResource("Shape_Island_Hub")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_Hub"]
+mesh = SubResource("Mesh_Island_Hub")
+
+[node name="Island_SE_CenterLink" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, -0.5, 8)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_CenterLink"]
+shape = SubResource("Shape_Island_CenterLink")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_CenterLink"]
+mesh = SubResource("Mesh_Island_CenterLink")
+
+[node name="Island_SE_East1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, -0.5, 14)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_East1"]
+shape = SubResource("Shape_Island_East1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_East1"]
+mesh = SubResource("Mesh_Island_East1")
+
+[node name="Island_SE_FarEast" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84, -0.5, 18)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_FarEast"]
+shape = SubResource("Shape_Island_FarEast")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_FarEast"]
+mesh = SubResource("Mesh_Island_FarEast")
+
+[node name="Island_SE_StepN" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38, -0.5, 24)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_StepN"]
+shape = SubResource("Shape_Island_StepN")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_StepN"]
+mesh = SubResource("Mesh_Island_StepN")
+
+[node name="Island_SE_MidPlateau" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54, 0.4, 46)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_MidPlateau"]
+shape = SubResource("Shape_Island_MidPlateau")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_MidPlateau"]
+mesh = SubResource("Mesh_Island_MidPlateau")
+
+[node name="Island_SE_StepPlat" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54, 0, 31)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_StepPlat"]
+shape = SubResource("Shape_Island_StepPlat")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_StepPlat"]
+mesh = SubResource("Mesh_Island_StepPlat")
+
+[node name="Island_SE_WestStep" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -0.5, 34)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_WestStep"]
+shape = SubResource("Shape_Island_WestStep")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_WestStep"]
+mesh = SubResource("Mesh_Island_WestStep")
+
+[node name="Island_SE_SW" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -0.5, 60)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_SW"]
+shape = SubResource("Shape_Island_SW")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_SW"]
+mesh = SubResource("Mesh_Island_SW")
+
+[node name="Island_SE_MidS" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38, -0.5, 52)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_MidS"]
+shape = SubResource("Shape_Island_MidS")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_MidS"]
+mesh = SubResource("Mesh_Island_MidS")
+
+[node name="Island_SE_Ridge" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 80, -0.5, 48)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_Ridge"]
+shape = SubResource("Shape_Island_Ridge")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_Ridge"]
+mesh = SubResource("Mesh_Island_Ridge")
+
+[node name="Island_SE_S1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, -0.5, 86)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_S1"]
+shape = SubResource("Shape_Island_S1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_S1"]
+mesh = SubResource("Mesh_Island_S1")
+
+[node name="Island_SE_S2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, -0.5, 84)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_S2"]
+shape = SubResource("Shape_Island_S2")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_S2"]
+mesh = SubResource("Mesh_Island_S2")
+
+[node name="Island_SE_Step1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38, -0.5, 74)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_Step1"]
+shape = SubResource("Shape_Island_Step1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_Step1"]
+mesh = SubResource("Mesh_Island_Step1")
+
+[node name="Island_SE_Step2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, -0.5, 70)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_Step2"]
+shape = SubResource("Shape_Island_Step2")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_Step2"]
+mesh = SubResource("Mesh_Island_Step2")
+
+[node name="Island_SE_Corner" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92, -0.5, 88)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_Corner"]
+shape = SubResource("Shape_Island_Corner")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_Corner"]
+mesh = SubResource("Mesh_Island_Corner")
+
+[node name="Island_SE_OuterE" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98, -0.5, 50)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_OuterE"]
+shape = SubResource("Shape_Island_OuterE")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_OuterE"]
+mesh = SubResource("Mesh_Island_OuterE")
+
+[node name="Island_SE_DeepS" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38, -0.5, 102)
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Island_SE_DeepS"]
+shape = SubResource("Shape_Island_DeepS")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Island_SE_DeepS"]
+mesh = SubResource("Mesh_Island_DeepS")
+
+[node name="BattleRoyaleZone" parent="." instance=ExtResource("3_zone")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+

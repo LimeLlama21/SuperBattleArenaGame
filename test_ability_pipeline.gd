@@ -1625,6 +1625,7 @@ func test_data_driven_character_pipeline() -> void:
 	player.load_character_data(ranger_data)
 
 	# 3. Verify Stats were applied by player_base.gd
+	assert(player.id == "ranger", "Player id must be 'ranger'")
 	assert(player.character_name == "Ranger", "Character name must be Ranger")
 	assert(player.display_name == "Swift Ranger", "Display name must be Swift Ranger")
 	assert(player.max_health == 190.0, "Max health must be 190.0")
@@ -1651,6 +1652,7 @@ func test_data_driven_character_pipeline() -> void:
 	factory_player.name = "2"
 	if not factory_player.is_node_ready():
 		factory_player._ready()
+	assert(factory_player.id == "ranger", "Factory player id must be 'ranger'")
 	assert(factory_player.character_name == "Ranger", "Factory player must have Ranger stats")
 	assert(factory_player.abilities.has("LMB"), "Factory player must have slotted abilities")
 	print("  ✓ CharacterRegistry.create_player_instance verified.")
@@ -1663,6 +1665,7 @@ func test_data_driven_character_pipeline() -> void:
 	assert(CharacterRegistry.get_display_name("silene") == "Saint Silene", "Display name must be Saint Silene")
 	var silene_data = CharacterRegistry.get_character_data("silene")
 	assert(silene_data != null, "Silene data must be retrievable")
+	assert(silene_data.id == "silene", "Silene data id must be 'silene'")
 	assert(silene_data.character_name == "The Dragon of Silene", "Character name must be The Dragon of Silene")
 	assert(silene_data.display_name == "Saint Silene", "Display name must match")
 	var silene_instance = CharacterRegistry.create_player_instance("silene")
@@ -1671,6 +1674,7 @@ func test_data_driven_character_pipeline() -> void:
 	silene_instance.name = "silene_test"
 	if not silene_instance.is_node_ready():
 		silene_instance._ready()
+	assert(silene_instance.id == "silene", "Silene instance id must be 'silene'")
 	assert(silene_instance.character_name == "The Dragon of Silene", "Instance character_name must be The Dragon of Silene")
 	assert(silene_instance.display_name == "Saint Silene", "Instance display_name must be Saint Silene")
 	silene_instance.queue_free()
@@ -1681,7 +1685,7 @@ func test_data_driven_character_pipeline() -> void:
 	assert(CharacterRegistry.get_display_name("asparsas") == "Urvashi", "Display name for asparsas must be Urvashi")
 	assert(not CharacterRegistry.has_character("dive"), "CharacterRegistry must not have obsolete 'dive' key")
 	var urvashi_data = CharacterRegistry.get_character_data("asparsas")
-	assert(urvashi_data != null, "Urvashi data must be retrievable")
+	assert(urvashi_data.id == "asparsas", "Urvashi data id must be 'asparsas'")
 	assert(urvashi_data.display_name == "Urvashi", "Urvashi data display_name must be Urvashi")
 	var urvashi_instance = CharacterRegistry.create_player_instance("asparsas")
 	assert(urvashi_instance != null, "Urvashi instance must be created")
@@ -1689,9 +1693,47 @@ func test_data_driven_character_pipeline() -> void:
 	urvashi_instance.name = "urvashi_test"
 	if not urvashi_instance.is_node_ready():
 		urvashi_instance._ready()
+	assert(urvashi_instance.id == "asparsas", "Instance id must be 'asparsas'")
 	assert(urvashi_instance.display_name == "Urvashi", "Instance display_name must be Urvashi")
 	urvashi_instance.queue_free()
 	print("  ✓ Urvashi (asparsas) registration and display name verified.")
+
+	# 8. Verify all 8 built-in characters have id matching folder name & display_name presented to players
+	var canonical_expectations = {
+		"poke": "Arash",
+		"crush": "Heracles",
+		"asparsas": "Urvashi",
+		"reaper": "Keres",
+		"morrigan": "Morrigan",
+		"monkey": "The Great Sage",
+		"silene": "Saint Silene",
+		"artist": "The Painted Sage"
+	}
+	for expected_id in canonical_expectations:
+		var expected_display = canonical_expectations[expected_id]
+		assert(CharacterRegistry.has_character(expected_id), "CharacterRegistry must have %s" % expected_id)
+		assert(CharacterRegistry.get_display_name(expected_id) == expected_display, "Display name for %s must be %s" % [expected_id, expected_display])
+		var c_data = CharacterRegistry.get_character_data(expected_id)
+		assert(c_data != null, "Character data for %s must not be null" % expected_id)
+		assert(c_data.id == expected_id, "Character data id must be '%s', got '%s'" % [expected_id, c_data.id])
+		assert(c_data.display_name == expected_display, "Character data display_name must be '%s', got '%s'" % [expected_display, c_data.display_name])
+		var c_inst = CharacterRegistry.create_player_instance(expected_id)
+		assert(c_inst != null, "Character instance for %s must not be null" % expected_id)
+		assert(c_inst.id == expected_id, "Character instance id must be '%s', got '%s'" % [expected_id, c_inst.id])
+		assert(c_inst.display_name == expected_display, "Character instance display_name must be '%s', got '%s'" % [expected_display, c_inst.display_name])
+		c_inst.queue_free()
+	print("  ✓ All 8 canonical characters verified with matching id (folder name) and player-facing display_name.")
+
+	# 9. Verify EnabledCharacters list and integration
+	var EnabledCharsClass = load("res://characters/enabled_characters.gd")
+	assert(EnabledCharsClass != null, "EnabledCharacters must load successfully")
+	var enabled_chars = EnabledCharsClass.get_enabled_characters()
+	assert(enabled_chars.size() == 8, "Expected 8 enabled characters, got %d" % enabled_chars.size())
+	for c_id in canonical_expectations:
+		assert(EnabledCharsClass.is_character_enabled(c_id), "Character %s must be enabled" % c_id)
+		assert(CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report %s as enabled" % c_id)
+	assert(not EnabledCharsClass.is_character_enabled("fake_character"), "Fake character must not be enabled")
+	print("  ✓ Enabled characters list verified (all %d characters selectable)." % enabled_chars.size())
 
 	print("✓ Data-Driven Character Pipeline verified successfully.")
 
