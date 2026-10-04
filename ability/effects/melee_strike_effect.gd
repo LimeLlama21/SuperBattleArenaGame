@@ -23,9 +23,10 @@ func execute_effect_server(caster: Node, origin: Vector3, direction: Vector3, _t
 	}
 	
 	for target in targets:
+		var target_hit_data = hit_data.duplicate()
 		if is_instance_valid(caster) and caster.has_method("on_melee_strike_hit"):
-			caster.on_melee_strike_hit(target, hit_data)
-		fire_trigger("OnHitEnemy", caster, target, hit_data)
+			caster.on_melee_strike_hit(target, target_hit_data)
+		fire_trigger("OnHitEnemy", caster, target, target_hit_data)
 
 func execute_effect_client(caster: Node, origin: Vector3, direction: Vector3, target_pos: Vector3, _charge_ratio: float = 0.0) -> void:
 	if not is_instance_valid(caster):
@@ -80,6 +81,10 @@ func _spawn_melee_attack_visual(caster: Node, origin: Vector3, direction: Vector
 			_play_scythe_spin_visual(caster, radius, 3.2, Color(0.85, 0.15, 0.45, 0.95), Color(0.9, 0.2, 0.5, 1.0) * 5.0)
 		"morrigan_banshee_cry":
 			_play_sonic_shriek_visual(caster, radius, angle_deg, facing, Color(0.75, 0.1, 0.9, 0.9), Color(0.8, 0.2, 1.0, 1.0) * 4.5)
+		"cleo_spell_1":
+			_play_crescent_slash_visual(caster, radius, angle_deg, facing, Color(0.2, 0.85, 1.0, 0.95), Color(0.15, 0.9, 1.0, 1.0) * 5.0)
+		"cleo_rmb", "cleo_spell_2":
+			_play_scythe_spin_visual(caster, radius, radius * 0.45, Color(0.2, 0.85, 1.0, 0.95), Color(0.15, 0.9, 1.0, 1.0) * 5.0)
 		_:
 			var is_full_circle = (hitbox_type == 6 or (hitbox_instance and "shape_type" in hitbox_instance and hitbox_instance.shape_type in [AbilityPipeline.HitboxShape.CIRCLE, AbilityPipeline.HitboxShape.CYLINDER])) and (not hitbox_instance or not ("angle_deg" in hitbox_instance) or hitbox_instance.angle_deg >= 360.0)
 			if is_full_circle:

@@ -4,6 +4,9 @@
 [ext_resource type="Script" path="res://ability/ability_slot.gd" id="2_ability_slot"]
 [ext_resource type="PackedScene" path="res://player/player_hud.tscn" id="3_player_hud"]
 [ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" path="res://ability/effects/channel_effect.tscn" id="ext_eff_channel"]
+[ext_resource type="PackedScene" path="res://ability/ability.tscn" id="ext_eff_ability"]
+[ext_resource type="PackedScene" path="res://ability/effects/melee_strike_effect.tscn" id="ext_eff_melee"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.35
@@ -26,6 +29,63 @@ albedo_color = Color(0.95, 0.8, 0.2, 1)
 material = SubResource("StandardMaterial3D_nose")
 size = Vector3(0.15, 0.15, 0.45)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vac_body"]
+albedo_color = Color(0.2, 0.7, 0.85, 1)
+metallic = 0.5
+roughness = 0.3
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_vac_canister"]
+material = SubResource("StandardMaterial3D_vac_body")
+top_radius = 0.14
+bottom_radius = 0.14
+height = 0.45
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vac_gold"]
+albedo_color = Color(0.95, 0.8, 0.2, 1)
+metallic = 0.6
+roughness = 0.25
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_vac_band"]
+material = SubResource("StandardMaterial3D_vac_gold")
+top_radius = 0.145
+bottom_radius = 0.145
+height = 0.08
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_vac_hose"]
+material = SubResource("StandardMaterial3D_vac_gold")
+top_radius = 0.045
+bottom_radius = 0.045
+height = 0.25
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vac_chrome"]
+albedo_color = Color(0.85, 0.88, 0.92, 1)
+metallic = 0.85
+roughness = 0.15
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_vac_wand"]
+material = SubResource("StandardMaterial3D_vac_chrome")
+top_radius = 0.035
+bottom_radius = 0.035
+height = 0.6
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vac_nozzle"]
+albedo_color = Color(0.12, 0.15, 0.2, 1)
+metallic = 0.4
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_vac_nozzle"]
+material = SubResource("StandardMaterial3D_vac_nozzle")
+size = Vector3(0.52, 0.12, 0.22)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vac_vortex"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.3, 0.9, 1, 0.85)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vac_vortex"]
+material = SubResource("StandardMaterial3D_vac_vortex")
+size = Vector3(0.46, 0.08, 0.05)
+
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_1"]
 properties/0/path = NodePath(".:position")
 properties/0/spawn = true
@@ -36,6 +96,9 @@ properties/1/replication_mode = 1
 properties/2/path = NodePath(".:current_health")
 properties/2/spawn = true
 properties/2/replication_mode = 2
+properties/3/path = NodePath(".:is_suction_active")
+properties/3/spawn = true
+properties/3/replication_mode = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 0.8)
@@ -73,6 +136,34 @@ mesh = SubResource("CapsuleMesh_1")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, -0.35)
 mesh = SubResource("BoxMesh_nose")
 
+[node name="VacuumCleaner" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, 0.75, -0.35)
+visible = false
+
+[node name="Canister" type="MeshInstance3D" parent="VacuumCleaner"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0)
+mesh = SubResource("CylinderMesh_vac_canister")
+
+[node name="CanisterBand" type="MeshInstance3D" parent="VacuumCleaner"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0)
+mesh = SubResource("CylinderMesh_vac_band")
+
+[node name="Hose" type="MeshInstance3D" parent="VacuumCleaner"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -0.3)
+mesh = SubResource("CylinderMesh_vac_hose")
+
+[node name="Wand" type="MeshInstance3D" parent="VacuumCleaner"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, -0.15, -0.55)
+mesh = SubResource("CylinderMesh_vac_wand")
+
+[node name="SuctionNozzle" type="MeshInstance3D" parent="VacuumCleaner"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, -0.9)
+mesh = SubResource("BoxMesh_vac_nozzle")
+
+[node name="NozzleVortex" type="MeshInstance3D" parent="VacuumCleaner"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, -0.96)
+mesh = SubResource("BoxMesh_vac_vortex")
+
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 17, 9.5)
 
@@ -105,6 +196,38 @@ no_depth_test = true
 
 [node name="Abilities" type="Node" parent="."]
 
+[node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "LMB"
+ability_id = "cleo_spell_1"
+ability_name = "Spell 1"
+icon_symbol = "✨"
+description = "Semicircle strike with low base damage that scales with relative velocity."
+cooldown = 0.4
+cast_on_press = true
+windup_time = 0.0
+hitbox_type = 1
+hitbox_radius = 4.0
+hitbox_angle_deg = 180.0
+hitbox_height = 2.4
+damage_amount = 12.0
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
+slot_key = "RMB"
+ability_id = "cleo_rmb"
+ability_name = "Spell 2"
+icon_symbol = "💫"
+description = "A delayed full-circle spinning sweep that deals moderate damage and slows enemies."
+cooldown = 4.0
+cast_on_press = true
+windup_time = 2.29
+hitbox_type = 6
+hitbox_radius = 4.5
+hitbox_angle_deg = 360.0
+hitbox_height = 2.5
+damage_amount = 35.0
+slow_duration = 2.5
+slow_intensity = 0.35
+
 [node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
 slot_key = "SHIFT"
 ability_id = "cleo_dash"
@@ -113,3 +236,37 @@ icon_symbol = "💨"
 description = "Swift hoverboard burst dash."
 cooldown = 4.0
 impulse = 26.0
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_eff_ability")]
+slot_key = "Q"
+ability_id = "cleo_spell_2"
+ability_name = "Spell 2"
+icon_symbol = "💫"
+description = "Cleo's second spell."
+cooldown = 2.0
+cast_on_press = true
+
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_ability")]
+slot_key = "E"
+ability_id = "cleo_spell_3"
+ability_name = "Spell 3"
+icon_symbol = "🚀"
+description = "Continuous hover boost mode that increases normal movement acceleration and ms cap by 50% while active."
+cooldown = 0.0
+cast_on_press = false
+
+[node name="R" parent="Abilities" instance=ExtResource("ext_eff_channel")]
+slot_key = "R"
+ability_id = "cleo_maximum_suction"
+ability_name = "Maximum Suction"
+icon_symbol = "🌪️"
+description = "Cleo wields her vacuum cleaner and pulls enemies in in a large area in front of her with acceleration greater than base movement speed."
+cooldown = 30.0
+cast_on_press = false
+duration = 3.5
+channel_duration = 3.5
+hitbox_type = 1
+hitbox_radius = 14.0
+hitbox_angle_deg = 80.0
+hitbox_height = 3.5
+action_type = 2

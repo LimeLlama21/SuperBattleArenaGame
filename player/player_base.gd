@@ -985,6 +985,7 @@ func _update_death_state(dead: bool) -> void:
 		velocity = Vector3.ZERO
 		knockback_velocity = Vector3.ZERO
 		knockback_wall_stun = 0.0
+		external_velocity = Vector3.ZERO
 		if is_local_player() or name == "1":
 			if spectator_panel and not in_training:
 				spectator_panel.visible = true
@@ -1055,6 +1056,7 @@ func sync_respawn(spawn_pos: Vector3) -> void:
 	velocity = Vector3.ZERO
 	knockback_velocity = Vector3.ZERO
 	knockback_wall_stun = 0.0
+	external_velocity = Vector3.ZERO
 	spectate_target = null
 	spectate_index = 0
 	respawn_countdown = 0.0

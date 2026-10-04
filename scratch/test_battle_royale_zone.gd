@@ -12,6 +12,7 @@ func _init() -> void:
 	test_damage_over_time_outside_ring(result_lines)
 	test_constant_size_preservation(result_lines)
 	test_main_mode_restriction(result_lines)
+	test_zone_stays_strictly_on_map(result_lines)
 	
 	result_lines.append("=== All Battle Royale Zone Tests Passed Successfully! ===")
 	
@@ -176,6 +177,9 @@ func test_main_mode_restriction(res: Array[String]) -> void:
 	var tdm_mode = GameModes.get_mode("tdm")
 	var dm_mode = GameModes.get_mode("dm")
 	var bo5_mode = GameModes.get_mode("bo5")
+	assert(tdm_mode.has_zone == true, "TDM (main mode) must have has_zone == true")
+	assert(dm_mode.has_zone == false, "Deathmatch (FFA) must have has_zone == false")
+	assert(bo5_mode.has_zone == false, "Best of Five must have has_zone == false")
 	assert(tdm_mode.has_battle_royale_zone == true, "TDM (main mode) must have has_battle_royale_zone == true")
 	assert(dm_mode.has_battle_royale_zone == false, "Deathmatch (FFA) must have has_battle_royale_zone == false")
 	assert(bo5_mode.has_battle_royale_zone == false, "Best of Five must have has_battle_royale_zone == false")
@@ -199,6 +203,12 @@ func test_main_mode_restriction(res: Array[String]) -> void:
 	assert(zone.current_state == BattleRoyaleZone.State.INACTIVE, "Zone state must be INACTIVE in non-main mode ('dm')")
 	assert(zone.is_physics_processing() == false, "Zone physics processing must be disabled in non-main mode ('dm')")
 	
+	# Test in Best of Five mode ("bo5") -> Should also be deactivated
+	main_mock.set_meta("game_mode", "bo5")
+	zone.evaluate_mode_activity()
+	assert(zone.visible == false, "Zone must be invisible in non-main mode ('bo5')")
+	assert(zone.current_state == BattleRoyaleZone.State.INACTIVE, "Zone state must be INACTIVE in non-main mode ('bo5')")
+	
 	# Test in Training mode -> Should be deactivated even if mode is tdm
 	main_mock.set_meta("game_mode", "tdm")
 	main_mock.set_meta("is_training_mode", true)
@@ -217,3 +227,70 @@ func test_main_mode_restriction(res: Array[String]) -> void:
 	zone.queue_free()
 	main_mock.queue_free()
 	res.append("  -> Main game mode restriction verified!")
+
+func test_zone_stays_strictly_on_map(res: Array[String]) -> void:
+	res.append("Testing that safe zone circle ALWAYS stays strictly on the map (100 cycles per arena)...")
+	var zone_scene = load("res://zones/battle_royale_zone.tscn")
+
+	# Test 1: Colosseum Map (Bounds: -34 to +34, radius 17.5)
+	var colosseum_zone = zone_scene.instantiate() as BattleRoyaleZone
+	colosseum_zone.auto_detect_bounds = false
+	colosseum_zone.map_bounds_min = Vector2(-34.0, -34.0)
+	colosseum_zone.map_bounds_max = Vector2(34.0, 34.0)
+	colosseum_zone.zone_radius = 17.5
+	colosseum_zone.min_relocation_distance = 12.0
+	colosseum_zone.max_relocation_distance = 24.0
+	root.add_child(colosseum_zone)
+	colosseum_zone.start_zone()
+
+	for cycle in range(100):
+		var next_p = colosseum_zone._calculate_next_zone_position()
+		# Check entire circle (center ± radius) stays within map bounds
+		var left_x = next_p.x - colosseum_zone.zone_radius
+		var right_x = next_p.x + colosseum_zone.zone_radius
+		var top_z = next_p.z - colosseum_zone.zone_radius
+		var bot_z = next_p.z + colosseum_zone.zone_radius
+		assert(left_x >= colosseum_zone.map_bounds_min.x - 0.01, "Colosseum left edge %.2f < min_x %.2f" % [left_x, colosseum_zone.map_bounds_min.x])
+		assert(right_x <= colosseum_zone.map_bounds_max.x + 0.01, "Colosseum right edge %.2f > max_x %.2f" % [right_x, colosseum_zone.map_bounds_max.x])
+		assert(top_z >= colosseum_zone.map_bounds_min.y - 0.01, "Colosseum top edge %.2f < min_z %.2f" % [top_z, colosseum_zone.map_bounds_min.y])
+		assert(bot_z <= colosseum_zone.map_bounds_max.y + 0.01, "Colosseum bot edge %.2f > max_z %.2f" % [bot_z, colosseum_zone.map_bounds_max.y])
+		
+		# Test travel path interpolation as well
+		for step in range(11):
+			var t = float(step) / 10.0
+			var interp = colosseum_zone.clamp_center_to_bounds(colosseum_zone.current_center.lerp(next_p, t))
+			assert(interp.x - colosseum_zone.zone_radius >= colosseum_zone.map_bounds_min.x - 0.01, "Travel path off map left")
+			assert(interp.x + colosseum_zone.zone_radius <= colosseum_zone.map_bounds_max.x + 0.01, "Travel path off map right")
+			assert(interp.z - colosseum_zone.zone_radius >= colosseum_zone.map_bounds_min.y - 0.01, "Travel path off map top")
+			assert(interp.z + colosseum_zone.zone_radius <= colosseum_zone.map_bounds_max.y + 0.01, "Travel path off map bot")
+
+		colosseum_zone.current_center = next_p
+		colosseum_zone.set_zone_position(next_p)
+	colosseum_zone.queue_free()
+
+	# Test 2: The Great Expanse (Bounds: -105 to +105, radius 35.0)
+	var expanse_zone = zone_scene.instantiate() as BattleRoyaleZone
+	expanse_zone.auto_detect_bounds = false
+	expanse_zone.map_bounds_min = Vector2(-105.0, -105.0)
+	expanse_zone.map_bounds_max = Vector2(105.0, 105.0)
+	expanse_zone.zone_radius = 35.0
+	expanse_zone.min_relocation_distance = 45.0
+	expanse_zone.max_relocation_distance = 85.0
+	root.add_child(expanse_zone)
+	expanse_zone.start_zone()
+
+	for cycle in range(100):
+		var next_p = expanse_zone._calculate_next_zone_position()
+		var left_x = next_p.x - expanse_zone.zone_radius
+		var right_x = next_p.x + expanse_zone.zone_radius
+		var top_z = next_p.z - expanse_zone.zone_radius
+		var bot_z = next_p.z + expanse_zone.zone_radius
+		assert(left_x >= expanse_zone.map_bounds_min.x - 0.01, "Expanse left edge %.2f < min_x %.2f" % [left_x, expanse_zone.map_bounds_min.x])
+		assert(right_x <= expanse_zone.map_bounds_max.x + 0.01, "Expanse right edge %.2f > max_x %.2f" % [right_x, expanse_zone.map_bounds_max.x])
+		assert(top_z >= expanse_zone.map_bounds_min.y - 0.01, "Expanse top edge %.2f < min_z %.2f" % [top_z, expanse_zone.map_bounds_min.y])
+		assert(bot_z <= expanse_zone.map_bounds_max.y + 0.01, "Expanse bot edge %.2f > max_z %.2f" % [bot_z, expanse_zone.map_bounds_max.y])
+		expanse_zone.current_center = next_p
+		expanse_zone.set_zone_position(next_p)
+	expanse_zone.queue_free()
+
+	res.append("  -> Zone strictly stayed on map across all 200 relocation cycles and movement paths!")

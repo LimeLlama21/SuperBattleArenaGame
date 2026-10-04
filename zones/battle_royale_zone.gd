@@ -154,6 +154,10 @@ func is_main_mode_active() -> bool:
 		current_mode = main_node.get_meta("game_mode")
 	if current_mode == null:
 		return true
+	if GameModes.is_valid_mode(str(current_mode)):
+		var mode_obj = GameModes.get_mode(str(current_mode))
+		if mode_obj:
+			return mode_obj.has_zone if "has_zone" in mode_obj else mode_obj.has_battle_royale_zone
 	return str(current_mode) == main_game_mode_id
 
 ## Deactivate the zone completely (hidden, no damage ticks, inactive state)
@@ -181,6 +185,8 @@ func activate_zone() -> void:
 
 ## Re-evaluate activity state based on current game mode
 func evaluate_mode_activity() -> void:
+	if auto_detect_bounds:
+		_detect_arena_bounds()
 	if not only_active_in_main_mode:
 		activate_zone()
 		return
@@ -190,15 +196,16 @@ func evaluate_mode_activity() -> void:
 		deactivate_zone()
 
 func _ready() -> void:
-	current_center = get_zone_position()
-	start_position = get_zone_position()
-	target_position = get_zone_position()
+	if auto_detect_bounds:
+		_detect_arena_bounds()
+	
+	current_center = clamp_center_to_bounds(get_zone_position())
+	set_zone_position(current_center)
+	start_position = current_center
+	target_position = current_center
 	
 	_setup_visual_components()
 	_update_geometry()
-	
-	if auto_detect_bounds:
-		_detect_arena_bounds()
 	
 	add_to_group("battle_royale_zone")
 	
@@ -285,35 +292,114 @@ func _update_geometry() -> void:
 		t_torus.ring_segments = 8
 		telegraph_ring.position.y = 0.15
 
-## Automatically adjust map bounds based on active map
+## Automatically adjust map bounds, safe zone radius, and relocation constraints based on active map
 func _detect_arena_bounds() -> void:
-	var main_node = get_tree().root.get_node_or_null("Main")
+	var main_node: Node = null
+	if is_inside_tree() and get_tree() and get_tree().root:
+		main_node = get_tree().root.get_node_or_null("Main")
 	if not main_node:
-		return
-	var arena_node = main_node.get_node_or_null("Arena")
-	if not arena_node:
-		return
-	
-	# Check if any active map is visible
-	for child in arena_node.get_children():
-		if child is Node3D and child.visible:
-			var m_name = child.name.to_lower()
-			if "expanse" in m_name:
-				map_bounds_min = Vector2(-95.0, -95.0)
-				map_bounds_max = Vector2(95.0, 95.0)
-				min_relocation_distance = 55.0
-				max_relocation_distance = 125.0
-			elif "chasm" in m_name:
-				map_bounds_min = Vector2(-60.0, -60.0)
-				map_bounds_max = Vector2(60.0, 60.0)
-				min_relocation_distance = 40.0
-				max_relocation_distance = 85.0
-			elif "colosseum" in m_name:
-				map_bounds_min = Vector2(-30.0, -30.0)
-				map_bounds_max = Vector2(30.0, 30.0)
-				min_relocation_distance = 25.0
-				max_relocation_distance = 45.0
+		var curr = get_parent()
+		while curr:
+			if curr.name == "Main" or curr.get("game_mode") != null or curr.has_meta("game_mode"):
+				main_node = curr
+				break
+			curr = curr.get_parent()
+
+	var active_map_name: String = ""
+	var map_id: int = -999
+
+	if main_node and "current_map_id" in main_node:
+		map_id = int(main_node.current_map_id)
+
+	# Check parent hierarchy in case zone is embedded inside a map scene
+	var p = get_parent()
+	while p:
+		var p_name = p.name.to_lower()
+		if "expanse" in p_name or "chasm" in p_name or "island" in p_name or "colosseum" in p_name or "defaultmap" in p_name:
+			active_map_name = p_name
 			break
+		p = p.get_parent()
+
+	# If not found from parent, inspect Arena children under main_node
+	if active_map_name == "" and main_node:
+		var arena_node = main_node.get_node_or_null("Arena")
+		if arena_node:
+			for child in arena_node.get_children():
+				if child is Node3D and child.visible:
+					active_map_name = child.name.to_lower()
+					break
+
+	if map_id == 3 or "expanse" in active_map_name:
+		map_bounds_min = Vector2(-105.0, -105.0)
+		map_bounds_max = Vector2(105.0, 105.0)
+		zone_radius = 35.0
+		min_relocation_distance = 45.0
+		max_relocation_distance = 85.0
+	elif map_id == 1 or "chasm" in active_map_name:
+		map_bounds_min = Vector2(-34.0, -33.0)
+		map_bounds_max = Vector2(34.0, 33.0)
+		zone_radius = 17.5
+		min_relocation_distance = 12.0
+		max_relocation_distance = 24.0
+	elif map_id == 2 or "island" in active_map_name or "archipelago" in active_map_name:
+		map_bounds_min = Vector2(-34.0, -33.0)
+		map_bounds_max = Vector2(34.0, 33.0)
+		zone_radius = 17.5
+		min_relocation_distance = 12.0
+		max_relocation_distance = 24.0
+	elif map_id == 0 or "colosseum" in active_map_name or "defaultmap" in active_map_name:
+		map_bounds_min = Vector2(-34.0, -34.0)
+		map_bounds_max = Vector2(34.0, 34.0)
+		zone_radius = 17.5
+		min_relocation_distance = 12.0
+		max_relocation_distance = 24.0
+	elif map_id == -1 or "training" in active_map_name:
+		map_bounds_min = Vector2(-15.0, -15.0)
+		map_bounds_max = Vector2(15.0, 15.0)
+		zone_radius = 7.0
+		min_relocation_distance = 4.0
+		max_relocation_distance = 8.0
+
+	_update_geometry()
+
+## Computes the effective center bounds ensuring the entire zone circle (center ± zone_radius)
+## is strictly contained within [map_bounds_min, map_bounds_max].
+func get_effective_bounds() -> Dictionary:
+	var bounds_min = map_bounds_min
+	var bounds_max = map_bounds_max
+	
+	var span_x = bounds_max.x - bounds_min.x
+	var span_y = bounds_max.y - bounds_min.y
+	var max_allowed_radius = min(span_x, span_y) * 0.48
+	if max_allowed_radius > 1.0 and zone_radius > max_allowed_radius:
+		zone_radius = max_allowed_radius
+	
+	# Margin equals full zone_radius so that for all theta: center + radius*(cos,sin) is on the map
+	var margin = zone_radius
+	var effective_min = bounds_min + Vector2(margin, margin)
+	var effective_max = bounds_max - Vector2(margin, margin)
+	
+	if effective_min.x > effective_max.x:
+		var mid_x = (bounds_min.x + bounds_max.x) * 0.5
+		effective_min.x = mid_x
+		effective_max.x = mid_x
+	if effective_min.y > effective_max.y:
+		var mid_y = (bounds_min.y + bounds_max.y) * 0.5
+		effective_min.y = mid_y
+		effective_max.y = mid_y
+		
+	return {"min": effective_min, "max": effective_max}
+
+## Clamp any position so that the resulting zone circle stays completely on the map
+func clamp_center_to_bounds(pos: Vector3) -> Vector3:
+	var eff = get_effective_bounds()
+	var eff_min: Vector2 = eff["min"]
+	var eff_max: Vector2 = eff["max"]
+	return Vector3(
+		clamp(pos.x, eff_min.x, eff_max.x),
+		pos.y,
+		clamp(pos.z, eff_min.y, eff_max.y)
+	)
 
 # ==============================================================================
 # STATE MACHINE IMPLEMENTATION
@@ -321,11 +407,14 @@ func _detect_arena_bounds() -> void:
 
 ## Start the battle royale zone state machine
 func start_zone() -> void:
+	if auto_detect_bounds:
+		_detect_arena_bounds()
 	is_first_cycle = true
 	relocation_cycle_count = 0
-	current_center = get_zone_position()
-	start_position = get_zone_position()
-	target_position = get_zone_position()
+	current_center = clamp_center_to_bounds(get_zone_position())
+	set_zone_position(current_center)
+	start_position = current_center
+	target_position = current_center
 	change_state(State.WAITING)
 
 ## Transition to a new state with explicit exit/enter handlers
@@ -407,9 +496,10 @@ func _enter_state(state: State) -> void:
 func _exit_state(state: State) -> void:
 	match state:
 		State.MOVING:
-			# Snap to exact destination upon completing movement
-			set_zone_position(target_position)
-			current_center = target_position
+			# Snap to exact destination upon completing movement, safely clamped to bounds
+			var final_pos = clamp_center_to_bounds(target_position)
+			set_zone_position(final_pos)
+			current_center = final_pos
 			movement_completed.emit(get_zone_position())
 		State.WARNING:
 			pass
@@ -458,7 +548,8 @@ func _update_state(delta: float) -> void:
 			
 			# Smooth cubic S-curve easing for graceful acceleration and deceleration
 			var eased_t = smoothstep(0.0, 1.0, progress)
-			set_zone_position(start_position.lerp(target_position, eased_t))
+			var interp_pos = start_position.lerp(target_position, eased_t)
+			set_zone_position(clamp_center_to_bounds(interp_pos))
 			current_center = get_zone_position()
 			
 			# Update guide line between current zone and destination
@@ -472,40 +563,41 @@ func _update_state(delta: float) -> void:
 # ==============================================================================
 
 ## Calculate the next zone location ensuring the minimum distance constraint is strictly met
+## AND the safe zone circle is 100% contained within the map boundaries.
 func _calculate_next_zone_position() -> Vector3:
+	var eff = get_effective_bounds()
+	var effective_min: Vector2 = eff["min"]
+	var effective_max: Vector2 = eff["max"]
+	
 	var current_xz = Vector2(current_center.x, current_center.z)
-	var bounds_min = map_bounds_min
-	var bounds_max = map_bounds_max
+	current_xz.x = clamp(current_xz.x, effective_min.x, effective_max.x)
+	current_xz.y = clamp(current_xz.y, effective_min.y, effective_max.y)
 	
-	# Effective boundary with margin so the safe zone circle stays comfortably playable
-	var margin = zone_radius * 0.4
-	var effective_min = bounds_min + Vector2(margin, margin)
-	var effective_max = bounds_max - Vector2(margin, margin)
+	var eff_span = effective_min.distance_to(effective_max)
+	var req_min_dist = min(min_relocation_distance, eff_span * 0.45)
+	var req_max_dist = min(max_relocation_distance, eff_span * 0.95)
+	req_max_dist = max(req_max_dist, req_min_dist)
 	
-	if effective_min.x >= effective_max.x or effective_min.y >= effective_max.y:
-		effective_min = bounds_min
-		effective_max = bounds_max
-
-	var best_candidate = Vector3.ZERO
+	var best_candidate = Vector3(current_xz.x, current_center.y, current_xz.y)
 	var best_distance = -1.0
 	var found = false
 
-	# Attempt random sampling within [min_relocation_distance, max_relocation_distance]
-	for attempt in range(80):
+	# Attempt random sampling within [req_min_dist, req_max_dist]
+	for attempt in range(120):
 		var angle = randf() * TAU
-		var dist = randf_range(min_relocation_distance, max_relocation_distance)
+		var dist = randf_range(req_min_dist, req_max_dist)
 		var candidate_xz = current_xz + Vector2(cos(angle), sin(angle)) * dist
 		
-		# Verify bounds
+		# Verify candidate center stays within effective bounds so zone circle never exceeds map
 		if candidate_xz.x >= effective_min.x and candidate_xz.x <= effective_max.x \
 		   and candidate_xz.y >= effective_min.y and candidate_xz.y <= effective_max.y:
 			var actual_dist = candidate_xz.distance_to(current_xz)
-			if actual_dist >= min_relocation_distance:
+			if actual_dist >= req_min_dist:
 				best_candidate = Vector3(candidate_xz.x, current_center.y, candidate_xz.y)
 				found = true
 				break
 				
-		# Keep track of furthest candidate inside bounds as fallback
+		# Keep track of furthest candidate strictly clamped inside effective bounds as fallback
 		var clamped_xz = Vector2(
 			clamp(candidate_xz.x, effective_min.x, effective_max.x),
 			clamp(candidate_xz.y, effective_min.y, effective_max.y)
@@ -515,15 +607,26 @@ func _calculate_next_zone_position() -> Vector3:
 			best_distance = c_dist
 			best_candidate = Vector3(clamped_xz.x, current_center.y, clamped_xz.y)
 
-	# If random ray casting did not immediately find a point meeting min_distance,
-	# pick the perimeter opposite to current position to guarantee max relocation distance
-	if not found and best_distance < min_relocation_distance:
-		var center_to_mid = Vector2.ZERO - current_xz
+	# If random sampling did not find a point meeting req_min_dist,
+	# project away towards the center of the effective bounds to maximize travel distance
+	if not found and best_distance < req_min_dist:
+		var center_to_mid = (effective_min + effective_max) * 0.5 - current_xz
 		var fallback_dir = center_to_mid.normalized() if center_to_mid.length_squared() > 1.0 else Vector2(1, 0).rotated(randf() * TAU)
-		var fallback_xz = current_xz + fallback_dir * min_relocation_distance
-		fallback_xz.x = clamp(fallback_xz.x, effective_min.x, effective_max.x)
-		fallback_xz.y = clamp(fallback_xz.y, effective_min.y, effective_max.y)
-		best_candidate = Vector3(fallback_xz.x, current_center.y, fallback_xz.y)
+		
+		for step_i in range(20):
+			var t = lerp(req_max_dist, req_min_dist, float(step_i) / 19.0)
+			var test_xz = current_xz + fallback_dir * t
+			if test_xz.x >= effective_min.x and test_xz.x <= effective_max.x \
+			   and test_xz.y >= effective_min.y and test_xz.y <= effective_max.y:
+				best_candidate = Vector3(test_xz.x, current_center.y, test_xz.y)
+				found = true
+				break
+		
+		if not found:
+			var fallback_xz = current_xz + fallback_dir * req_min_dist
+			fallback_xz.x = clamp(fallback_xz.x, effective_min.x, effective_max.x)
+			fallback_xz.y = clamp(fallback_xz.y, effective_min.y, effective_max.y)
+			best_candidate = Vector3(fallback_xz.x, current_center.y, fallback_xz.y)
 
 	return best_candidate
 

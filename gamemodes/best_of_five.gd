@@ -14,6 +14,8 @@ func _init() -> void:
 	match_time_limit = 0.0
 	respawn_delay = -1.0
 	gold_per_round = 100
+	has_zone = false
+	has_battle_royale_zone = false
 
 ## Check if any team has achieved the target round score (3) to win the match.
 ## Returns "TEAM 1", "TEAM 2", "TEAM 3", or empty string if match continues.

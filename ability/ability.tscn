@@ -1,8 +1,7 @@
-[gd_scene format=3 uid="uid://dmy_ability_root_01"]
+[gd_scene format=3 uid="uid://bf35kwpa7fslo"]
 
-[ext_resource type="Script" path="res://ability/ability.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://d3hsj1tw15wda" path="res://ability/ability.gd" id="1_script"]
 
-[node name="Ability" type="Node"]
+[node name="Ability" type="Node" unique_id=210742648]
 script = ExtResource("1_script")
-slot_key = "LMB"
 cooldown = 1.0

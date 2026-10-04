@@ -14,6 +14,7 @@ var silence_timer: float = 0.0
 var root_timer: float = 0.0
 var grounded_timer: float = 0.0
 var cripple_timer: float = 0.0
+var external_velocity: Vector3 = Vector3.ZERO
 var cripple_intensity: float = 0.35
 var ethereal_timer: float = 0.0
 var speed_boost_timer: float = 0.0
@@ -423,6 +424,7 @@ func sync_cleanse_cc() -> void:
 	float_timer = 0.0
 	taunt_timer = 0.0
 	taunter_node = null
+	external_velocity = Vector3.ZERO
 
 # --- Extended Status Application: Invisibility, Taunt, Transformation, Invulnerability ---
 func _on_invisibility_changed(_is_invis: bool) -> void:

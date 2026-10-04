@@ -21,6 +21,8 @@ const SileneClass = preload("res://characters/silene/silene.gd")
 const SileneDataClass = preload("res://characters/silene/silene_data.gd")
 const ArtistClass = preload("res://characters/artist/artist.gd")
 const HanziPointCloudRecognizer = preload("res://characters/artist/hanzi_point_cloud_recognizer.gd")
+const CleodolindaClass = preload("res://characters/cleodolinda/cleodolinda.gd")
+const CleodolindaDataClass = preload("res://characters/cleodolinda/cleodolinda_data.gd")
 
 func _initialize() -> void:
 	_run_all.call_deferred()
@@ -54,6 +56,10 @@ func _run_all() -> void:
 	test_player_projectile_armor_charges()
 	test_ui_modal_states_and_radial_wheel()
 	test_artist_the_painted_sage_kit()
+	test_cleodolinda_maximum_suction()
+	test_cleodolinda_animations()
+	test_cleodolinda_relative_velocity_attack()
+	test_cleodolinda_rmb_delayed_circle_slow()
 
 	print("--- ALL ABILITY PIPELINE TESTS PASSED SUCCESSFULLY! ---")
 	quit(0)
@@ -2634,5 +2640,466 @@ func test_artist_the_painted_sage_kit() -> void:
 	artist.queue_free()
 	print("✓ The Painted Sage (Artist) Kit, Vancian Magic & Hanzi Recognizer verified successfully!")
 
+func test_cleodolinda_maximum_suction() -> void:
+	print("Testing Cleo Ultimate: Maximum Suction...")
+	var root = get_root()
 
+	# 1. Instantiate Cleo
+	var cleo_scene = load("res://characters/cleodolinda/cleodolinda.tscn") as PackedScene
+	assert(cleo_scene != null, "Cleodolinda scene must exist")
+	var cleo = cleo_scene.instantiate() as BasePlayer
+	cleo.name = "1"
+	cleo.team_id = 1
+	root.add_child(cleo)
+	if not cleo.is_node_ready():
+		cleo._ready()
 
+	assert(cleo.display_name == "Cleo", "Cleo display name should be 'Cleo'")
+	assert(cleo.abilities.has("R"), "Cleo must possess ability slot R")
+	var ult = cleo.abilities.get("R")
+	assert(ult != null, "R ability must be non-null")
+	assert(ult.ability_name == "Maximum Suction", "R ability name must be 'Maximum Suction'")
+	assert(ult.ability_id == "cleo_maximum_suction", "R ability ID must be 'cleo_maximum_suction'")
+	assert(ult.action_type == 2, "Action type must be ULTIMATE (2)")
+	assert(ult.hitbox_type == 1, "Hitbox type must be SECTOR (1)")
+	assert(ult.hitbox_radius == 14.0, "Hitbox radius must be 14.0m (large area)")
+	assert(ult.hitbox_angle_deg == 80.0, "Hitbox angle must be 80.0 degrees (cone shape)")
+	assert(cleo.has_node("VacuumCleaner"), "Cleo must have VacuumCleaner 3D model node")
+	var vac = cleo.get_node("VacuumCleaner")
+	assert(vac.visible == false, "VacuumCleaner should initially be inactive/hidden")
+	print("  ✓ Cleo kit and Maximum Suction configuration verified.")
+
+	# 2. Spawn enemy targets
+	# Target 1: In front inside cone at (0, 0, -6.0) (within 14m radius and 80 deg cone)
+	var enemy1 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy1.name = "21"
+	enemy1.team_id = 2
+	root.add_child(enemy1)
+	if not enemy1.is_node_ready(): enemy1._ready()
+	enemy1.global_position = Vector3(0, 0, -6.0)
+
+	# Target 2: Outside cone angle at (10.0, 0, -6.0) (angle ~59 deg, beyond 40 deg half-angle)
+	var enemy2 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy2.name = "22"
+	enemy2.team_id = 2
+	root.add_child(enemy2)
+	if not enemy2.is_node_ready(): enemy2._ready()
+	enemy2.global_position = Vector3(10.0, 0, -6.0)
+
+	# Target 3: Behind Cleo at (0, 0, 6.0)
+	var enemy3 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy3.name = "23"
+	enemy3.team_id = 2
+	root.add_child(enemy3)
+	if not enemy3.is_node_ready(): enemy3._ready()
+	enemy3.global_position = Vector3(0, 0, 6.0)
+
+	# Target 4: Beyond range at (0, 0, -20.0)
+	var enemy4 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy4.name = "24"
+	enemy4.team_id = 2
+	root.add_child(enemy4)
+	if not enemy4.is_node_ready(): enemy4._ready()
+	enemy4.global_position = Vector3(0, 0, -20.0)
+
+	# 3. Cast Maximum Suction
+	cleo.global_position = Vector3.ZERO
+	cleo.look_at(Vector3(0, 0, -10.0), Vector3.UP)
+	var cast_res = cleo.custom_execute_ability_server("R", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(cast_res == true, "custom_execute_ability_server('R') must succeed")
+	assert(cleo.is_suction_active == true, "Cleo is_suction_active must be true")
+	assert(cleo.is_channeling == true, "Cleo is_channeling must be true")
+	assert(vac.visible == true, "Cleo must wield her vacuum cleaner (visible) during ult")
+	assert(cleo.get_status_text().contains("MAXIMUM SUCTION"), "Status text must reflect Maximum Suction")
+	print("  ✓ Maximum Suction activation and vacuum cleaner wielding verified.")
+
+	# 4. Process Suction Tick & Verify Cone Hitbox Filtering
+	var delta = 0.1
+	cleo._process_character_kit(delta)
+
+	# Enemy 1 is in cone -> pulled towards Cleo (direction +Z towards origin)
+	assert(enemy1.external_velocity.length() > 0.0, "Enemy 1 inside cone must be affected by suction")
+	var pull_dir1 = (cleo.global_position - enemy1.global_position).normalized()
+	var ext_dir1 = enemy1.external_velocity.normalized()
+	assert(ext_dir1.dot(pull_dir1) > 0.95, "Suction acceleration must pull directly towards Cleo")
+
+	# Enemy 2 outside cone angle -> NOT pulled
+	assert(enemy2.external_velocity.length() == 0.0, "Enemy 2 outside cone angle must NOT be pulled")
+
+	# Enemy 3 behind Cleo -> NOT pulled
+	assert(enemy3.external_velocity.length() == 0.0, "Enemy 3 behind Cleo must NOT be pulled")
+
+	# Enemy 4 beyond radius -> NOT pulled
+	assert(enemy4.external_velocity.length() == 0.0, "Enemy 4 beyond range must NOT be pulled")
+	print("  ✓ Cone geometry filtering verified (only frontal cone targets affected).")
+
+	# 5. Verify Acceleration is Strictly Greater than Base Movement Speed
+	var base_spd = enemy1.base_max_move_speed
+	var accel_applied = enemy1.external_velocity.length() / delta
+	assert(accel_applied > base_spd, "Suction acceleration (%.2f m/s^2) must be strictly greater than base move speed (%.2f m/s)" % [accel_applied, base_spd])
+	assert(cleo.suction_acceleration > 6.0, "Cleo suction_acceleration must be greater than base move speed 6.0")
+	print("  ✓ Acceleration directly towards Cleo (%.2f m/s^2) strictly exceeds base movement speed (%.2f m/s)." % [accel_applied, base_spd])
+
+	# 6. Verify Player Walking Away Is Still Pulled In
+	enemy1.external_velocity = Vector3.ZERO
+	# Simulate 1.0s of suction against enemy trying to run away
+	for _i in range(10):
+		cleo._process_character_kit(0.1)
+	assert(enemy1.external_velocity.length() > base_spd, "After sustained suction, pull velocity must overcome base movement speed")
+	print("  ✓ Suction velocity overcomes walking speed, successfully dragging retreating enemies.")
+
+	# 7. CC Interruption
+	cleo.apply_stun(1.0)
+	cleo._process_character_kit(0.1)
+	assert(cleo.is_suction_active == false, "Stun must interrupt Maximum Suction")
+	assert(vac.visible == false, "Vacuum cleaner must be stowed/hidden after suction interrupted")
+	print("  ✓ CC interruption of Maximum Suction verified.")
+
+	# Cleanup
+	cleo.queue_free()
+	enemy1.queue_free()
+	enemy2.queue_free()
+	enemy3.queue_free()
+	enemy4.queue_free()
+	print("✓ Cleo Ultimate: Maximum Suction verified successfully!")
+
+func test_cleodolinda_animations() -> void:
+	print("Testing Cleo Animation Pipeline & Spell 3 Boost Lifecycle...")
+	var root = get_root()
+
+	var cleo_scene = load("res://characters/cleodolinda/cleodolinda.tscn") as PackedScene
+	assert(cleo_scene != null, "Cleodolinda scene must exist")
+	var cleo = cleo_scene.instantiate() as Cleodolinda
+	cleo.name = "1"
+	cleo.team_id = 1
+	root.add_child(cleo)
+	if not cleo.is_node_ready():
+		cleo._ready()
+
+	# 1. Verify 3D CharacterModel & AnimationPlayer presence
+	var model = cleo.get_node_or_null("CharacterModel")
+	assert(model != null, "Cleo must instantiate CharacterModel from cleodolinda.glb")
+	var anim_player = model.get_node_or_null("AnimationPlayer") as AnimationPlayer
+	assert(anim_player != null, "CharacterModel must have AnimationPlayer")
+	assert(anim_player.has_animation("Idle"), "Must contain Idle animation")
+	assert(anim_player.has_animation("dash"), "Must contain dash animation")
+	assert(anim_player.has_animation("spell 1"), "Must contain spell 1 animation")
+	assert(anim_player.has_animation("spell 2"), "Must contain spell 2 animation")
+	assert(anim_player.has_animation("spell 3 boost start"), "Must contain spell 3 boost start animation")
+	assert(anim_player.has_animation("spell 3 continuous"), "Must contain spell 3 continuous animation")
+	assert(anim_player.has_animation("spell 3 end"), "Must contain spell 3 end animation")
+	assert(anim_player.has_animation("Vacuum Cleaner Ult"), "Must contain Vacuum Cleaner Ult animation")
+	assert(anim_player.has_animation("Bank_Side1"), "Must preserve Bank_Side1 animation")
+	assert(anim_player.has_animation("Bank_Side2"), "Must preserve Bank_Side2 animation")
+	assert(anim_player.has_animation("Turn_Side1"), "Must preserve Turn_Side1 animation")
+	assert(anim_player.has_animation("Turn_Side2"), "Must preserve Turn_Side2 animation")
+
+	# 2. Verify Initial State & Loop Modes
+	assert(anim_player.current_animation == "Idle", "Initial animation must be Idle")
+	var idle_anim = anim_player.get_animation("Idle")
+	assert(idle_anim.loop_mode == Animation.LOOP_LINEAR, "Idle animation must loop linearly")
+	var cont_anim = anim_player.get_animation("spell 3 continuous")
+	assert(cont_anim.loop_mode == Animation.LOOP_LINEAR, "spell 3 continuous animation must loop linearly")
+	print("  ✓ Cleo model, AnimationPlayer, and initial Idle loop verified.")
+
+	# 3. Verify Dash, Spell 1, Spell 2 triggers
+	cleo.custom_execute_ability_server("SHIFT", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(anim_player.current_animation == "dash", "Dashing must trigger 'dash' animation")
+	cleo._on_animation_finished("dash")
+	assert(anim_player.current_animation == "Idle", "Finishing dash must return to Idle")
+
+	cleo.custom_execute_ability_server("LMB", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(anim_player.current_animation == "spell 1", "Spell 1 must trigger 'spell 1' animation")
+	cleo._on_animation_finished("spell 1")
+	assert(anim_player.current_animation == "Idle", "Finishing spell 1 must return to Idle")
+
+	cleo.custom_execute_ability_server("Q", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(anim_player.current_animation == "spell 2", "Spell 2 must trigger 'spell 2' animation")
+	cleo._on_animation_finished("spell 2")
+	assert(anim_player.current_animation == "Idle", "Finishing spell 2 must return to Idle")
+	print("  ✓ Dash, Spell 1, and Spell 2 animations verified.")
+
+	# 4. Verify Spell 3 (E) Hold & Release Cycle + 50% Boost:
+	# Verify baseline (inactive) movement metrics
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 7.0), "Baseline max move speed must be 7.0")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 28.0), "Baseline ground acceleration must be 28.0")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 8.0), "Baseline air acceleration must be 8.0")
+
+	# Press E -> 'spell 3 boost start' plays once and boosts acceleration and ms cap by 50%
+	cleo.press_spell_3()
+	assert(cleo.is_spell_3_active == true, "Spell 3 must be active on press")
+	assert(anim_player.current_animation == "spell 3 boost start", "Pressing E must play 'spell 3 boost start'")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 10.5), "Spell 3 active must increase ms cap by 50% (7.0 -> 10.5)")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 42.0), "Spell 3 active must increase ground acceleration by 50% (28.0 -> 42.0)")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 12.0), "Spell 3 active must increase air acceleration by 50% (8.0 -> 12.0)")
+	print("  ✓ Spell 3 boost values (+50% acceleration: 42.0 ground / 12.0 air, +50% ms cap: 10.5) verified while active.")
+
+	# While holding, when start completes -> 'spell 3 continuous' loops
+	cleo._on_animation_finished("spell 3 boost start")
+	assert(anim_player.current_animation == "spell 3 continuous", "Completing start while held must transition to 'spell 3 continuous'")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 10.5), "MS cap must remain boosted during continuous loop")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 42.0), "Acceleration must remain boosted during continuous loop")
+
+	# Release E -> 'spell 3 end' plays once
+	cleo.release_spell_3()
+	assert(anim_player.current_animation == "spell 3 end", "Releasing E must transition to 'spell 3 end'")
+
+	# When end completes -> return to 'Idle' and reset baseline metrics
+	cleo._on_animation_finished("spell 3 end")
+	assert(cleo.is_spell_3_active == false, "Spell 3 must no longer be active")
+	assert(anim_player.current_animation == "Idle", "Completing 'spell 3 end' must return to Idle")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 7.0), "Max move speed must return to 7.0 baseline after boost ends")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 28.0), "Ground acceleration must return to 28.0 baseline after boost ends")
+	print("  ✓ Spell 3 (E) press -> continuous loop -> release -> end -> Idle lifecycle and boost reset verified.")
+
+	# 5. Verify Spell 3 Quick Tap (Release before start finishes)
+	cleo.press_spell_3()
+	assert(anim_player.current_animation == "spell 3 boost start", "Quick tap press plays 'spell 3 boost start'")
+	cleo.release_spell_3()
+	assert(cleo._spell_3_holding == false, "Holding state is false on release")
+	cleo._on_animation_finished("spell 3 boost start")
+	assert(anim_player.current_animation == "spell 3 end", "Finishing start after release must route directly to 'spell 3 end'")
+	cleo._on_animation_finished("spell 3 end")
+	assert(anim_player.current_animation == "Idle", "Quick tap end returns to Idle")
+	print("  ✓ Spell 3 quick tap transition verified.")
+
+	cleo.queue_free()
+	print("✓ Cleo Animation Pipeline & Spell 3 Boost Lifecycle verified successfully!")
+
+func test_cleodolinda_relative_velocity_attack() -> void:
+	print("Testing Cleo Semicircle Relative Velocity Attack on LMB...")
+	var root = get_root()
+
+	# 1. Instantiate Cleo
+	var cleo_scene = load("res://characters/cleodolinda/cleodolinda.tscn") as PackedScene
+	assert(cleo_scene != null, "Cleodolinda scene must exist")
+	var cleo = cleo_scene.instantiate() as Cleodolinda
+	cleo.name = "1"
+	cleo.team_id = 1
+	root.add_child(cleo)
+	if not cleo.is_node_ready():
+		cleo._ready()
+
+	# 2. Check attack configuration on LMB
+	assert(cleo.abilities.has("LMB"), "Cleo must possess ability slot LMB")
+	var lmb = cleo.abilities.get("LMB")
+	assert(lmb != null, "LMB ability must be non-null")
+	assert(lmb.ability_id == "cleo_spell_1", "LMB ability id must be 'cleo_spell_1'")
+	assert(lmb is MeleeStrikeEffect, "LMB effect should be a MeleeStrikeEffect")
+	assert(lmb.hitbox_type == 1, "Hitbox type must be SECTOR (1)")
+	assert(lmb.hitbox_angle_deg == 180.0, "Hitbox angle must be 180.0 degrees (semicircle cone)")
+	assert(lmb.hitbox_radius == 4.0, "Hitbox radius must be 4.0m")
+	assert(lmb.damage_amount == 12.0, "Base attack damage must be low (12.0)")
+	assert(cleo.attack_base_damage == 12.0, "Cleo attack_base_damage should be 12.0")
+	assert(cleo.attack_velocity_scaling == 1.5, "Cleo attack_velocity_scaling should be 1.5")
+	print("  ✓ Cleo LMB attack configuration and 180-degree semicircle parameters verified.")
+
+	# 3. Test Hitbox Semicircle (180-degree cone) geometry
+	lmb.setup()
+	var hitbox = lmb.get_hitbox()
+	assert(hitbox != null, "LMB hitbox instance must be created")
+	assert(hitbox.angle_deg == 180.0, "Hitbox angle should be 180 degrees")
+	var origin = Vector3.ZERO
+	var facing = Vector3(0, 0, -1) # Facing forward (-Z)
+
+	# Ahead: inside
+	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -3.0)) == true, "Point in front must be inside semicircle")
+	# 45 degrees left & right: inside
+	assert(hitbox.is_point_inside(origin, facing, Vector3(-2.0, 0, -2.0)) == true, "Point 45 deg left must be inside semicircle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(2.0, 0, -2.0)) == true, "Point 45 deg right must be inside semicircle")
+	# Directly to side 90 degrees: inside (half-plane boundary)
+	assert(hitbox.is_point_inside(origin, facing, Vector3(3.5, 0, 0.0)) == true, "Point 90 deg right must be inside semicircle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(-3.5, 0, 0.0)) == true, "Point 90 deg left must be inside semicircle")
+	# Directly behind: outside
+	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, 3.0)) == false, "Point directly behind must be outside semicircle")
+	# 135 degrees behind: outside
+	assert(hitbox.is_point_inside(origin, facing, Vector3(2.0, 0, 2.0)) == false, "Point behind-right must be outside semicircle")
+	# Beyond radius in front: outside
+	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -5.5)) == false, "Point beyond radius must be outside semicircle")
+	print("  ✓ Semicircle (180-degree cone) coverage verified.")
+
+	# 4. Test Relative Velocity Damage Calculation
+	var dummy = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	dummy.name = "31"
+	dummy.team_id = 2
+	root.add_child(dummy)
+	if not dummy.is_node_ready(): dummy._ready()
+
+	# Case A: Both stationary -> base damage only
+	cleo.velocity = Vector3.ZERO
+	dummy.velocity = Vector3.ZERO
+	assert(cleo.get_attack_relative_velocity(dummy) == 0.0, "Relative velocity when both stationary should be 0.0")
+	assert(cleo.compute_attack_damage(dummy) == 12.0, "Damage when stationary should equal base damage (12.0)")
+
+	# Case B: Cleo moving towards target at 10 m/s
+	cleo.velocity = Vector3(0, 0, -10.0)
+	dummy.velocity = Vector3.ZERO
+	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 10.0), "Relative speed should be 10.0")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0 + 10.0 * 1.5), "Damage should scale with relative speed (27.0)")
+
+	# Case C: High speed / Dash velocity (26 m/s)
+	cleo.velocity = Vector3(0, 0, -26.0)
+	dummy.velocity = Vector3.ZERO
+	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 26.0), "Relative speed should be 26.0")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0 + 26.0 * 1.5), "Damage at dash speed should be 51.0")
+
+	# Case D: Both approaching each other (head-on collision: Cleo 15 m/s, Dummy 10 m/s opposite)
+	cleo.velocity = Vector3(0, 0, -15.0)
+	dummy.velocity = Vector3(0, 0, 10.0)
+	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 25.0), "Relative speed for head-on approach should be 25.0")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0 + 25.0 * 1.5), "Damage for head-on approach should be 49.5")
+
+	# Case E: Moving together in same direction at same speed
+	cleo.velocity = Vector3(0, 0, -12.0)
+	dummy.velocity = Vector3(0, 0, -12.0)
+	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 0.0), "Relative speed should be 0 when velocities match")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0), "Damage should be base damage (12.0) when velocities match")
+	print("  ✓ Relative velocity damage scaling formulas verified across multiple speed states.")
+
+	# 5. Live Pipeline Combat Hit Test
+	cleo.global_position = Vector3(200, 0, 200)
+	dummy.global_position = Vector3(200, 0, 197.5) # In front within 4m semicircle (-Z is forward)
+	dummy.current_health = dummy.max_health
+	cleo.velocity = Vector3(0, 0, -20.0) # Moving forward at 20 m/s
+	dummy.velocity = Vector3.ZERO
+
+	# Execute LMB attack
+	lmb.execute_server(cleo, cleo.global_position, Vector3(0, 0, -1), dummy.global_position)
+	var expected_dmg = 12.0 + (20.0 * 1.5) # 42.0 damage
+	var hp_lost = dummy.max_health - dummy.current_health
+	assert(is_equal_approx(hp_lost, expected_dmg), "Target should take base damage + relative velocity bonus damage (expected %s, got %s)" % [expected_dmg, hp_lost])
+
+	# Test semicircle exclusion: target placed behind Cleo
+	dummy.current_health = dummy.max_health
+	dummy.global_position = Vector3(200, 0, 202.5) # Behind Cleo (+Z is backward)
+	lmb.execute_server(cleo, cleo.global_position, Vector3(0, 0, -1), dummy.global_position)
+	assert(dummy.current_health == dummy.max_health, "Target behind Cleo must NOT be hit by the 180-degree semicircle attack")
+	print("  ✓ Live combat execution, relative velocity bonus damage application, and semicircle exclusion verified on LMB.")
+
+	cleo.queue_free()
+	dummy.queue_free()
+	print("✓ Cleo Semicircle Relative Velocity Attack on LMB verified successfully!")
+
+func test_cleodolinda_rmb_delayed_circle_slow() -> void:
+	print("Testing Cleo RMB Delayed Full-Circle Slowing Sweep...")
+	var root = get_root()
+
+	# 1. Instantiate Cleo
+	var cleo_scene = load("res://characters/cleodolinda/cleodolinda.tscn") as PackedScene
+	assert(cleo_scene != null, "Cleodolinda scene must exist")
+	var cleo = cleo_scene.instantiate() as Cleodolinda
+	cleo.name = "1"
+	cleo.team_id = 1
+	root.add_child(cleo)
+	if not cleo.is_node_ready():
+		cleo._ready()
+
+	# 2. Check RMB configuration
+	assert(cleo.abilities.has("RMB"), "Cleo must possess ability slot RMB")
+	var rmb = cleo.abilities.get("RMB")
+	assert(rmb != null, "RMB ability must be non-null")
+	assert(rmb is MeleeStrikeEffect, "RMB must be MeleeStrikeEffect")
+	assert(rmb.hitbox_type == 6, "Hitbox type must be CIRCLE (6)")
+	assert(rmb.hitbox_angle_deg == 360.0, "Hitbox angle must be 360.0 degrees (full circle)")
+	assert(rmb.hitbox_radius == 4.5, "Hitbox radius must be 4.5m (around her)")
+	assert(rmb.damage_amount == 35.0, "Base damage must be moderate (35.0)")
+	assert(rmb.slow_duration > 0.0, "Slow duration must be configured")
+	assert(rmb.slow_intensity > 0.0, "Slow intensity must be configured")
+	assert(cleo.rmb_damage == 35.0, "Cleo rmb_damage must be 35.0")
+	assert(cleo.rmb_slow_intensity == 0.35, "Cleo rmb_slow_intensity must be 0.35 (35% slow)")
+	print("  ✓ RMB full circle, moderate damage, and slow parameters verified.")
+
+	# 3. Test Delay timing: "hitbox trigger only several frames before animation ends"
+	var model = cleo.get_node_or_null("CharacterModel")
+	assert(model != null, "Cleo must have CharacterModel")
+	var anim_player = model.get_node_or_null("AnimationPlayer") as AnimationPlayer
+	assert(anim_player != null, "CharacterModel must have AnimationPlayer")
+	var anim = anim_player.get_animation("spell 2")
+	assert(anim != null, "Must contain 'spell 2' animation")
+	var anim_len = anim.length
+	assert(anim_len > 2.0, "spell 2 animation length should be ~2.5s")
+	var calculated_delay = cleo.get_rmb_delay()
+	assert(calculated_delay < anim_len, "RMB delay must trigger before the animation ends")
+	assert(calculated_delay >= anim_len - 0.3, "RMB delay must trigger only several frames (~5 frames) before the animation ends")
+	assert(rmb.windup_time == calculated_delay, "RMB ability windup_time must match calculated delay")
+	print("  ✓ RMB delay timing (triggers %.3fs into %.3fs animation, exactly several frames before end) verified." % [calculated_delay, anim_len])
+
+	# 4. Test Hitbox Full Circle (360 degrees) coverage
+	rmb.setup()
+	var hitbox = rmb.get_hitbox()
+	assert(hitbox != null, "RMB hitbox instance must be created")
+	assert(hitbox.angle_deg == 360.0, "Hitbox angle should be 360 degrees")
+	var origin = Vector3.ZERO
+	var facing = Vector3(0, 0, -1) # Facing -Z
+
+	# Test all 360 directions: front, back, left, right
+	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -3.5)) == true, "Point in front must be inside full circle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, 3.5)) == true, "Point directly behind must be inside full circle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(-3.5, 0, 0)) == true, "Point to the left must be inside full circle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(3.5, 0, 0)) == true, "Point to the right must be inside full circle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(2.5, 0, 2.5)) == true, "Diagonal rear point must be inside full circle")
+	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -5.5)) == false, "Point beyond radius must be outside full circle")
+	print("  ✓ Full circle (360-degree) geometry verified in all directions.")
+
+	# 5. Test Windup Animation Trigger & Cancel
+	cleo.active_windup_id = "RMB"
+	assert(anim_player.current_animation == "spell 2", "Entering RMB windup must play 'spell 2' animation")
+	cleo.cancel_active_windup()
+	assert(anim_player.current_animation == "Idle", "Canceling RMB windup must return to 'Idle'")
+	print("  ✓ RMB windup animation playback and cancel return verified.")
+
+	# 6. Live Combat Execution: Damage & Slow in Full Circle + No Velocity Scaling on RMB
+	cleo.global_position = Vector3(300, 0, 300)
+	cleo.velocity = Vector3(0, 0, -25.0) # Moving fast at 25 m/s!
+
+	# Target 1 in front (within 4.5m)
+	var enemy_front = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_front.name = "41"
+	enemy_front.team_id = 2
+	root.add_child(enemy_front)
+	if not enemy_front.is_node_ready(): enemy_front._ready()
+	enemy_front.global_position = Vector3(300, 0, 296.5) # 3.5m in front
+	enemy_front.velocity = Vector3.ZERO
+
+	# Target 2 behind (within 4.5m)
+	var enemy_back = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_back.name = "42"
+	enemy_back.team_id = 2
+	root.add_child(enemy_back)
+	if not enemy_back.is_node_ready(): enemy_back._ready()
+	enemy_back.global_position = Vector3(300, 0, 303.5) # 3.5m behind
+	enemy_back.velocity = Vector3.ZERO
+
+	# Target 3 outside circle (6.0m away)
+	var enemy_far = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_far.name = "43"
+	enemy_far.team_id = 2
+	root.add_child(enemy_far)
+	if not enemy_far.is_node_ready(): enemy_far._ready()
+	enemy_far.global_position = Vector3(300, 0, 306.0) # 6.0m away
+
+	# Execute RMB
+	rmb.execute_server(cleo, cleo.global_position, Vector3(0, 0, -1), enemy_front.global_position)
+
+	# Verify Target 1 (Front): took EXACTLY moderate damage (35.0) - NO velocity bonus on RMB!
+	var lost1 = enemy_front.max_health - enemy_front.current_health
+	assert(is_equal_approx(lost1, 35.0), "RMB slow must deal flat moderate damage 35.0 with NO relative velocity scaling (got %s)" % lost1)
+	assert(enemy_front.is_slowed() == true, "Front target must be slowed")
+	assert(is_equal_approx(enemy_front.slow_percent, 0.35), "Front target must have 35%% slow applied")
+
+	# Verify Target 2 (Behind): took moderate damage & is slowed (full circle hit, no velocity scaling)
+	var lost2 = enemy_back.max_health - enemy_back.current_health
+	assert(is_equal_approx(lost2, 35.0), "Rear target should take 35.0 moderate damage (got %s)" % lost2)
+	assert(enemy_back.is_slowed() == true, "Rear target must be slowed by full circle attack")
+	assert(is_equal_approx(enemy_back.slow_percent, 0.35), "Rear target must have 35%% slow applied")
+
+	# Verify Target 3 (Far): unaffected
+	assert(enemy_far.current_health == enemy_far.max_health, "Target outside radius must not be hit")
+	assert(enemy_far.is_slowed() == false, "Target outside radius must not be slowed")
+	print("  ✓ Live combat execution: both front & rear targets took moderate damage (35.0) and received 35% slow with NO velocity scaling on RMB.")
+
+	cleo.queue_free()
+	enemy_front.queue_free()
+	enemy_back.queue_free()
+	enemy_far.queue_free()
+	print("✓ Cleo RMB Delayed Full-Circle Slowing Sweep verified successfully!")

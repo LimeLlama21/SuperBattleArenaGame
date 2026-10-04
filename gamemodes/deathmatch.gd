@@ -13,6 +13,8 @@ func _init() -> void:
 	match_time_limit = 300.0
 	respawn_delay = 5.0
 	gold_per_round = 0
+	has_zone = false
+	has_battle_royale_zone = false
 
 func format_timer(time_left: float) -> String:
 	var mins = int(max(0.0, time_left)) / 60

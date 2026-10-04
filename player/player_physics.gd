@@ -35,6 +35,9 @@ func modify_incoming_damage(amount: float, _attacker_id: int, _action_type: int)
 func get_effective_max_speed(current_calculated_speed: float) -> float:
 	return current_calculated_speed
 
+func get_effective_acceleration(current_calculated_accel: float) -> float:
+	return current_calculated_accel
+
 func has_custom_movement_control() -> bool:
 	return false
 
@@ -81,6 +84,16 @@ func apply_velocity_impulse(impulse_vec: Vector3, is_intentional: bool = true) -
 		velocity.y = impulse_vec.y
 	if is_intentional:
 		is_intentional_movement = true
+
+# --- External Acceleration (Continuous forces like suction or wind) ---
+func apply_external_acceleration(accel_vec: Vector3, delta: float = 0.0) -> void:
+	if is_cc_immune or is_displacement_immune() or is_invulnerable() or is_bound():
+		return
+	var dt = delta if delta > 0.0 else get_physics_process_delta_time()
+	external_velocity += accel_vec * dt
+	var max_ext_speed = max(12.0, accel_vec.length() * 1.5)
+	if external_velocity.length() > max_ext_speed:
+		external_velocity = external_velocity.normalized() * max_ext_speed
 
 # --- Aiming & Targeting Helpers ---
 func aim_at_mouse() -> void:
@@ -223,6 +236,8 @@ func _process_dummy_physics(delta: float) -> void:
 	if is_bound():
 		_process_bound_physics(delta)
 		return
+	if external_velocity.length_squared() > 0.001:
+		external_velocity = external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
 	var on_floor_dummy = is_on_floor()
 	if not on_floor_dummy:
 		# Gravity applied as continuous acceleration: a * delta
@@ -234,6 +249,8 @@ func _process_dummy_physics(delta: float) -> void:
 			velocity.y = 0.0
 		velocity.x = move_toward(velocity.x, 0.0, ground_deceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, ground_deceleration * delta)
+	velocity.x += external_velocity.x
+	velocity.z += external_velocity.z
 	var pre_move_vel_dummy = velocity
 	move_and_slide()
 	_check_wall_impact(pre_move_vel_dummy)
@@ -309,7 +326,10 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	effective_max_speed = get_effective_max_speed(effective_max_speed)
 
 	# Directional Acceleration Handling
-	var current_horizontal = Vector2(velocity.x, velocity.z)
+	if external_velocity.length_squared() > 0.001:
+		external_velocity = external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+
+	var current_horizontal = Vector2(velocity.x - external_velocity.x, velocity.z - external_velocity.z)
 	var cur_speed = current_horizontal.length()
 
 	# Intentional movement friction resets once speed drops to or below max movement speed
@@ -321,6 +341,7 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	if wish_dir.length_squared() > 0.001:
 		wish_dir = wish_dir.normalized()
 		var accel_rate = ground_acceleration if on_floor else air_acceleration
+		accel_rate = get_effective_acceleration(accel_rate)
 		# Apply acceleration along wish direction whenever input is made
 		current_horizontal += wish_dir * accel_rate * delta
 
@@ -349,8 +370,8 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 			if current_horizontal.length() <= effective_max_speed:
 				is_intentional_movement = false
 
-	velocity.x = current_horizontal.x
-	velocity.z = current_horizontal.y
+	velocity.x = current_horizontal.x + external_velocity.x
+	velocity.z = current_horizontal.y + external_velocity.z
 
 	var pre_move_vel = velocity
 	move_and_slide()

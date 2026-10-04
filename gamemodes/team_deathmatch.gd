@@ -14,4 +14,5 @@ func _init() -> void:
 	match_time_limit = 0.0
 	respawn_delay = -1.0
 	gold_per_round = 0
+	has_zone = true
 	has_battle_royale_zone = true

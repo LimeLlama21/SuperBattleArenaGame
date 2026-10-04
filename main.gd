@@ -2229,20 +2229,30 @@ func spawn_battle_royale_zone(pos: Vector3 = Vector3.ZERO, radius: float = 35.0,
 	return hazard_spawner.spawn(data)
 
 func _refresh_battle_royale_zones_for_mode() -> void:
-	var is_main_mode = (game_mode == "tdm" and not is_training_mode)
+	var mode = GameModes.get_mode(game_mode)
+	var mode_has_zone = (mode.has_zone if "has_zone" in mode else mode.has_battle_royale_zone) if mode else false
+	var is_main_mode = (mode_has_zone and not is_training_mode)
 	
 	# Update all existing zones in the scene tree (e.g. embedded in maps or hazards)
 	var active_zone_found = false
 	for zone in get_tree().get_nodes_in_group("battle_royale_zone"):
-		if is_instance_valid(zone) and zone.has_method("evaluate_mode_activity"):
-			zone.evaluate_mode_activity()
+		if is_instance_valid(zone):
+			if zone.has_method("_detect_arena_bounds"):
+				zone._detect_arena_bounds()
+			if zone.has_method("evaluate_mode_activity"):
+				zone.evaluate_mode_activity()
 			if zone.visible and zone.get("current_state") != 0:
 				active_zone_found = true
 	
 	# If in main game mode (TDM), match is in progress, and no embedded zone is active, spawn one!
 	if is_main_mode and match_in_progress and not active_zone_found:
 		if not is_multiplayer_match() or multiplayer.is_server():
-			spawn_battle_royale_zone(Vector3.ZERO, 35.0, 60.0, 60.0, 10.0, 40.0)
+			var map_r = 35.0
+			var map_min_dist = 45.0
+			if current_map_id == 0 or current_map_id == 1 or current_map_id == 2:
+				map_r = 17.5
+				map_min_dist = 12.0
+			spawn_battle_royale_zone(Vector3.ZERO, map_r, 60.0, 60.0, 10.0, map_min_dist)
 	elif not is_main_mode:
 		# Ensure any dynamically spawned battle royale zone in hazard container is cleaned up
 		for h in hazard_container.get_children():

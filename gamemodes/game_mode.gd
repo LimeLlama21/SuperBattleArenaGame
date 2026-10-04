@@ -44,6 +44,7 @@ var gold_per_kill: int = 50
 var gold_per_assist: int = 25
 
 ## Whether this game mode utilizes the moving safe zone / battle royale ring
+var has_zone: bool = false
 var has_battle_royale_zone: bool = false
 
 func _init() -> void:

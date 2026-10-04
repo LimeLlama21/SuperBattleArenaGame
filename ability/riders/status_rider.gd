@@ -59,4 +59,3 @@ func apply_to_caster(caster: Node, _hit_data: Dictionary = {}) -> void:
 		"TRANSFORMATION":
 			if caster.has_method("apply_transformation"):
 				caster.apply_transformation("tree", {"can_move": true, "can_dash": true, "break_on_attack": true, "break_on_damage": true})
-

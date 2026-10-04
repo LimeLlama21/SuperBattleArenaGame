@@ -170,4 +170,3 @@ static func is_character_enabled(key: String) -> bool:
 	if script and script.has_method("is_character_enabled"):
 		return script.is_character_enabled(key)
 	return has_character(key)
-
