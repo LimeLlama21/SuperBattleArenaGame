@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dmcolosseum01"]
 
-[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/Tree1.glb" id="1_tree"]
+[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/environment/Tree1.glb" id="1_tree"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(70, 1, 70)

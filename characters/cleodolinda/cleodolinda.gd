@@ -53,7 +53,7 @@ func _ready() -> void:
 
 func _setup_character_kit() -> void:
 	if id.is_empty():
-		id = "Cleodolinda"
+		id = "cleodolinda"
 	if character_name.is_empty() or character_name == "Character":
 		character_name = "Cleodolinda"
 	if display_name.is_empty() or display_name == "Character":
@@ -63,7 +63,7 @@ func _setup_character_kit() -> void:
 	load_character_data(data)
 
 	if id.is_empty():
-		id = "Cleodolinda"
+		id = "cleodolinda"
 	if display_name.is_empty() or display_name == "Character":
 		display_name = "Cleo"
 
@@ -561,12 +561,12 @@ func sync_play_animation(anim_name: String) -> void:
 
 # --- Animation Controller & Events ---
 func _setup_animations() -> void:
-	var nose = get_node_or_null("FacingIndicator") as MeshInstance3D
-	if nose:
-		nose.visible = false
 	var ap = _get_anim_player()
 	if not ap:
 		return
+	var nose = get_node_or_null("FacingIndicator") as MeshInstance3D
+	if nose:
+		nose.visible = false
 	if not ap.animation_finished.is_connected(_on_animation_finished):
 		ap.animation_finished.connect(_on_animation_finished)
 	var idle_anim = ap.get_animation("Idle")

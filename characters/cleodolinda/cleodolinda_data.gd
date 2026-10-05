@@ -3,7 +3,7 @@ extends RefCounted
 
 static func create() -> CharacterData:
 	var data = CharacterData.new()
-	data.id = "Cleodolinda"
+	data.id = "cleodolinda"
 	data.character_name = "Cleodolinda"
 	data.display_name = "Cleo"
 	data.archetype = "Hoverboarder"
@@ -18,7 +18,6 @@ static func create() -> CharacterData:
 	data.jump_horizontal_impulse = 2.0
 	data.body_color = Color(0.20, 0.70, 0.85, 1.0)
 	data.accent_color = Color(0.95, 0.80, 0.20, 1.0)
-	data.model_scene = load("res://characters/cleodolinda/cleodolinda.glb") as PackedScene
 	data.passive_data = {}
 	data.abilities["LMB"] = {
 		"id": "cleo_spell_1",

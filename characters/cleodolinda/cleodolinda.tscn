@@ -117,7 +117,7 @@ corner_radius_bottom_left = 4
 [node name="Cleodolinda" type="CharacterBody3D"]
 collision_layer = 2
 script = ExtResource("1_cleodolinda")
-id = "Cleodolinda"
+id = "cleodolinda"
 character_name = "Cleodolinda"
 display_name = "Cleo"
 max_health = 180.0

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bbufdg0lef5q8"]
 
-[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/Tree1.glb" id="1_tree"]
-[ext_resource type="PackedScene" uid="uid://c3e0mp1yumadk" path="res://assets/RockPlatform2.glb" id="2_rock"]
+[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/environment/Tree1.glb" id="1_tree"]
+[ext_resource type="PackedScene" uid="uid://c3e0mp1yumadk" path="res://assets/environment/RockPlatform2.glb" id="2_rock"]
 
 [sub_resource type="BoxShape3D" id="Shape_BaseIsland"]
 size = Vector3(22, 1, 28)

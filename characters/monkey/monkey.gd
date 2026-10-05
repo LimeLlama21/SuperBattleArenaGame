@@ -31,8 +31,8 @@ const ULT_COOLDOWN: float = 28.0
 @onready var staff_facing: MeshInstance3D = get_node_or_null("FacingIndicator")
 @onready var transformed_prop_container: Node3D = get_node_or_null("TransformedPropContainer")
 
-const TREE_SCENE_PATH: String = "res://assets/Tree1.glb"
-const ROCK_SCENE_PATH: String = "res://assets/RockPlatform2.glb"
+const TREE_SCENE_PATH: String = "res://assets/environment/Tree1.glb"
+const ROCK_SCENE_PATH: String = "res://assets/environment/RockPlatform2.glb"
 
 func _setup_character_kit() -> void:
 	if id.is_empty():

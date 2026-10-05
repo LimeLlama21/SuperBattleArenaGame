@@ -3,7 +3,7 @@ extends RefCounted
 
 ## List of character IDs that are currently enabled and selectable by players.
 ## Specify which characters should actually be selectable in lobbies and character select.
-## For the time being, all 8 built-in characters are enabled.
+## For the time being, all 9 built-in characters are enabled.
 const ENABLED_CHARACTERS: Array[String] = [
 	"poke",
 	"crush",
@@ -12,7 +12,8 @@ const ENABLED_CHARACTERS: Array[String] = [
 	"morrigan",
 	"monkey",
 	"silene",
-	"artist"
+	"artist",
+	"cleodolinda"
 ]
 
 ## Returns a copy of the list of enabled character IDs (matching folder names / canonical keys)
@@ -21,7 +22,10 @@ static func get_enabled_characters() -> Array[String]:
 
 ## Returns true if the character ID is enabled and selectable
 static func is_character_enabled(char_id: String) -> bool:
-	return ENABLED_CHARACTERS.has(char_id.to_lower().strip_edges())
+	var clean = char_id.to_lower().strip_edges()
+	if clean == "cleo":
+		clean = "cleodolinda"
+	return ENABLED_CHARACTERS.has(clean)
 
 ## Returns the list of enabled character IDs that are also registered in CharacterRegistry
 static func get_available_enabled_characters() -> Array[String]:

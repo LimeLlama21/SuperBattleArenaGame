@@ -22,6 +22,7 @@ static func _ensure_initialized() -> void:
 	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
 	_register_builtin("artist", "res://characters/artist/artist_data.gd", "res://characters/artist/artist.tscn")
 	_register_builtin("cleodolinda", "res://characters/cleodolinda/cleodolinda_data.gd", "res://characters/cleodolinda/cleodolinda.tscn")
+	_registry["cleo"] = _registry["cleodolinda"]
 
 static func _register_builtin(key: String, data_script_path: String, scene_path: String) -> void:
 	var data: CharacterData = null
@@ -96,7 +97,7 @@ static func get_character_scene(key: String) -> PackedScene:
 static func get_all_character_keys() -> Array[String]:
 	_ensure_initialized()
 	var unique_keys: Array[String] = []
-	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "silene", "artist"]
+	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "silene", "artist", "cleodolinda"]
 	for k in canonical:
 		if _registry.has(k) and not unique_keys.has(k):
 			unique_keys.append(k)
@@ -121,6 +122,7 @@ static func get_display_name(key: String) -> String:
 		"silene": return "Saint Silene"
 		"artist": return "The Painted Sage"
 		"cleodolinda": return "Cleo"
+		"cleo": return "Cleo"
 		"dummy": return "Training Dummy"
 		_:
 			if data and not data.character_name.is_empty():

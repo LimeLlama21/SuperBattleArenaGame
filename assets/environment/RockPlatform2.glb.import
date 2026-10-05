@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://c3e0mp1yumadk"
-path="res://.godot/imported/RockPlatform2.glb-7b507e60c38869c243919f28a1f3ad68.scn"
+path="res://.godot/imported/RockPlatform2.glb-85e73990e540e06f910f7b6ffb5f542f.scn"
 
 [deps]
 
-source_file="res://assets/RockPlatform2.glb"
-dest_files=["res://.godot/imported/RockPlatform2.glb-7b507e60c38869c243919f28a1f3ad68.scn"]
+source_file="res://assets/environment/RockPlatform2.glb"
+dest_files=["res://.godot/imported/RockPlatform2.glb-85e73990e540e06f910f7b6ffb5f542f.scn"]
 
 [params]
 

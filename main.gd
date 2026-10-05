@@ -15,7 +15,8 @@ const CHARACTERS: Dictionary = {
 	"monkey": preload("res://characters/monkey/monkey.tscn"),
 	"silene": preload("res://characters/silene/silene.tscn"),
 	"artist": preload("res://characters/artist/artist.tscn"),
-	"cleodolinda": preload("res://characters/cleodolinda/cleodolinda.tscn")
+	"cleodolinda": preload("res://characters/cleodolinda/cleodolinda.tscn"),
+	"cleo": preload("res://characters/cleodolinda/cleodolinda.tscn")
 }
 
 const CHARACTER_DISPLAY_NAMES: Dictionary = {
@@ -28,6 +29,7 @@ const CHARACTER_DISPLAY_NAMES: Dictionary = {
 	"silene": "Saint Silene",
 	"artist": "The Painted Sage",
 	"cleodolinda": "Cleo",
+	"cleo": "Cleo",
 	"dummy": "Training Dummy"
 }
 
@@ -93,6 +95,7 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var select_monkey_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMonkey")
 @onready var select_silene_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectSilene")
 @onready var select_artist_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectArtist")
+@onready var select_cleo_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectCleo")
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
 @onready var team_header: Label = get_node_or_null("UI/LobbyRoom/VBox/TeamSection/TeamHeader")
@@ -115,6 +118,7 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var switch_monkey_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchMonkey")
 @onready var switch_silene_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchSilene")
 @onready var switch_artist_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchArtist")
+@onready var switch_cleo_btn: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character/SwitchCleo")
 
 @onready var switch_map_standard: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapStandard")
 @onready var switch_map_colosseum: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapColosseum")
@@ -371,6 +375,15 @@ func _ready() -> void:
 		hbox_select.add_child(select_artist_button)
 	if select_artist_button:
 		select_artist_button.pressed.connect(func(): _select_character("artist"))
+	if hbox_select and not select_cleo_button:
+		select_cleo_button = Button.new()
+		select_cleo_button.name = "SelectCleo"
+		select_cleo_button.text = "Cleo (Select)"
+		select_cleo_button.custom_minimum_size = Vector2(0, 38)
+		select_cleo_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox_select.add_child(select_cleo_button)
+	if select_cleo_button:
+		select_cleo_button.pressed.connect(func(): _select_character("cleodolinda"))
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
@@ -411,6 +424,14 @@ func _ready() -> void:
 		switch_char_tab.add_child(switch_artist_btn)
 	if switch_artist_btn:
 		switch_artist_btn.pressed.connect(func(): _switch_training_character("artist"))
+	if switch_char_tab and not switch_cleo_btn:
+		switch_cleo_btn = Button.new()
+		switch_cleo_btn.name = "SwitchCleo"
+		switch_cleo_btn.text = "🛹 Cleo (Hoverboarder - 180 HP)"
+		switch_cleo_btn.custom_minimum_size = Vector2(0, 34)
+		switch_char_tab.add_child(switch_cleo_btn)
+	if switch_cleo_btn:
+		switch_cleo_btn.pressed.connect(func(): _switch_training_character("cleodolinda"))
 	if switch_char_tab:
 		var switch_info = switch_char_tab.get_node_or_null("SwitchInfo")
 		if switch_info:
@@ -474,6 +495,7 @@ func _refresh_character_selection_ui() -> void:
 	if select_monkey_button: select_monkey_button.visible = EnabledCharacters.is_character_enabled("monkey")
 	if select_silene_button: select_silene_button.visible = EnabledCharacters.is_character_enabled("silene")
 	if select_artist_button: select_artist_button.visible = EnabledCharacters.is_character_enabled("artist")
+	if select_cleo_button: select_cleo_button.visible = EnabledCharacters.is_character_enabled("cleodolinda")
 
 	if switch_poke_btn: switch_poke_btn.visible = EnabledCharacters.is_character_enabled("poke")
 	if switch_crush_btn: switch_crush_btn.visible = EnabledCharacters.is_character_enabled("crush")
@@ -483,6 +505,7 @@ func _refresh_character_selection_ui() -> void:
 	if switch_monkey_btn: switch_monkey_btn.visible = EnabledCharacters.is_character_enabled("monkey")
 	if switch_silene_btn: switch_silene_btn.visible = EnabledCharacters.is_character_enabled("silene")
 	if switch_artist_btn: switch_artist_btn.visible = EnabledCharacters.is_character_enabled("artist")
+	if switch_cleo_btn: switch_cleo_btn.visible = EnabledCharacters.is_character_enabled("cleodolinda")
 
 func _select_character(char_key: String) -> void:
 	if not EnabledCharacters.is_character_enabled(char_key):
@@ -505,6 +528,8 @@ func _select_character(char_key: String) -> void:
 		select_silene_button.text = "Saint Silene (Select)"
 	if select_artist_button:
 		select_artist_button.text = "The Painted Sage (Select)"
+	if select_cleo_button:
+		select_cleo_button.text = "Cleo (Select)"
 
 	if char_key == "poke":
 		select_poke_button.text = "★ Arash (Selected)"
@@ -535,6 +560,10 @@ func _select_character(char_key: String) -> void:
 		if select_artist_button:
 			select_artist_button.text = "★ The Painted Sage (Selected)"
 		char_desc_label.text = "THE PAINTED SAGE: Calligrapher (200 HP). Passive [Ink Alchemy]: Elemental talisman ink alchemy. [Shift]: Brush Step (Swift evasive dash). [R]: Ink Alchemy (Vancian talisman wheel: Inscribe Hanzi [火 Fire, 水 Water, 风 Air, 土 Earth] to prepare spells, or recast to unleash prepared elements)."
+	elif char_key == "cleodolinda" or char_key == "cleo":
+		if select_cleo_button:
+			select_cleo_button.text = "★ Cleo (Selected)"
+		char_desc_label.text = "CLEO: Hoverboarder (180 HP). Passive: High agility hoverboard riding. [LMB]: Semicircle strike scaling with relative velocity. [RMB]: Delayed full-circle spinning sweep + slow. [Shift]: Hover Surge dash. [E]: Hover Boost (+50% accel and max speed). [R]: Maximum Suction (Vacuum pull + damage)."
 	
 	if connected_players.has(1):
 		connected_players[1]["character"] = selected_character

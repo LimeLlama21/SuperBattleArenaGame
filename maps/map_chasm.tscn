@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c6ldcj57kchun"]
 
-[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/Tree1.glb" id="1_k8uuk"]
-[ext_resource type="PackedScene" uid="uid://c3e0mp1yumadk" path="res://assets/RockPlatform2.glb" id="2_pi680"]
+[ext_resource type="PackedScene" uid="uid://celld8yjq0upk" path="res://assets/environment/Tree1.glb" id="1_k8uuk"]
+[ext_resource type="PackedScene" uid="uid://c3e0mp1yumadk" path="res://assets/environment/RockPlatform2.glb" id="2_pi680"]
 
 [sub_resource type="BoxShape3D" id="Shape_WestBase"]
 size = Vector3(20, 1, 68)
