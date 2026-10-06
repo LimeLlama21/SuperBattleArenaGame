@@ -2,7 +2,7 @@ class_name NetworkUtils
 extends RefCounted
 
 const BACKEND_URL: String = "https://superbattlearenabackend.onrender.com"
-const DEFAULT_PORT: int = 8910
+const DEFAULT_PORT: int = 7000
 
 const CODE_CHARS: String = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 

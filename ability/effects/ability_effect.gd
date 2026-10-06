@@ -91,7 +91,7 @@ func setup() -> void:
 	# Setup hitbox
 	if not hitbox_instance:
 		for child in get_children():
-			if child is AbilityHitboxClass:
+			if "shape_type" in child:
 				hitbox_instance = child
 				break
 	if not hitbox_instance and custom_hitbox:
@@ -173,18 +173,18 @@ func setup() -> void:
 	# Setup riders
 	if rider_instances.is_empty():
 		for child in get_children():
-			if child is AbilityRiderClass and not rider_instances.has(child):
+			if "apply" in child and not rider_instances.has(child):
 				_apply_rider_overrides(child)
 				rider_instances.append(child)
 	if rider_instances.is_empty() and not riders.is_empty():
 		for r_item in riders:
-			var r_inst: Node = null
-			if r_item is Node:
-				r_inst = r_item
-			elif r_item is Script:
+			var r_inst = null
+			if r_item is Script:
 				r_inst = r_item.new()
 			elif r_item is PackedScene:
 				r_inst = r_item.instantiate()
+			elif r_item != null:
+				r_inst = r_item
 			if r_inst:
 				_apply_rider_overrides(r_inst)
 				rider_instances.append(r_inst)
@@ -241,21 +241,21 @@ func setup() -> void:
 	# Setup triggers
 	if trigger_instances.is_empty():
 		for child in get_children():
-			if child is AbilityTriggerClass and not trigger_instances.has(child):
+			if "fire" in child and not trigger_instances.has(child):
 				trigger_instances.append(child)
 	if trigger_instances.is_empty() and not triggers.is_empty():
 		for t_item in triggers:
-			var t_inst: Node = null
-			if t_item is Node:
-				t_inst = t_item
-			elif t_item is Script:
+			var t_inst = null
+			if t_item is Script:
 				t_inst = t_item.new()
 			elif t_item is PackedScene:
 				t_inst = t_item.instantiate()
+			elif t_item != null:
+				t_inst = t_item
 			if t_inst:
 				trigger_instances.append(t_inst)
 	if trigger_instances.is_empty():
-		var def_trigger: Node = null
+		var def_trigger = null
 		if effect_name == "Dash" or effect_name == "Buff" or effect_name == "Crowstorm" or (hitbox_instance == null and hitbox_type == HitboxType.NONE):
 			def_trigger = OnCastTriggerClass.new()
 		else:
@@ -277,7 +277,7 @@ func get_hitbox() -> Variant:
 		return hitbox_instance
 	return hitbox
 
-func _apply_rider_overrides(r_inst: Node) -> void:
+func _apply_rider_overrides(r_inst: Variant) -> void:
 	if r_inst is DamageRiderClass:
 		if damage_amount > 0.0:
 			r_inst.amount = damage_amount

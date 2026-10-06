@@ -86,7 +86,9 @@ func _spawn_melee_attack_visual(caster: Node, origin: Vector3, direction: Vector
 		"cleo_rmb", "cleo_spell_2":
 			_play_scythe_spin_visual(caster, radius, radius * 0.45, Color(0.2, 0.85, 1.0, 0.95), Color(0.15, 0.9, 1.0, 1.0) * 5.0)
 		_:
-			var is_full_circle = (hitbox_type == 6 or (hitbox_instance and "shape_type" in hitbox_instance and hitbox_instance.shape_type in [AbilityPipeline.HitboxShape.CIRCLE, AbilityPipeline.HitboxShape.CYLINDER])) and (not hitbox_instance or not ("angle_deg" in hitbox_instance) or hitbox_instance.angle_deg >= 360.0)
+			var shape_from_type = AbilityPipeline.legacy_hitbox_type_to_shape(hitbox_type)
+			var effective_shape = hitbox_instance.shape_type if (hitbox_instance and "shape_type" in hitbox_instance) else shape_from_type
+			var is_full_circle = (effective_shape in [AbilityPipeline.HitboxShape.CIRCLE, AbilityPipeline.HitboxShape.CYLINDER]) and (not hitbox_instance or not ("angle_deg" in hitbox_instance) or hitbox_instance.angle_deg >= 360.0)
 			if is_full_circle:
 				_play_stomp_shockwave_visual(caster, radius, Color(1.0, 0.6, 0.2, 0.9), Color(1.0, 0.5, 0.1, 1.0) * 4.0)
 			else:

@@ -47,13 +47,15 @@ func _handle_character_input(_delta: float) -> void:
 			if main_node and main_node.has_method("spawn_projectile"):
 				main_node.spawn_projectile(spawn_pos, shoot_dir, name.to_int(), projectile_damage, projectile_speed, projectile_size)
 		else:
-			request_fire.rpc_id(1, spawn_pos, shoot_dir, projectile_damage, projectile_speed, projectile_size)
+			request_fire.rpc_id(1, spawn_pos, shoot_dir)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_fire(spawn_pos: Vector3, shoot_dir: Vector3, dmg: float, spd: float, p_size: float) -> void:
+func request_fire(spawn_pos: Vector3, shoot_dir: Vector3) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender_id = multiplayer.get_remote_sender_id()
+	if name.is_valid_int() and sender_id != name.to_int():
+		return
 	var main_node = get_tree().root.get_node_or_null("Main")
 	if main_node and main_node.has_method("spawn_projectile"):
-		main_node.spawn_projectile(spawn_pos, shoot_dir, sender_id, dmg, spd, p_size)
+		main_node.spawn_projectile(spawn_pos, shoot_dir, sender_id, projectile_damage, projectile_speed, projectile_size)

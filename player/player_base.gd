@@ -911,6 +911,8 @@ func die() -> void:
 		return
 	is_dead = true
 	cancel_channel()
+	cancel_active_windup()
+	dismiss_all_ability_indicators()
 	cleanse_cc()
 	clear_buffered_ability()
 
@@ -2045,7 +2047,7 @@ func start_windup_cast(slot_key: String, origin: Vector3, direction: Vector3, ta
 			cancel_active_windup()
 			return
 		is_channeling = false
-		if ab.is_winding_up:
+		if ab.is_winding_up or active_windup_id == slot_key:
 			ab.is_winding_up = false
 			if active_windup_id == slot_key:
 				active_windup_id = ""
@@ -2053,7 +2055,21 @@ func start_windup_cast(slot_key: String, origin: Vector3, direction: Vector3, ta
 			ab.execute_server(self, origin, direction, target_pos, charge_ratio)
 			if is_multiplayer_match():
 				sync_cast_ability.rpc(slot_key, origin, direction, target_pos, charge_ratio)
+			else:
+				ab.execute_client(self, origin, direction, target_pos, charge_ratio)
 	)
+
+func dismiss_all_ability_indicators() -> void:
+	for ab in abilities.values():
+		if ab is AbilityClass:
+			if ab.active_telegraph and is_instance_valid(ab.active_telegraph):
+				ab.active_telegraph.queue_free()
+				ab.active_telegraph = null
+			if ab.active_indicator and is_instance_valid(ab.active_indicator):
+				ab.active_indicator.hide()
+			if "active_modal_instance" in ab and ab.active_modal_instance and is_instance_valid(ab.active_modal_instance):
+				ab.active_modal_instance.queue_free()
+				ab.active_modal_instance = null
 
 func cancel_active_windup() -> void:
 	is_channeling = false
@@ -2074,6 +2090,9 @@ func sync_cancel_windup() -> void:
 	if active_windup_id != "":
 		var ab = abilities.get(active_windup_id) as AbilityClass
 		if ab:
+			if ab.active_telegraph and is_instance_valid(ab.active_telegraph):
+				ab.active_telegraph.queue_free()
+				ab.active_telegraph = null
 			ab.cancel_windup()
 		active_windup_id = ""
 
@@ -2587,6 +2606,8 @@ func request_cast_ability(slot_key: String, origin: Vector3, direction: Vector3,
 		ab.execute_server(self, origin, direction, target_pos, charge_ratio)
 		if is_multiplayer_match():
 			sync_cast_ability.rpc(slot_key, origin, direction, target_pos, charge_ratio)
+		else:
+			ab.execute_client(self, origin, direction, target_pos, charge_ratio)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_cast_ability(slot_key: String, origin: Vector3, direction: Vector3, target_pos: Vector3, charge_ratio: float = 0.0) -> void:

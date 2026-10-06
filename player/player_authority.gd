@@ -30,8 +30,10 @@ func is_server_authoritative() -> bool:
 func is_local_player() -> bool:
 	var my_id = get_my_player_id()
 	if not is_multiplayer_match():
-		return name.to_int() == my_id or name == "1" or name.to_int() == 0 or name == "Player"
-	return name.to_int() == my_id
+		if name.begins_with("TrainingDummy") or name.begins_with("Dummy") or name.begins_with("Bot"):
+			return false
+		return name == str(my_id) or name == "1" or name == "Player" or (name.is_valid_int() and name.to_int() == my_id)
+	return name.is_valid_int() and name.to_int() == my_id and my_id > 0
 
 # --- Synchronizer Configuration ---
 

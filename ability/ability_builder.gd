@@ -170,6 +170,7 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			var hb = LineHitboxClass.new()
 			hb.length = cfg.get("length", 20.0)
 			hb.width = cfg.get("width", 1.0)
+			hb.height = cfg.get("height", 2.5)
 			return hb
 		AbilityPipeline.HitboxShape.SECTOR:
 			var hb = SectorHitboxClass.new()
@@ -184,6 +185,7 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			hb.height = cfg.get("height", 2.5)
 			hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", 360.0))
 			hb.annul = cfg.get("annul", false)
+			hb.min_distance = cfg.get("min_distance", cfg.get("inner_radius", 0.0))
 			return hb
 		AbilityPipeline.HitboxShape.CYLINDER:
 			var hb = CylinderHitboxClass.new()
@@ -198,8 +200,9 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			return hb
 		AbilityPipeline.HitboxShape.DONUT:
 			var hb = DonutHitboxClass.new()
-			hb.inner_radius = cfg.get("inner_radius", 2.0)
-			hb.outer_radius = cfg.get("outer_radius", 5.0)
+			hb.min_distance = cfg.get("min_distance", cfg.get("inner_radius", 2.0))
+			hb.outer_radius = cfg.get("outer_radius", cfg.get("radius", 5.0))
+			hb.height = cfg.get("height", 2.5)
 			return hb
 	return null
 

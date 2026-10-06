@@ -120,6 +120,7 @@ class PipelineHitbox extends RefCounted:
 	var height: float = 2.0
 	var angle_deg: float = 360.0 # Defaults to 360.0 for full circle; < 360.0 acts as sector modifier
 	var annul: Variant = false # If false, ignored; if true, character hitbox radius; if float/int > 0, custom inner radius
+	var min_distance: float = 0.0
 
 class PipelineTrigger extends RefCounted:
 	var trigger_type: TriggerType = TriggerType.ON_HIT_ENEMY
@@ -300,6 +301,7 @@ static func create_hitbox(cfg: Dictionary) -> PipelineHitbox:
 	var default_angle = 90.0 if hb.shape == HitboxShape.SECTOR else 360.0
 	hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", default_angle))
 	hb.annul = cfg.get("annul", false)
+	hb.min_distance = cfg.get("min_distance", cfg.get("inner_radius", 0.0))
 	return hb
 
 static func create_rider(cfg: Dictionary) -> PipelineRider:
@@ -354,9 +356,15 @@ static func parse_effect_type(val: Variant) -> EffectType:
 	return EffectType.PROJECTILE
 
 static func parse_hitbox_shape(val: Variant) -> HitboxShape:
+	return normalize_hitbox_shape(val)
+
+## Normalizes HitboxShape from HitboxShape enum, legacy HitboxType integer, or string name.
+static func normalize_hitbox_shape(val: Variant) -> HitboxShape:
 	if val is HitboxShape:
 		return val
 	if val is int:
+		# HitboxShape: 0:NONE, 1:LINE, 2:SECTOR, 3:CIRCLE, 4:BOX, 5:CYLINDER, 6:DONUT
+		# Legacy HitboxType: 0:NONE, 1:SECTOR, 2:CYLINDER, 3:BOX, 4:DONUT, 5:LINE, 6:CIRCLE
 		return val as HitboxShape
 	if val is String:
 		var upper = val.to_upper()
@@ -369,6 +377,18 @@ static func parse_hitbox_shape(val: Variant) -> HitboxShape:
 			"CYLINDER": return HitboxShape.CYLINDER
 			"DONUT", "RING": return HitboxShape.DONUT
 	return HitboxShape.NONE
+
+## Translates legacy AbilityEffect.HitboxType integer to canonical AbilityPipeline.HitboxShape
+static func legacy_hitbox_type_to_shape(legacy_int: int) -> HitboxShape:
+	match legacy_int:
+		0: return HitboxShape.NONE
+		1: return HitboxShape.SECTOR
+		2: return HitboxShape.CYLINDER
+		3: return HitboxShape.BOX
+		4: return HitboxShape.DONUT
+		5: return HitboxShape.LINE
+		6: return HitboxShape.CIRCLE
+		_: return HitboxShape.NONE
 
 static func parse_rider_type(val: Variant) -> RiderType:
 	if val is RiderType:

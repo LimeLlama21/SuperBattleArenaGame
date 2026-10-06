@@ -1,7 +1,7 @@
 class_name AbilityHitbox
-extends Node
+extends RefCounted
 
-@export var shape_type: AbilityPipeline.HitboxShape = AbilityPipeline.HitboxShape.NONE
+var shape_type: AbilityPipeline.HitboxShape = AbilityPipeline.HitboxShape.NONE
 
 var current_caster: Node = null
 
@@ -33,29 +33,34 @@ func get_targets_in_hitbox(caster: Node, origin: Vector3, facing: Vector3, scene
 			continue
 		if "team_id" in p and p.team_id == caster_team and caster_team != 0:
 			continue
-		# Evaluate candidate's actual physical vertical bounds (not the infinite CombatHitbox)
+		# Evaluate candidate's actual physical vertical bounds and horizontal radius
 		var entity_bottom: float = p.global_position.y
 		var entity_top: float = p.global_position.y + 1.8
+		var target_radius: float = 0.0
 		var phys_col = p.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if phys_col and phys_col.shape:
 			var col_center_y = phys_col.global_position.y
 			var h: float = 1.8
 			if phys_col.shape is CapsuleShape3D or phys_col.shape is CylinderShape3D:
 				h = phys_col.shape.height
+				target_radius = phys_col.shape.radius
 			elif phys_col.shape is BoxShape3D:
 				h = phys_col.shape.size.y
+				target_radius = max(phys_col.shape.size.x, phys_col.shape.size.z) * 0.5
 			entity_bottom = col_center_y - h * 0.5
 			entity_top = col_center_y + h * 0.5
+		elif p.has_method("get_hitbox_radius"):
+			target_radius = p.get_hitbox_radius()
 		
 		# Find the closest point in Y on the entity's physical bounds to the cast origin
 		var closest_y: float = clamp(origin.y, entity_bottom, entity_top)
 		var check_pos = Vector3(p.global_position.x, closest_y, p.global_position.z)
-		if is_point_inside(origin, facing, check_pos):
+		if is_point_inside(origin, facing, check_pos, target_radius):
 			hit_targets.append(p)
 	current_caster = null
 	return hit_targets
 
-func is_point_inside(_origin: Vector3, _facing: Vector3, _point: Vector3) -> bool:
+func is_point_inside(_origin: Vector3, _facing: Vector3, _point: Vector3, _target_radius: float = 0.0) -> bool:
 	return false
 
 func create_indicator(_fill_color: Color = AbilityIndicator.EMPTY_FILL, _outline_color: Color = AbilityIndicator.WHITE_OUTLINE) -> Node3D:

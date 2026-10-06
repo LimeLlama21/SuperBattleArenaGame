@@ -83,6 +83,21 @@ var hitbox:
 func _ready() -> void:
 	setup()
 
+func _exit_tree() -> void:
+	if active_indicator and is_instance_valid(active_indicator):
+		active_indicator.queue_free()
+		active_indicator = null
+	if active_telegraph and is_instance_valid(active_telegraph):
+		active_telegraph.queue_free()
+		active_telegraph = null
+	if active_modal_instance and is_instance_valid(active_modal_instance):
+		active_modal_instance.queue_free()
+		active_modal_instance = null
+	if effect_instance and effect_instance != self and is_instance_valid(effect_instance):
+		if effect_instance is Node and effect_instance.get_parent() == null:
+			effect_instance.queue_free()
+			effect_instance = null
+
 func setup() -> void:
 	current_charges = max_charges
 	if not effect_instance:
@@ -95,6 +110,8 @@ func setup() -> void:
 					break
 	if effect and not effect_instance:
 		effect_instance = effect.instantiate()
+		if effect_instance is Node and effect_instance.get_parent() == null:
+			add_child(effect_instance)
 	if effect_instance and effect_instance != self and effect_instance.has_method("setup"):
 		effect_instance.setup()
 	if delay > 0.0 and windup_time <= 0.0:
@@ -773,7 +790,7 @@ static func _build_effect(cfg: Dictionary) -> Node:
 		_:
 			return (load("res://ability/effects/projectile_effect.tscn") as PackedScene).instantiate()
 
-static func _build_hitbox(cfg: Dictionary) -> Node:
+static func _build_hitbox(cfg: Dictionary) -> AbilityHitboxClass:
 	var raw_shape = cfg.get("shape", AbilityPipeline.HitboxShape.NONE)
 	var shape_val = AbilityPipeline.parse_hitbox_shape(raw_shape)
 	
@@ -782,6 +799,7 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			var hb = (load("res://ability/hitboxes/line_hitbox.gd") as GDScript).new()
 			hb.length = cfg.get("length", 20.0)
 			hb.width = cfg.get("width", 1.0)
+			hb.height = cfg.get("height", 2.5)
 			return hb
 		AbilityPipeline.HitboxShape.SECTOR:
 			var hb = (load("res://ability/hitboxes/sector_hitbox.gd") as GDScript).new()
@@ -796,6 +814,7 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			hb.height = cfg.get("height", 2.5)
 			hb.angle_deg = cfg.get("angle_deg", cfg.get("angle", 360.0))
 			hb.annul = cfg.get("annul", false)
+			hb.min_distance = cfg.get("min_distance", cfg.get("inner_radius", 0.0))
 			return hb
 		AbilityPipeline.HitboxShape.CYLINDER:
 			var hb = (load("res://ability/hitboxes/cylinder_hitbox.gd") as GDScript).new()
@@ -810,16 +829,17 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			return hb
 		AbilityPipeline.HitboxShape.DONUT:
 			var hb = (load("res://ability/hitboxes/donut_hitbox.gd") as GDScript).new()
-			hb.inner_radius = cfg.get("inner_radius", 2.0)
-			hb.outer_radius = cfg.get("outer_radius", 5.0)
+			hb.min_distance = cfg.get("min_distance", cfg.get("inner_radius", 2.0))
+			hb.outer_radius = cfg.get("outer_radius", cfg.get("radius", 5.0))
+			hb.height = cfg.get("height", 2.5)
 			return hb
 	return null
 
-static func _build_trigger(cfg: Dictionary) -> Node:
+static func _build_trigger(cfg: Dictionary) -> RefCounted:
 	var raw_type = cfg.get("type", AbilityPipeline.TriggerType.ON_HIT_ENEMY)
 	var type_val = AbilityPipeline.parse_trigger_type(raw_type)
 	
-	var trig: Node = null
+	var trig: RefCounted = null
 	match type_val:
 		AbilityPipeline.TriggerType.ON_CAST:
 			trig = (load("res://ability/triggers/on_cast_trigger.gd") as GDScript).new()
@@ -845,7 +865,7 @@ static func _build_trigger(cfg: Dictionary) -> Node:
 			trig.rider_instances.append(r_node)
 	return trig
 
-static func _build_rider(cfg: Dictionary) -> Node:
+static func _build_rider(cfg: Dictionary) -> RefCounted:
 	var raw_type = cfg.get("type", AbilityPipeline.RiderType.DAMAGE)
 	var type_val = AbilityPipeline.parse_rider_type(raw_type)
 	

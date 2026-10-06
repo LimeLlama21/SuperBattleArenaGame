@@ -1,24 +1,16 @@
 class_name AbilityTrigger
-extends Node
+extends RefCounted
 
 const AbilityRiderClass = preload("res://ability/riders/ability_rider.gd")
 
-@export var trigger_name: String = "Trigger"
-@export var riders: Array = []
-
+var trigger_name: String = "Trigger"
+var riders: Array = []
 var rider_instances: Array = []
 
-func _ready() -> void:
-	setup()
-
 func setup() -> void:
-	if rider_instances.is_empty():
-		for child in get_children():
-			if child is AbilityRiderClass and not rider_instances.has(child):
-				rider_instances.append(child)
 	if rider_instances.is_empty() and not riders.is_empty():
 		for rider_item in riders:
-			if rider_item is Node:
+			if rider_item is AbilityRiderClass or rider_item is RefCounted or rider_item is Node:
 				rider_instances.append(rider_item)
 			elif rider_item is Script:
 				rider_instances.append(rider_item.new())

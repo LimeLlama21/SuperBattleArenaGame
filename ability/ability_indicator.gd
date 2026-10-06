@@ -549,6 +549,17 @@ static func animate_telegraph_fill(indicator: Node3D, duration: float, tree: Sce
 	tween.tween_property(fill_node, "scale", Vector3.ONE, duration).set_trans(Tween.TRANS_LINEAR)
 	return tween
 
+static func clean_indicator(target: Node) -> void:
+	if not is_instance_valid(target):
+		return
+	if target is MeshInstance3D:
+		target.material_override = null
+		if target.mesh:
+			target.mesh = null
+	for child in target.get_children():
+		clean_indicator(child)
+	target.queue_free()
+
 static func reset_indicator(target: Node) -> void:
 	if not is_instance_valid(target):
 		return

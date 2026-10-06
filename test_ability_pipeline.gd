@@ -5,6 +5,8 @@ const MeleeStrikeEffectClass = preload("res://ability/effects/melee_strike_effec
 const SectorHitboxClass = preload("res://ability/hitboxes/sector_hitbox.gd")
 const CircleHitboxClass = preload("res://ability/hitboxes/circle_hitbox.gd")
 const LineHitboxClass = preload("res://ability/hitboxes/line_hitbox.gd")
+const BoxHitboxClass = preload("res://ability/hitboxes/box_hitbox.gd")
+const DonutHitboxClass = preload("res://ability/hitboxes/donut_hitbox.gd")
 const OnHitEnemyTriggerClass = preload("res://ability/triggers/on_hit_enemy_trigger.gd")
 const DamageRiderClass = preload("res://ability/riders/damage_rider.gd")
 const StunRiderClass = preload("res://ability/riders/stun_rider.gd")
@@ -60,8 +62,11 @@ func _run_all() -> void:
 	test_cleodolinda_animations()
 	test_cleodolinda_relative_velocity_attack()
 	test_cleodolinda_rmb_delayed_circle_slow()
+	test_offline_presentation_and_indicator_hygiene()
 
 	print("--- ALL ABILITY PIPELINE TESTS PASSED SUCCESSFULLY! ---")
+	for i in range(5):
+		await process_frame
 	quit(0)
 
 func test_property_pipeline_chain() -> void:
@@ -192,8 +197,57 @@ func test_hitbox_calculations() -> void:
 	var line = LineHitboxClass.new()
 	line.length = 20.0
 	line.width = 2.0
+	line.height = 2.5
 	assert(line.is_point_inside(origin, facing, Vector3(0.5, 0, -10)) == true, "Point inside line width should be true")
 	assert(line.is_point_inside(origin, facing, Vector3(5.0, 0, -10)) == false, "Point outside line width should be false")
+	assert(line.is_point_inside(origin, facing, Vector3(0.5, 1.5, -10)) == true, "Point within line height should hit")
+	assert(line.is_point_inside(origin, facing, Vector3(0.5, 4.0, -10)) == false, "Point above line height should whiff")
+	assert(line.is_point_inside(origin, facing, Vector3(0.5, -3.5, -10)) == false, "Point below line height should whiff")
+
+	# Box hitbox
+	var box = BoxHitboxClass.new()
+	box.length = 10.0
+	box.width = 2.0
+	box.height = 2.5
+	assert(box.is_point_inside(origin, facing, Vector3(0.5, 0, -5)) == true, "Point inside box bounds should hit")
+	assert(box.is_point_inside(origin, facing, Vector3(2.5, 0, -5)) == false, "Point outside box width should whiff")
+	assert(box.is_point_inside(origin, facing, Vector3(0.5, 1.8, -5)) == true, "Point within box height should hit even when dy > width * 0.5")
+	assert(box.is_point_inside(origin, facing, Vector3(0.5, 4.0, -5)) == false, "Point above box height should whiff")
+	assert(box.is_point_inside(origin, facing, Vector3(0.5, -3.0, -5)) == false, "Point below box height should whiff")
+
+	# Circle hitbox with min_distance (donut hole)
+	var circle_with_min = CircleHitboxClass.new()
+	circle_with_min.radius = 8.0
+	circle_with_min.min_distance = 3.0
+	circle_with_min.height = 2.5
+	assert(circle_with_min.is_point_inside(origin, facing, Vector3(0, 0, -1.5)) == false, "Point inside min_distance hole must whiff")
+	assert(circle_with_min.is_point_inside(origin, facing, Vector3(0, 0, -5.0)) == true, "Point between min_distance and radius must hit")
+	assert(circle_with_min.is_point_inside(origin, facing, Vector3(0, 0, -10.0)) == false, "Point beyond radius must whiff")
+
+	# Donut hitbox (specialized CircleHitbox)
+	var donut = DonutHitboxClass.new()
+	donut.min_distance = 2.0
+	donut.radius = 6.0
+	donut.height = 2.5
+	assert(donut is CircleHitboxClass, "DonutHitbox must extend CircleHitbox")
+	assert(donut.is_point_inside(origin, facing, Vector3(0, 0, -1.0)) == false, "Point inside donut hole must whiff in is_point_inside")
+	assert(donut.is_point_inside(origin, facing, Vector3(0, 0, -4.0)) == true, "Point inside donut ring must hit in is_point_inside")
+	assert(donut.is_point_inside(origin, facing, Vector3(0, 0, -7.0)) == false, "Point outside donut outer radius must whiff")
+	assert(donut.is_point_inside(origin, facing, Vector3(0, 4.0, -4.0)) == false, "Point above donut height must whiff")
+	assert(donut.is_point_in_inner_circle(origin, Vector3(0, 0, -1.0)) == true, "Point inside donut hole must be detected by is_point_in_inner_circle")
+	assert(donut.is_point_in_inner_circle(origin, Vector3(0, 0, -4.0)) == false, "Point inside donut ring must not be detected as inner circle")
+
+	# Target radius expansion tests (grazing edge hits)
+	var sweep_circle = CircleHitboxClass.new()
+	sweep_circle.radius = 5.0
+	assert(sweep_circle.is_point_inside(origin, facing, Vector3(0, 0, -5.3), 0.0) == false, "Point beyond radius with 0 radius must whiff")
+	assert(sweep_circle.is_point_inside(origin, facing, Vector3(0, 0, -5.3), 0.5) == true, "Point beyond radius must hit when target_radius touches edge")
+
+	var sweep_line = LineHitboxClass.new()
+	sweep_line.length = 10.0
+	sweep_line.width = 2.0 # half-width = 1.0
+	assert(sweep_line.is_point_inside(origin, facing, Vector3(1.3, 0, -5), 0.0) == false, "Point outside line half-width must whiff with 0 target radius")
+	assert(sweep_line.is_point_inside(origin, facing, Vector3(1.3, 0, -5), 0.5) == true, "Point outside line half-width must hit when target_radius touches line")
 
 	print("✓ Hitbox geometric calculations verified.")
 
@@ -893,12 +947,12 @@ func test_delayed_abilities_and_telegraph_indicators() -> void:
 	assert(morrigan_teleg != null, "Morrigan Ult telegraph indicator must be generated")
 	assert(morrigan_teleg.get_meta("indicator_shape") == "LineIndicator", "Morrigan Ult telegraph should be a LineIndicator")
 
-	poke_teleg.free()
-	morrigan_teleg.free()
-	poke_player.free()
-	morrigan_player.free()
-	crush_player.free()
-	teleg.free()
+	AbilityIndicator.clean_indicator(poke_teleg)
+	AbilityIndicator.clean_indicator(morrigan_teleg)
+	AbilityIndicator.clean_indicator(teleg)
+	poke_player.queue_free()
+	morrigan_player.queue_free()
+	crush_player.queue_free()
 	delayed_ab.free()
 
 	print("✓ Delayed abilities and telegraphed indicators verified.")
@@ -3058,3 +3112,45 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	enemy_back.queue_free()
 	enemy_far.queue_free()
 	print("✓ Cleo RMB Delayed Full-Circle Slowing Sweep verified successfully!")
+
+func test_offline_presentation_and_indicator_hygiene() -> void:
+	print("Testing Offline Presentation and Indicator Hygiene...")
+	var player = (load("res://characters/crush/crush.tscn") as PackedScene).instantiate() as BasePlayer
+	player.name = "110"
+	player.team_id = 1
+	root.add_child(player)
+	if not player.is_node_ready():
+		player._ready()
+
+	# 1. Test is_local_player authority separation
+	assert(player.is_local_player() == false, "Player with peer ID 110 should not be local player")
+	var dummy = (load("res://training_dummy.tscn") as PackedScene).instantiate() as BasePlayer
+	dummy.name = "TrainingDummy"
+	assert(dummy.is_local_player() == false, "TrainingDummy must NOT evaluate as local player")
+	dummy.queue_free()
+
+	# 2. Test canonical HitboxShape translation helper
+	assert(AbilityPipeline.legacy_hitbox_type_to_shape(1) == AbilityPipeline.HitboxShape.SECTOR, "Legacy 1 must map to SECTOR")
+	assert(AbilityPipeline.legacy_hitbox_type_to_shape(6) == AbilityPipeline.HitboxShape.CIRCLE, "Legacy 6 must map to CIRCLE")
+	assert(AbilityPipeline.legacy_hitbox_type_to_shape(5) == AbilityPipeline.HitboxShape.LINE, "Legacy 5 must map to LINE")
+	assert(AbilityPipeline.normalize_hitbox_shape("cylinder") == AbilityPipeline.HitboxShape.CYLINDER, "String 'cylinder' must normalize to CYLINDER")
+
+	# 2. Test windup initiation and telegraph indicator assignment
+	var lmb = player.abilities.get("LMB") as AbilityClass
+	assert(lmb != null, "LMB ability must exist")
+	player.start_windup_cast("LMB", player.global_position, Vector3.FORWARD, player.global_position + Vector3(0, 0, 5), 0.5, 0.0)
+	assert(player.is_channeling == true, "Player must be channeling during windup")
+	assert(player.active_windup_id == "LMB", "Active windup must be LMB")
+	assert(lmb.is_winding_up == true, "LMB must be winding up")
+	assert(lmb.active_telegraph != null, "Active telegraph must be created during windup")
+
+	# 3. Test death cleans up telegraphs, windup, and indicators
+	player.die()
+	assert(player.is_dead == true, "Player must be dead")
+	assert(player.is_channeling == false, "Channeling must be cleared on death")
+	assert(player.active_windup_id == "", "Active windup ID must be cleared on death")
+	assert(lmb.is_winding_up == false, "LMB windup must be cancelled on death")
+	assert(lmb.active_telegraph == null, "Active telegraph must be cleared on death")
+
+	player.queue_free()
+	print("✓ Offline Presentation and Indicator Hygiene verified successfully!")
