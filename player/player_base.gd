@@ -1482,11 +1482,10 @@ func _apply_character_visuals(data: CharacterData) -> void:
 	# 1. Custom 3D Model Scene
 	if "model_scene" in data and data.model_scene != null:
 		var existing_model = get_node_or_null("CharacterModel")
-		if existing_model:
-			existing_model.queue_free()
-		var model_inst = data.model_scene.instantiate()
-		model_inst.name = "CharacterModel"
-		add_child(model_inst)
+		if not existing_model:
+			var model_inst = data.model_scene.instantiate()
+			model_inst.name = "CharacterModel"
+			add_child(model_inst)
 		var default_mesh = get_node_or_null("MeshInstance3D") as MeshInstance3D
 		if default_mesh:
 			default_mesh.visible = false

@@ -18,6 +18,7 @@ static func create() -> CharacterData:
 	data.jump_horizontal_impulse = 2.0
 	data.body_color = Color(0.20, 0.70, 0.85, 1.0)
 	data.accent_color = Color(0.95, 0.80, 0.20, 1.0)
+	data.model_scene = load("res://assets/characters/Cleodolinda.glb") as PackedScene
 	data.passive_data = {}
 	data.abilities["LMB"] = {
 		"id": "cleo_spell_1",

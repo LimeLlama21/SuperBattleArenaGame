@@ -2847,42 +2847,96 @@ func test_cleodolinda_animations() -> void:
 	if not cleo.is_node_ready():
 		cleo._ready()
 
-	# 1. Verify 3D CharacterModel is NOT present (model removed from project)
+	# 1. Verify 3D CharacterModel & AnimationPlayer presence
 	var model = cleo.get_node_or_null("CharacterModel")
-	assert(model == null, "Cleo model must be deleted from project and not instantiate CharacterModel")
-	print("  ✓ Cleo model absence verified (capsule mesh representation used).")
+	assert(model != null, "Cleo must instantiate CharacterModel from Cleodolinda.glb")
+	var anim_player = model.get_node_or_null("AnimationPlayer") as AnimationPlayer
+	assert(anim_player != null, "CharacterModel must have AnimationPlayer")
+	assert(anim_player.has_animation("Idle"), "Must contain Idle animation")
+	assert(anim_player.has_animation("dash"), "Must contain dash animation")
+	assert(anim_player.has_animation("spell 1"), "Must contain spell 1 animation")
+	assert(anim_player.has_animation("spell 2"), "Must contain spell 2 animation")
+	assert(anim_player.has_animation("spell 3 boost start"), "Must contain spell 3 boost start animation")
+	assert(anim_player.has_animation("spell 3 continuous"), "Must contain spell 3 continuous animation")
+	assert(anim_player.has_animation("spell 3 end"), "Must contain spell 3 end animation")
+	assert(anim_player.has_animation("Vacuum Cleaner Ult"), "Must contain Vacuum Cleaner Ult animation")
+	assert(anim_player.has_animation("Bank_Side1"), "Must preserve Bank_Side1 animation")
+	assert(anim_player.has_animation("Bank_Side2"), "Must preserve Bank_Side2 animation")
+	assert(anim_player.has_animation("Turn_Side1"), "Must preserve Turn_Side1 animation")
+	assert(anim_player.has_animation("Turn_Side2"), "Must preserve Turn_Side2 animation")
 
-	# 2. Verify Spell 3 (E) Hold & Release Cycle + 50% Boost:
+	# 2. Verify Initial State & Loop Modes
+	assert(anim_player.current_animation == "Idle", "Initial animation must be Idle")
+	var idle_anim = anim_player.get_animation("Idle")
+	assert(idle_anim.loop_mode == Animation.LOOP_LINEAR, "Idle animation must loop linearly")
+	var cont_anim = anim_player.get_animation("spell 3 continuous")
+	assert(cont_anim.loop_mode == Animation.LOOP_LINEAR, "spell 3 continuous animation must loop linearly")
+	print("  ✓ Cleo model, AnimationPlayer, and initial Idle loop verified.")
+
+	# 3. Verify Dash, Spell 1, Spell 2 triggers
+	cleo.custom_execute_ability_server("SHIFT", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(anim_player.current_animation == "dash", "Dash must trigger 'dash' animation")
+	cleo._on_animation_finished("dash")
+	assert(anim_player.current_animation == "Idle", "Finishing dash must return to Idle")
+
+	cleo.custom_execute_ability_server("LMB", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(anim_player.current_animation == "spell 1", "Spell 1 must trigger 'spell 1' animation")
+	cleo._on_animation_finished("spell 1")
+	assert(anim_player.current_animation == "Idle", "Finishing spell 1 must return to Idle")
+
+	cleo.custom_execute_ability_server("Q", cleo.global_position, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(anim_player.current_animation == "spell 2", "Spell 2 must trigger 'spell 2' animation")
+	cleo._on_animation_finished("spell 2")
+	assert(anim_player.current_animation == "Idle", "Finishing spell 2 must return to Idle")
+	print("  ✓ Dash, Spell 1, and Spell 2 animations verified.")
+
+	# 4. Verify Spell 3 (E) Hold & Release Cycle + 50% Boost:
 	# Verify baseline (inactive) movement metrics
 	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 7.0), "Baseline max move speed must be 7.0")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 28.0), "Baseline ground acceleration must be 28.0")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 8.0), "Baseline air acceleration must be 8.0")
 
-	# Press E -> boosts acceleration and ms cap by 50%
+	# Press E -> 'spell 3 boost start' plays once and boosts acceleration and ms cap by 50%
 	cleo.press_spell_3()
 	assert(cleo.is_spell_3_active == true, "Spell 3 must be active on press")
+	assert(anim_player.current_animation == "spell 3 boost start", "Pressing E must play 'spell 3 boost start'")
 	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 10.5), "Spell 3 active must increase ms cap by 50% (7.0 -> 10.5)")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 42.0), "Spell 3 active must increase ground acceleration by 50% (28.0 -> 42.0)")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 12.0), "Spell 3 active must increase air acceleration by 50% (8.0 -> 12.0)")
 	print("  ✓ Spell 3 boost values (+50% acceleration: 42.0 ground / 12.0 air, +50% ms cap: 10.5) verified while active.")
 
-	# Release E -> reset baseline metrics
+	# While holding, when start completes -> 'spell 3 continuous' loops
+	cleo._on_animation_finished("spell 3 boost start")
+	assert(anim_player.current_animation == "spell 3 continuous", "Completing start while held must transition to 'spell 3 continuous'")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 10.5), "MS cap must remain boosted during continuous loop")
+	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 42.0), "Acceleration must remain boosted during continuous loop")
+
+	# Release E -> 'spell 3 end' plays once
 	cleo.release_spell_3()
-	assert(cleo.is_spell_3_active == false, "Spell 3 must no longer be active on release")
+	assert(anim_player.current_animation == "spell 3 end", "Releasing E must transition to 'spell 3 end'")
+
+	# When end completes -> return to 'Idle' and reset baseline metrics
+	cleo._on_animation_finished("spell 3 end")
+	assert(cleo.is_spell_3_active == false, "Spell 3 must no longer be active")
+	assert(anim_player.current_animation == "Idle", "Completing 'spell 3 end' must return to Idle")
 	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 7.0), "Max move speed must return to 7.0 baseline after boost ends")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 28.0), "Ground acceleration must return to 28.0 baseline after boost ends")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 8.0), "Air acceleration must return to 8.0 baseline after boost ends")
-	print("  ✓ Spell 3 (E) press -> release lifecycle and boost reset verified.")
+	print("  ✓ Spell 3 (E) press -> continuous loop -> release -> end -> Idle lifecycle and boost reset verified.")
 
-	# 3. Verify Spell 3 Quick Tap / Cancel
+	# 5. Verify Spell 3 Quick Tap (Release before start finishes)
 	cleo.press_spell_3()
-	assert(cleo.is_spell_3_active == true, "Quick tap press activates boost")
-	cleo.cancel_spell_3()
-	assert(cleo.is_spell_3_active == false, "Canceling spell 3 deactivates boost")
-	print("  ✓ Spell 3 cancel verified.")
+	assert(anim_player.current_animation == "spell 3 boost start", "Quick tap press plays 'spell 3 boost start'")
+	cleo.release_spell_3()
+	assert(cleo._spell_3_holding == false, "Holding state is false on release")
+	cleo._on_animation_finished("spell 3 boost start")
+	assert(anim_player.current_animation == "spell 3 end", "Finishing start after release must route directly to 'spell 3 end'")
+	cleo._on_animation_finished("spell 3 end")
+	assert(anim_player.current_animation == "Idle", "Quick tap end returns to Idle")
+	print("  ✓ Spell 3 quick tap transition verified.")
 
 	cleo.queue_free()
-	print("✓ Cleo Model Removal & Spell 3 Boost Lifecycle verified successfully!")
+	print("✓ Cleo Animation Pipeline & Spell 3 Boost Lifecycle verified successfully!")
 
 func test_cleodolinda_relative_velocity_attack() -> void:
 	print("Testing Cleo Semicircle Relative Velocity Attack on LMB...")
@@ -3027,11 +3081,20 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	assert(cleo.rmb_slow_intensity == 0.35, "Cleo rmb_slow_intensity must be 0.35 (35% slow)")
 	print("  ✓ RMB full circle, moderate damage, and slow parameters verified.")
 
-	# 3. Test Delay timing
+	# 3. Test Delay timing: "hitbox trigger only several frames before animation ends"
+	var model = cleo.get_node_or_null("CharacterModel")
+	assert(model != null, "Cleo must have CharacterModel")
+	var anim_player = model.get_node_or_null("AnimationPlayer") as AnimationPlayer
+	assert(anim_player != null, "CharacterModel must have AnimationPlayer")
+	var anim = anim_player.get_animation("spell 2")
+	assert(anim != null, "Must contain 'spell 2' animation")
+	var anim_len = anim.length
+	assert(anim_len > 2.0, "spell 2 animation length should be ~2.5s")
 	var calculated_delay = cleo.get_rmb_delay()
-	assert(calculated_delay == cleo.rmb_windup_time, "Without 3D model animation, RMB delay matches rmb_windup_time")
+	assert(calculated_delay < anim_len, "RMB delay must trigger before the animation ends")
+	assert(calculated_delay >= anim_len - 0.3, "RMB delay must trigger only several frames (~5 frames) before the animation ends")
 	assert(rmb.windup_time == calculated_delay, "RMB ability windup_time must match calculated delay")
-	print("  ✓ RMB delay timing (triggers at %.3fs windup) verified." % calculated_delay)
+	print("  ✓ RMB delay timing (triggers %.3fs into %.3fs animation, exactly several frames before end) verified." % [calculated_delay, anim_len])
 
 	# 4. Test Hitbox Full Circle (360 degrees) coverage
 	rmb.setup()
@@ -3050,12 +3113,12 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -5.5)) == false, "Point beyond radius must be outside full circle")
 	print("  ✓ Full circle (360-degree) geometry verified in all directions.")
 
-	# 5. Test Windup Trigger & Cancel
+	# 5. Test Windup Animation Trigger & Cancel
 	cleo.active_windup_id = "RMB"
-	assert(cleo.active_windup_id == "RMB", "Entering RMB windup must set active_windup_id")
+	assert(anim_player.current_animation == "spell 2", "Entering RMB windup must play 'spell 2' animation")
 	cleo.cancel_active_windup()
-	assert(cleo.active_windup_id == "", "Canceling RMB windup must clear active_windup_id")
-	print("  ✓ RMB windup state and cancel return verified.")
+	assert(anim_player.current_animation == "Idle", "Canceling RMB windup must return to 'Idle'")
+	print("  ✓ RMB windup animation playback and cancel return verified.")
 
 	# 6. Live Combat Execution: Damage & Slow in Full Circle + No Velocity Scaling on RMB
 	cleo.global_position = Vector3(300, 0, 300)
