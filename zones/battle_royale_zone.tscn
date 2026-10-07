@@ -124,6 +124,7 @@ visible = false
 mesh = SubResource("BoxMesh_guideline")
 
 [node name="HUDLayer" type="CanvasLayer" parent="."]
+visible = false
 layer = 5
 
 [node name="StatusContainer" type="PanelContainer" parent="HUDLayer"]

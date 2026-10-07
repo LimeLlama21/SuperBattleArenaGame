@@ -322,6 +322,20 @@ func _ready() -> void:
 	if sprite_3d and has_node("HealthBarViewport"):
 		sprite_3d.texture = $HealthBarViewport.get_texture()
 	update_health_bar()
+	
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		if sprite_3d:
+			sprite_3d.add_to_group("ui_spatial")
+			uism.register_element(sprite_3d, uism.UICategory.SPATIAL, [uism.State.IN_MATCH])
+		if hud:
+			hud.add_to_group("ui_hud")
+			uism.register_element(hud, uism.UICategory.NON_DIEGETIC, [uism.State.IN_MATCH])
+		if not uism.is_in_match():
+			if sprite_3d:
+				sprite_3d.visible = false
+			if hud:
+				hud.visible = false
 	_update_team_visuals()
 	call_deferred("_update_team_visuals")
 

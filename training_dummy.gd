@@ -21,6 +21,15 @@ func _setup_character_kit() -> void:
 	max_move_speed = 0.0
 	home_position = global_position
 	_update_label()
+	
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		if info_label:
+			info_label.add_to_group("ui_spatial")
+			uism.register_element(info_label, uism.UICategory.SPATIAL, [uism.State.IN_MATCH])
+		if not uism.is_in_match():
+			if info_label:
+				info_label.visible = false
 
 func _process_character_kit(delta: float) -> void:
 	if is_dead:

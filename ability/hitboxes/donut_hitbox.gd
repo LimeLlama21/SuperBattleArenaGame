@@ -21,4 +21,3 @@ func is_point_in_inner_circle(origin: Vector3, point: Vector3) -> bool:
 	diff.y = 0.0
 	var dist = diff.length()
 	return dist < min_distance
-

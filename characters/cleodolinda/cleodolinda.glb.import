@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://c3e0mp1yumadk"
-path="res://.godot/imported/RockPlatform2.glb-85e73990e540e06f910f7b6ffb5f542f.scn"
+uid="uid://c0h0ku25nxp0g"
+path="res://.godot/imported/cleodolinda.glb-a70c817a520b55354869c3ff0f00c121.scn"
 
 [deps]
 
-source_file="res://assets/environment/RockPlatform2.glb"
-dest_files=["res://.godot/imported/RockPlatform2.glb-85e73990e540e06f910f7b6ffb5f542f.scn"]
+source_file="res://characters/cleodolinda/cleodolinda.glb"
+dest_files=["res://.godot/imported/cleodolinda.glb-a70c817a520b55354869c3ff0f00c121.scn"]
 
 [params]
 
@@ -42,4 +42,4 @@ materials/extract_path=""
 _subresources={}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
-gltf/texture_map_mode=0
+gltf/texture_map_mode=1

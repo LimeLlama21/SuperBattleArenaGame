@@ -293,9 +293,13 @@ var shop_inspector_effect: Label = null
 var shop_inspector_buy_btn: Button = null
 var current_inspected_item_id: String = "basic_damage"
 
-# --- Deathmatch Timer Variables ---
+# --- Deathmatch Timer & Unified Top-Center HUD Variables ---
 var dm_match_timer: float = 300.0
 var dm_timer_label: Label = null
+var top_center_container: VBoxContainer = null
+var top_hazard_container: VBoxContainer = null
+var top_hazard_warning_label: Label = null
+var top_hazard_arrow: Label = null
 
 var active_upnp: UPNP = null
 var upnp_thread: Thread = null
@@ -316,7 +320,13 @@ func _ready() -> void:
 		game_mode_option.item_selected.connect(_on_game_mode_selected)
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
-	cancel_join_button.pressed.connect(func(): join_dialog.hide())
+	cancel_join_button.pressed.connect(func():
+		var uism = get_node_or_null("/root/UIStateMachine")
+		if uism:
+			uism.transition_to(uism.State.MAIN_MENU)
+		else:
+			join_dialog.hide()
+	)
 	if join_local_button:
 		join_local_button.pressed.connect(func():
 			current_room_code = ""
@@ -471,13 +481,27 @@ func _ready() -> void:
 	vision_spawner.spawn_function = _custom_spawn_vision_zone
 	hazard_spawner.spawn_function = _custom_spawn_hazard_zone
 	
-	menu_panel.show()
-	lobby_panel.hide()
-	join_dialog.hide()
-	match_over_panel.hide()
-	escape_panel.hide()
-	if settings_panel:
-		settings_panel.hide()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.register_element(menu_panel, uism.UICategory.NON_DIEGETIC, [uism.State.MAIN_MENU])
+		uism.register_element(join_dialog, uism.UICategory.NON_DIEGETIC, [uism.State.JOIN_DIALOG])
+		uism.register_element(lobby_panel, uism.UICategory.NON_DIEGETIC, [uism.State.LOBBY])
+		uism.register_element(match_over_panel, uism.UICategory.NON_DIEGETIC, [uism.State.MATCH_OVER])
+		uism.register_element(escape_panel, uism.UICategory.NON_DIEGETIC, [uism.State.PAUSED])
+		if settings_panel:
+			uism.register_element(settings_panel, uism.UICategory.NON_DIEGETIC, [uism.State.PAUSED])
+		var fow_canvas = get_node_or_null("FogOfWarCanvas")
+		if fow_canvas:
+			uism.register_element(fow_canvas, uism.UICategory.NON_DIEGETIC, [uism.State.IN_MATCH])
+		uism.transition_to(uism.State.MAIN_MENU)
+	else:
+		menu_panel.show()
+		lobby_panel.hide()
+		join_dialog.hide()
+		match_over_panel.hide()
+		escape_panel.hide()
+		if settings_panel:
+			settings_panel.hide()
 	_refresh_character_selection_ui()
 	var default_char = "poke"
 	if not EnabledCharacters.is_character_enabled(default_char):
@@ -675,8 +699,12 @@ func _on_training_pressed() -> void:
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer = null
 	
-	menu_panel.hide()
-	lobby_panel.show()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.LOBBY)
+	else:
+		menu_panel.hide()
+		lobby_panel.show()
 	lobby_ip_label.text = "🎯 SOLO TRAINING SESSION"
 	if copy_code_button:
 		copy_code_button.visible = false
@@ -706,9 +734,13 @@ func _on_host_pressed() -> void:
 
 	multiplayer.multiplayer_peer = peer
 	
-	menu_panel.hide()
-	join_dialog.hide()
-	lobby_panel.show()
+	var uism_host = get_node_or_null("/root/UIStateMachine")
+	if uism_host:
+		uism_host.transition_to(uism_host.State.LOBBY)
+	else:
+		menu_panel.hide()
+		join_dialog.hide()
+		lobby_panel.show()
 	start_match_button.visible = true
 	if copy_code_button:
 		copy_code_button.visible = true
@@ -748,7 +780,11 @@ func _on_backend_create_room_completed(result: int, response_code: int, _headers
 		lobby_ip_label.text = "ROOM CODE: %s (Local)" % current_room_code
 
 func _on_join_pressed() -> void:
-	join_dialog.show()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.JOIN_DIALOG)
+	else:
+		join_dialog.show()
 	if join_status_label:
 		join_status_label.hide()
 	confirm_join_button.disabled = false
@@ -1331,10 +1367,14 @@ func start_game() -> void:
 	if not _is_sender_host():
 		return
 	match_in_progress = true
-	lobby_panel.hide()
-	match_over_panel.hide()
-	escape_panel.hide()
-	settings_panel.hide()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.IN_MATCH)
+	else:
+		lobby_panel.hide()
+		match_over_panel.hide()
+		escape_panel.hide()
+		settings_panel.hide()
 	
 	if not is_multiplayer_match() or multiplayer.is_server():
 		_process_pending_disconnects()
@@ -2358,16 +2398,20 @@ func _process(delta: float) -> void:
 	var active_mode = GameModes.get_mode(game_mode)
 	if match_in_progress and not active_mode.is_team_based:
 		dm_match_timer -= delta
+		var timer_str = active_mode.format_timer(dm_match_timer)
 		if dm_timer_label:
-			dm_timer_label.text = active_mode.format_timer(dm_match_timer)
+			dm_timer_label.text = timer_str
 			dm_timer_label.show()
+		var uism = get_node_or_null("/root/UIStateMachine")
+		if uism:
+			uism.update_match_status(timer_str, Color(1.0, 0.85, 0.25))
 		
 		if multiplayer.is_server() and dm_match_timer <= 0.0:
 			dm_match_timer = 0.0
 			match_in_progress = false
 			var top_winner = active_mode.evaluate_timed_winner(connected_players)
 			end_match.rpc(top_winner)
-	elif dm_timer_label and dm_timer_label.visible:
+	elif dm_timer_label and dm_timer_label.visible and not (active_mode and ("has_zone" in active_mode and active_mode.has_zone)):
 		dm_timer_label.hide()
 
 	if Input.is_key_pressed(KEY_TAB):
@@ -2703,6 +2747,9 @@ func _show_scoreboard(show: bool) -> void:
 		scoreboard_panel.show()
 	else:
 		scoreboard_panel.hide()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.set_overlay("scoreboard", show)
 
 func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if not scoreboard_panel or not scoreboard_panel.visible:
@@ -2920,42 +2967,135 @@ func _create_scoreboard_player_row(pid: int, p_name: String, char_key: String, p
 	
 	return row
 
-func _setup_dm_timer_ui() -> void:
+func _setup_top_center_hud() -> void:
+	if top_center_container != null:
+		return
 	var ui_node = get_node_or_null("UI")
 	if not ui_node:
 		return
+	
+	top_center_container = VBoxContainer.new()
+	top_center_container.name = "TopCenterHUD"
+	top_center_container.anchors_preset = Control.PRESET_CENTER_TOP
+	top_center_container.anchor_left = 0.5
+	top_center_container.anchor_right = 0.5
+	top_center_container.offset_left = -220.0
+	top_center_container.offset_top = 16.0
+	top_center_container.offset_right = 220.0
+	top_center_container.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	top_center_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	top_center_container.add_theme_constant_override("separation", 6)
+	top_center_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_center_container.visible = false
+	ui_node.add_child(top_center_container)
+	
+	# 1. Match / Zone Status Timer Label
 	dm_timer_label = Label.new()
 	dm_timer_label.name = "DMTimerLabel"
-	dm_timer_label.anchors_preset = Control.PRESET_CENTER_TOP
-	dm_timer_label.anchor_left = 0.5
-	dm_timer_label.anchor_right = 0.5
-	dm_timer_label.offset_left = -170.0
-	dm_timer_label.offset_top = 16.0
-	dm_timer_label.offset_right = 170.0
-	dm_timer_label.offset_bottom = 48.0
-	dm_timer_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	dm_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	dm_timer_label.add_theme_font_size_override("font_size", 16)
+	dm_timer_label.add_theme_font_size_override("font_size", 15)
 	dm_timer_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
 	
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.08, 0.14, 0.88)
-	style.border_color = Color(0.85, 0.68, 0.22, 0.9)
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 14
-	style.content_margin_right = 14
-	style.content_margin_top = 5
-	style.content_margin_bottom = 5
-	dm_timer_label.add_theme_stylebox_override("panel", style)
+	var style_timer = StyleBoxFlat.new()
+	style_timer.bg_color = Color(0.06, 0.08, 0.14, 0.88)
+	style_timer.border_color = Color(0.85, 0.68, 0.22, 0.9)
+	style_timer.border_width_left = 1
+	style_timer.border_width_top = 1
+	style_timer.border_width_right = 1
+	style_timer.border_width_bottom = 1
+	style_timer.corner_radius_top_left = 6
+	style_timer.corner_radius_top_right = 6
+	style_timer.corner_radius_bottom_left = 6
+	style_timer.corner_radius_bottom_right = 6
+	style_timer.content_margin_left = 16
+	style_timer.content_margin_right = 16
+	style_timer.content_margin_top = 5
+	style_timer.content_margin_bottom = 5
+	dm_timer_label.add_theme_stylebox_override("panel", style_timer)
 	dm_timer_label.visible = false
-	ui_node.add_child(dm_timer_label)
+	top_center_container.add_child(dm_timer_label)
+	
+	# 2. Map Announcement Banner Label
+	map_banner_label = Label.new()
+	map_banner_label.name = "MapBannerLabel"
+	map_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	map_banner_label.add_theme_font_size_override("font_size", 14)
+	map_banner_label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
+	
+	var style_banner = StyleBoxFlat.new()
+	style_banner.bg_color = Color(0.06, 0.09, 0.16, 0.90)
+	style_banner.border_color = Color(0.35, 0.65, 0.95, 0.8)
+	style_banner.border_width_left = 1
+	style_banner.border_width_top = 1
+	style_banner.border_width_right = 1
+	style_banner.border_width_bottom = 1
+	style_banner.corner_radius_top_left = 6
+	style_banner.corner_radius_top_right = 6
+	style_banner.corner_radius_bottom_left = 6
+	style_banner.corner_radius_bottom_right = 6
+	style_banner.content_margin_left = 14
+	style_banner.content_margin_right = 14
+	style_banner.content_margin_top = 4
+	style_banner.content_margin_bottom = 4
+	map_banner_label.add_theme_stylebox_override("panel", style_banner)
+	map_banner_label.visible = false
+	top_center_container.add_child(map_banner_label)
+	
+	# 3. Hazard Warning Container
+	top_hazard_container = VBoxContainer.new()
+	top_hazard_container.name = "TopHazardContainer"
+	top_hazard_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	top_hazard_container.add_theme_constant_override("separation", 2)
+	top_hazard_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_hazard_container.visible = false
+	
+	top_hazard_warning_label = Label.new()
+	top_hazard_warning_label.name = "HazardWarningLabel"
+	top_hazard_warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	top_hazard_warning_label.add_theme_color_override("font_color", Color(1, 0.25, 0.25, 1))
+	top_hazard_warning_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	top_hazard_warning_label.add_theme_constant_override("shadow_offset_x", 2)
+	top_hazard_warning_label.add_theme_constant_override("shadow_offset_y", 2)
+	top_hazard_warning_label.add_theme_font_size_override("font_size", 15)
+	
+	var style_warn = StyleBoxFlat.new()
+	style_warn.bg_color = Color(0.12, 0.03, 0.03, 0.92)
+	style_warn.border_color = Color(0.95, 0.25, 0.25, 0.9)
+	style_warn.border_width_left = 1
+	style_warn.border_width_top = 1
+	style_warn.border_width_right = 1
+	style_warn.border_width_bottom = 1
+	style_warn.corner_radius_top_left = 6
+	style_warn.corner_radius_top_right = 6
+	style_warn.corner_radius_bottom_left = 6
+	style_warn.corner_radius_bottom_right = 6
+	style_warn.content_margin_left = 14
+	style_warn.content_margin_right = 14
+	style_warn.content_margin_top = 4
+	style_warn.content_margin_bottom = 4
+	top_hazard_warning_label.add_theme_stylebox_override("panel", style_warn)
+	top_hazard_container.add_child(top_hazard_warning_label)
+	
+	top_hazard_arrow = Label.new()
+	top_hazard_arrow.name = "HazardArrow"
+	top_hazard_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	top_hazard_arrow.text = "⬆"
+	top_hazard_arrow.add_theme_color_override("font_color", Color(1, 0.45, 0.2, 1))
+	top_hazard_arrow.add_theme_font_size_override("font_size", 18)
+	top_hazard_container.add_child(top_hazard_arrow)
+	
+	top_center_container.add_child(top_hazard_container)
+	
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.setup_top_center_hud(top_center_container, dm_timer_label, top_hazard_container, top_hazard_warning_label, top_hazard_arrow, map_banner_label)
+		uism.register_element(top_center_container, uism.UICategory.NON_DIEGETIC, [uism.State.IN_MATCH])
+
+func _setup_dm_timer_ui() -> void:
+	_setup_top_center_hud()
+
+func _setup_map_banner_ui() -> void:
+	_setup_top_center_hud()
 
 func _setup_arena_maps() -> void:
 	var arena_node = get_node_or_null("Arena")
@@ -2985,44 +3125,6 @@ func _setup_arena_maps() -> void:
 	expanse.visible = false
 	expanse.process_mode = Node.PROCESS_MODE_DISABLED
 	arena_node.add_child(expanse)
-	arena_maps.append(expanse)
-
-func _setup_map_banner_ui() -> void:
-	var ui_node = get_node_or_null("UI")
-	if not ui_node:
-		return
-	map_banner_label = Label.new()
-	map_banner_label.name = "MapBannerLabel"
-	map_banner_label.anchors_preset = Control.PRESET_CENTER_TOP
-	map_banner_label.anchor_left = 0.5
-	map_banner_label.anchor_right = 0.5
-	map_banner_label.offset_left = -220.0
-	map_banner_label.offset_top = 54.0
-	map_banner_label.offset_right = 220.0
-	map_banner_label.offset_bottom = 86.0
-	map_banner_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	map_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	map_banner_label.add_theme_font_size_override("font_size", 15)
-	map_banner_label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
-	
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.09, 0.16, 0.90)
-	style.border_color = Color(0.35, 0.65, 0.95, 0.8)
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 14
-	style.content_margin_right = 14
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	map_banner_label.add_theme_stylebox_override("panel", style)
-	map_banner_label.visible = false
-	ui_node.add_child(map_banner_label)
 
 func _pick_next_random_map() -> int:
 	if selected_custom_map >= 0 and selected_custom_map < arena_maps.size():
@@ -3341,6 +3443,9 @@ func _show_shop(show: bool) -> void:
 		shop_panel.move_to_front()
 	else:
 		shop_panel.hide()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.set_overlay("shop", show)
 
 func _refresh_shop_ui() -> void:
 	if not shop_panel:
@@ -3634,12 +3739,16 @@ func _leave_to_main_menu() -> void:
 	if multiplayer.multiplayer_peer and multiplayer.is_server() and connected_players.size() > 1:
 		host_ended_session.rpc()
 	
-	escape_panel.hide()
-	join_dialog.hide()
-	settings_panel.hide()
-	match_over_panel.hide()
-	lobby_panel.hide()
-	menu_panel.show()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.MAIN_MENU)
+	else:
+		escape_panel.hide()
+		join_dialog.hide()
+		settings_panel.hide()
+		match_over_panel.hide()
+		lobby_panel.hide()
+		menu_panel.show()
 	if join_status_label:
 		join_status_label.hide()
 	

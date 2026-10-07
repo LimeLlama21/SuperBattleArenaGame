@@ -126,6 +126,11 @@ func set_zone_position(pos: Vector3) -> void:
 	else:
 		position = pos
 
+func _get_uism() -> Node:
+	if is_inside_tree() and get_tree() and get_tree().root:
+		return get_tree().root.get_node_or_null("UIStateMachine")
+	return null
+
 ## Check whether the current game mode is the main game mode ("tdm")
 func is_main_mode_active() -> bool:
 	if not only_active_in_main_mode:
@@ -142,6 +147,17 @@ func is_main_mode_active() -> bool:
 			curr = curr.get_parent()
 	if not main_node:
 		return true
+	
+	# Check match lifecycle: If match is not in progress, zone must NOT be active
+	var in_progress = main_node.get("match_in_progress")
+	if in_progress == null and main_node.has_meta("match_in_progress"):
+		in_progress = main_node.get_meta("match_in_progress")
+	if in_progress != null and not in_progress:
+		return false
+		
+	var uism = _get_uism()
+	if uism and not uism.is_in_match():
+		return false
 	
 	var is_training = main_node.get("is_training_mode")
 	if is_training == null and main_node.has_meta("is_training_mode"):
@@ -172,6 +188,9 @@ func deactivate_zone() -> void:
 		guide_line.visible = false
 	if hud_layer:
 		hud_layer.visible = false
+	var uism = _get_uism()
+	if uism:
+		uism.update_hazard_warning(false)
 
 ## Activate and start the zone for the main game mode
 func activate_zone() -> void:
@@ -209,6 +228,20 @@ func _ready() -> void:
 	
 	add_to_group("battle_royale_zone")
 	
+	var uism = _get_uism()
+	if uism:
+		uism.state_changed.connect(_on_ui_state_changed)
+		if wall_mesh:
+			uism.register_element(wall_mesh, uism.UICategory.DIEGETIC, [uism.State.IN_MATCH])
+		if ground_ring:
+			uism.register_element(ground_ring, uism.UICategory.DIEGETIC, [uism.State.IN_MATCH])
+		if guide_line:
+			uism.register_element(guide_line, uism.UICategory.DIEGETIC, [uism.State.IN_MATCH])
+		if telegraph_marker:
+			uism.register_element(telegraph_marker, uism.UICategory.SPATIAL, [uism.State.IN_MATCH])
+		if hud_layer:
+			uism.register_element(hud_layer, uism.UICategory.NON_DIEGETIC, [uism.State.IN_MATCH])
+	
 	if only_active_in_main_mode and not is_main_mode_active():
 		deactivate_zone()
 		return
@@ -216,6 +249,12 @@ func _ready() -> void:
 	# Start zone automatically if ready in server or singleplayer
 	if is_server_authority():
 		start_zone()
+
+func _on_ui_state_changed(_old_state: int, new_state: int) -> void:
+	if new_state == UIStateMachine.State.IN_MATCH:
+		evaluate_mode_activity()
+	else:
+		deactivate_zone()
 
 func is_server_authority() -> bool:
 	if not multiplayer or not multiplayer.has_multiplayer_peer():
@@ -716,6 +755,12 @@ func _set_visual_warning(intensity: float) -> void:
 # ==============================================================================
 
 func _update_hud_display(_delta: float) -> void:
+	var uism = _get_uism()
+	if uism and not uism.is_in_match():
+		if hud_layer:
+			hud_layer.visible = false
+		return
+		
 	if not hud_layer:
 		return
 		
@@ -723,6 +768,8 @@ func _update_hud_display(_delta: float) -> void:
 	if not local_player:
 		if hud_warning_label:
 			hud_warning_label.get_parent().visible = false
+		if uism:
+			uism.update_hazard_warning(false)
 		return
 
 	var p_pos = local_player.global_position
@@ -730,15 +777,19 @@ func _update_hud_display(_delta: float) -> void:
 	var is_outside = dist_to_center > zone_radius
 	var dist_outside = dist_to_center - zone_radius
 
+	var warn_text = ""
+	var arrow_rot = 0.0
+
 	# Update Outside Zone Hazard Warning
 	if hud_warning_label:
 		var warn_container = hud_warning_label.get_parent()
 		warn_container.visible = is_outside and current_state != State.INACTIVE
 		if is_outside:
-			hud_warning_label.text = "⚠️ OUTSIDE SAFE ZONE: TAKING DAMAGE (-%d HP/s) ⚠️\nReturn to ring (%.1fm)" % [
+			warn_text = "⚠️ OUTSIDE SAFE ZONE: TAKING DAMAGE (-%d HP/s) ⚠️\nReturn to ring (%.1fm)" % [
 				int(round(damage_per_second + (relocation_cycle_count * damage_escalation_per_cycle))),
 				dist_outside
 			]
+			hud_warning_label.text = warn_text
 			# Pulse red text
 			var alpha = 0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.01)
 			hud_warning_label.modulate = Color(1.0, 0.25, 0.25, alpha)
@@ -751,25 +802,42 @@ func _update_hud_display(_delta: float) -> void:
 			var cam_forward = -camera.global_transform.basis.z
 			var cam_right = camera.global_transform.basis.x
 			var local_dir = Vector2(dir_3d.dot(cam_right), -dir_3d.dot(cam_forward)).normalized()
-			hud_arrow.rotation = local_dir.angle() + PI * 0.5
+			arrow_rot = local_dir.angle() + PI * 0.5
+			hud_arrow.rotation = arrow_rot
 
 	# Update Top Status Bar
-	if hud_timer_label:
-		hud_timer_label.visible = current_state != State.INACTIVE
-		var mins = int(state_timer) / 60
-		var secs = int(state_timer) % 60
-		var time_str = "%02d:%02d" % [mins, secs]
-		
+	var mins = int(state_timer) / 60
+	var secs = int(state_timer) % 60
+	var time_str = "%02d:%02d" % [mins, secs]
+	var status_text = ""
+	var status_col = Color(0.4, 0.85, 1.0, 1.0)
+	
+	if current_state != State.INACTIVE:
 		match current_state:
 			State.WAITING:
-				hud_timer_label.text = "SAFE ZONE WAITING: %s" % time_str
-				hud_timer_label.modulate = Color(0.4, 0.85, 1.0, 1.0)
+				status_text = "SAFE ZONE WAITING: %s" % time_str
+				status_col = Color(0.4, 0.85, 1.0, 1.0)
 			State.WARNING:
-				hud_timer_label.text = "⚠️ ZONE RELOCATING IN: %s ⚠️" % time_str
-				hud_timer_label.modulate = Color(1.0, 0.5, 0.15, 1.0)
+				status_text = "⚠️ ZONE RELOCATING IN: %s ⚠️" % time_str
+				status_col = Color(1.0, 0.5, 0.15, 1.0)
 			State.MOVING:
-				hud_timer_label.text = "🌀 ZONE MOVING TO NEW LOCATION: %s" % time_str
-				hud_timer_label.modulate = Color(1.0, 0.85, 0.2, 1.0)
+				status_text = "🌀 ZONE MOVING TO NEW LOCATION: %s" % time_str
+				status_col = Color(1.0, 0.85, 0.2, 1.0)
+
+	if hud_timer_label:
+		hud_timer_label.visible = current_state != State.INACTIVE
+		hud_timer_label.text = status_text
+		hud_timer_label.modulate = status_col
+
+	# Sync with central UIStateMachine top HUD
+	if uism:
+		uism.update_match_status(status_text, status_col)
+		uism.update_hazard_warning(is_outside and current_state != State.INACTIVE, warn_text, arrow_rot)
+		# Hide local floating status container when centralized top HUD is available
+		if uism.top_center_container and hud_layer:
+			var status_cont = hud_layer.get_node_or_null("StatusContainer")
+			if status_cont:
+				status_cont.visible = false
 
 func _get_local_player() -> Node3D:
 	var main_node = get_tree().root.get_node_or_null("Main")
