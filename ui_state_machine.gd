@@ -36,7 +36,8 @@ var active_overlays: Dictionary = {
 	"shop": false,
 	"settings": false,
 	"escape": false,
-	"ability_modal": false
+	"ability_modal": false,
+	"upgrade_menu": false
 }
 
 # Registered element records: { "node": WeakRef, "category": int, "allowed_states": Array[int], "tag": String }
@@ -89,6 +90,7 @@ func transition_to(new_state: State) -> void:
 		active_overlays["scoreboard"] = false
 		active_overlays["shop"] = false
 		active_overlays["ability_modal"] = false
+		active_overlays["upgrade_menu"] = false
 		
 	_apply_state(new_state)
 	state_changed.emit(old_state, new_state)

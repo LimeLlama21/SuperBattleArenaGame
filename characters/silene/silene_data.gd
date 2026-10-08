@@ -7,6 +7,7 @@ static func create() -> CharacterData:
 	data.character_name = "The Dragon of Silene"
 	data.display_name = "Saint Silene"
 	data.archetype = "Juggernaut"
+	data.origins = [CharacterOrigin.ID_MONSTROUS, CharacterOrigin.ID_DIVINE]
 	data.description = "Saint Silene, the Dragon of Silene. An immense draconic juggernaut who cleaves enemies with claw and fang, breaths terrain-occluded dragonfire, and grows permanently stronger with every takedown."
 	data.max_health = 320.0
 	data.max_move_speed = 5.5

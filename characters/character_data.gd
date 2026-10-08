@@ -9,6 +9,17 @@ extends Resource
 @export var archetype: String = "" # e.g. "Sharpshooter", "Skirmisher", "Juggernaut", "Reaper"
 @export_multiline var description: String = ""
 
+# --- Origins & Classification ---
+@export_group("Origins")
+## Origins assigned to character: "mortal", "divine", "monstrous" (supports multiple)
+@export var origins: Array = []:
+	set(val):
+		origins.clear()
+		for item in val:
+			var s = CharacterOrigin.normalize_id(item)
+			if not s.is_empty() and not origins.has(s):
+				origins.append(s)
+
 # --- Core Vitals & Defense ---
 @export_group("Vitals & Defense")
 @export var max_health: float = 200.0
@@ -129,4 +140,35 @@ func get_all_slotted_abilities() -> Dictionary:
 	for k in abilities:
 		if not result.has(k.to_upper()):
 			result[k.to_upper()] = abilities[k]
+	return result
+
+# --- Origin Helper Methods ---
+func add_origin(origin_val: Variant) -> void:
+	var norm = CharacterOrigin.normalize_id(origin_val)
+	if not norm.is_empty() and not origins.has(norm):
+		origins.append(norm)
+
+func remove_origin(origin_val: Variant) -> void:
+	var norm = CharacterOrigin.normalize_id(origin_val)
+	origins.erase(norm)
+
+func has_origin(origin_val: Variant) -> bool:
+	var norm = CharacterOrigin.normalize_id(origin_val)
+	return origins.has(norm)
+
+func get_origins() -> Array[String]:
+	return origins.duplicate()
+
+func is_multi_origin() -> bool:
+	return origins.size() > 1
+
+func get_primary_origin() -> String:
+	return origins[0] if origins.size() > 0 else ""
+
+func get_origin_resources() -> Array[CharacterOrigin]:
+	var result: Array[CharacterOrigin] = []
+	for o_id in origins:
+		var res = OriginRegistry.get_origin(o_id)
+		if res:
+			result.append(res)
 	return result

@@ -87,15 +87,29 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var hbox_game_mode: HBoxContainer = get_node_or_null("UI/LobbyRoom/VBox/HBoxGameMode")
 @onready var map_option: OptionButton = get_node_or_null("UI/LobbyRoom/VBox/HBoxMap/MapOption")
 @onready var hbox_map: HBoxContainer = get_node_or_null("UI/LobbyRoom/VBox/HBoxMap")
-@onready var select_poke_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectPoke
-@onready var select_crush_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectCrush
-@onready var select_asparsas_button: Button = $UI/LobbyRoom/VBox/HBoxSelect/SelectAsparsas
-@onready var select_reaper_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectReaper")
-@onready var select_morrigan_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMorrigan")
-@onready var select_monkey_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectMonkey")
-@onready var select_silene_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectSilene")
-@onready var select_artist_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectArtist")
-@onready var select_cleo_button: Button = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect/SelectCleo")
+@onready var origin_all_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/OriginsBar/OriginAll")
+@onready var origin_mortal_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/OriginsBar/OriginMortal")
+@onready var origin_divine_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/OriginsBar/OriginDivine")
+@onready var origin_monstrous_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/OriginsBar/OriginMonstrous")
+
+@onready var arch_all_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar/ArchAll")
+@onready var arch_vanguard_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar/ArchVanguard")
+@onready var arch_brawler_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar/ArchBrawler")
+@onready var arch_striker_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar/ArchStriker")
+@onready var arch_blaster_btn: Button = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar/ArchBlaster")
+
+@onready var char_grid: GridContainer = get_node_or_null("UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/CharGridScroll/CharGrid")
+
+# Legacy button handles (safe fallbacks)
+var select_poke_button: Button = null
+var select_crush_button: Button = null
+var select_asparsas_button: Button = null
+var select_reaper_button: Button = null
+var select_morrigan_button: Button = null
+var select_monkey_button: Button = null
+var select_silene_button: Button = null
+var select_artist_button: Button = null
+var select_cleo_button: Button = null
 @onready var char_desc_label: Label = $UI/LobbyRoom/VBox/CharDescLabel
 @onready var team_section: VBoxContainer = $UI/LobbyRoom/VBox/TeamSection
 @onready var team_header: Label = get_node_or_null("UI/LobbyRoom/VBox/TeamSection/TeamHeader")
@@ -350,50 +364,7 @@ func _ready() -> void:
 	http_request_join.timeout = 20.0
 	add_child(http_request_join)
 	http_request_join.request_completed.connect(_on_backend_join_room_completed)
-	select_poke_button.pressed.connect(func(): _select_character("poke"))
-	select_crush_button.pressed.connect(func(): _select_character("crush"))
-	select_asparsas_button.pressed.connect(func(): _select_character("asparsas"))
-	if select_reaper_button:
-		select_reaper_button.pressed.connect(func(): _select_character("reaper"))
-	if select_morrigan_button:
-		select_morrigan_button.pressed.connect(func(): _select_character("morrigan"))
-	var hbox_select = get_node_or_null("UI/LobbyRoom/VBox/HBoxSelect")
-	if hbox_select and not select_monkey_button:
-		select_monkey_button = Button.new()
-		select_monkey_button.name = "SelectMonkey"
-		select_monkey_button.text = "The Great Sage (Select)"
-		select_monkey_button.custom_minimum_size = Vector2(0, 38)
-		select_monkey_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hbox_select.add_child(select_monkey_button)
-	if select_monkey_button:
-		select_monkey_button.pressed.connect(func(): _select_character("monkey"))
-	if hbox_select and not select_silene_button:
-		select_silene_button = Button.new()
-		select_silene_button.name = "SelectSilene"
-		select_silene_button.text = "Saint Silene (Select)"
-		select_silene_button.custom_minimum_size = Vector2(0, 38)
-		select_silene_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hbox_select.add_child(select_silene_button)
-	if select_silene_button:
-		select_silene_button.pressed.connect(func(): _select_character("silene"))
-	if hbox_select and not select_artist_button:
-		select_artist_button = Button.new()
-		select_artist_button.name = "SelectArtist"
-		select_artist_button.text = "The Painted Sage (Select)"
-		select_artist_button.custom_minimum_size = Vector2(0, 38)
-		select_artist_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hbox_select.add_child(select_artist_button)
-	if select_artist_button:
-		select_artist_button.pressed.connect(func(): _select_character("artist"))
-	if hbox_select and not select_cleo_button:
-		select_cleo_button = Button.new()
-		select_cleo_button.name = "SelectCleo"
-		select_cleo_button.text = "Cleo (Select)"
-		select_cleo_button.custom_minimum_size = Vector2(0, 38)
-		select_cleo_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hbox_select.add_child(select_cleo_button)
-	if select_cleo_button:
-		select_cleo_button.pressed.connect(func(): _select_character("cleodolinda"))
+	_setup_character_filters_and_grid()
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
@@ -510,17 +481,203 @@ func _ready() -> void:
 			default_char = en[0]
 	_select_character(default_char)
 
-func _refresh_character_selection_ui() -> void:
-	if select_poke_button: select_poke_button.visible = EnabledCharacters.is_character_enabled("poke")
-	if select_crush_button: select_crush_button.visible = EnabledCharacters.is_character_enabled("crush")
-	if select_asparsas_button: select_asparsas_button.visible = EnabledCharacters.is_character_enabled("asparsas")
-	if select_reaper_button: select_reaper_button.visible = EnabledCharacters.is_character_enabled("reaper")
-	if select_morrigan_button: select_morrigan_button.visible = EnabledCharacters.is_character_enabled("morrigan")
-	if select_monkey_button: select_monkey_button.visible = EnabledCharacters.is_character_enabled("monkey")
-	if select_silene_button: select_silene_button.visible = EnabledCharacters.is_character_enabled("silene")
-	if select_artist_button: select_artist_button.visible = EnabledCharacters.is_character_enabled("artist")
-	if select_cleo_button: select_cleo_button.visible = EnabledCharacters.is_character_enabled("cleodolinda")
+var current_origin_filter: String = "all"
+var current_archetype_filter: String = "all"
+var _character_card_nodes: Dictionary = {}
 
+func _setup_character_filters_and_grid() -> void:
+	if origin_all_btn: origin_all_btn.pressed.connect(func(): _set_origin_filter("all"))
+	if origin_mortal_btn: origin_mortal_btn.pressed.connect(func(): _set_origin_filter("mortal"))
+	if origin_divine_btn: origin_divine_btn.pressed.connect(func(): _set_origin_filter("divine"))
+	if origin_monstrous_btn: origin_monstrous_btn.pressed.connect(func(): _set_origin_filter("monstrous"))
+
+	if arch_all_btn: arch_all_btn.pressed.connect(func(): _set_archetype_filter("all"))
+	if arch_vanguard_btn: arch_vanguard_btn.pressed.connect(func(): _set_archetype_filter("vanguard"))
+	if arch_brawler_btn: arch_brawler_btn.pressed.connect(func(): _set_archetype_filter("brawler"))
+	if arch_striker_btn: arch_striker_btn.pressed.connect(func(): _set_archetype_filter("striker"))
+	if arch_blaster_btn: arch_blaster_btn.pressed.connect(func(): _set_archetype_filter("blaster"))
+
+	_update_filter_button_visuals()
+	_rebuild_character_grid()
+
+func _set_origin_filter(orig: String) -> void:
+	current_origin_filter = orig
+	_update_filter_button_visuals()
+	_rebuild_character_grid()
+
+func _set_archetype_filter(arch: String) -> void:
+	current_archetype_filter = arch
+	_update_filter_button_visuals()
+	_rebuild_character_grid()
+
+func _update_filter_button_visuals() -> void:
+	var origin_buttons = {
+		"all": origin_all_btn,
+		"mortal": origin_mortal_btn,
+		"divine": origin_divine_btn,
+		"monstrous": origin_monstrous_btn
+	}
+	for key in origin_buttons:
+		var btn: Button = origin_buttons[key]
+		if btn:
+			if current_origin_filter == key:
+				btn.add_theme_color_override("font_color", Color(0.2, 0.9, 1.0, 1.0))
+			else:
+				btn.remove_theme_color_override("font_color")
+
+	var arch_buttons = {
+		"all": arch_all_btn,
+		"vanguard": arch_vanguard_btn,
+		"brawler": arch_brawler_btn,
+		"striker": arch_striker_btn,
+		"blaster": arch_blaster_btn
+	}
+	for key in arch_buttons:
+		var btn: Button = arch_buttons[key]
+		if btn:
+			if current_archetype_filter == key:
+				btn.add_theme_color_override("font_color", Color(1.0, 0.82, 0.2, 1.0))
+			else:
+				btn.remove_theme_color_override("font_color")
+
+func _rebuild_character_grid() -> void:
+	if not char_grid:
+		return
+	for child in char_grid.get_children():
+		child.queue_free()
+	_character_card_nodes.clear()
+
+	# 1. Gather all canonical enabled character keys
+	var canonical_keys: Array[String] = []
+	for k in CharacterRegistry.get_all_character_keys():
+		if k == "cleo": # Skip duplicate alias
+			continue
+		if EnabledCharacters.is_character_enabled(k) and not canonical_keys.has(k):
+			canonical_keys.append(k)
+
+	# 2. Sort strictly in alphabetical order by ID (not display name)
+	canonical_keys.sort()
+
+	# 3. Filter characters
+	var filtered_keys: Array[String] = []
+	if current_archetype_filter != "all":
+		# No characters assigned to archetypes: clicking one results in all characters disappearing
+		filtered_keys = []
+	else:
+		for k in canonical_keys:
+			if current_origin_filter == "all":
+				filtered_keys.append(k)
+			elif CharacterRegistry.character_has_origin(k, current_origin_filter):
+				filtered_keys.append(k)
+
+	if filtered_keys.is_empty():
+		var empty_lbl = Label.new()
+		empty_lbl.text = "No characters match the selected filters."
+		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75, 0.8))
+		empty_lbl.add_theme_font_size_override("font_size", 12)
+		empty_lbl.custom_minimum_size = Vector2(300, 60)
+		char_grid.add_child(empty_lbl)
+		return
+
+	# 4. Create blank portrait cards in alphabetical order
+	for k in filtered_keys:
+		var card = _create_character_card(k)
+		char_grid.add_child(card)
+		_character_card_nodes[k] = card
+
+	_update_character_grid_selection()
+
+func _create_character_card(char_id: String) -> Control:
+	var btn = Button.new()
+	btn.name = "CharCard_" + char_id
+	btn.custom_minimum_size = Vector2(84, 106)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.flat = true
+
+	var vbox = VBoxContainer.new()
+	vbox.name = "VBox"
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 4)
+	btn.add_child(vbox)
+
+	# Blank portrait panel
+	var portrait_panel = PanelContainer.new()
+	portrait_panel.name = "PortraitPanel"
+	portrait_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_panel.custom_minimum_size = Vector2(70, 70)
+	portrait_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+
+	var portrait_box = StyleBoxFlat.new()
+	portrait_box.bg_color = Color(0.12, 0.15, 0.20, 0.95)
+	portrait_box.set_corner_radius_all(6)
+	portrait_box.border_width_left = 2
+	portrait_box.border_width_top = 2
+	portrait_box.border_width_right = 2
+	portrait_box.border_width_bottom = 2
+	portrait_box.border_color = Color(0.28, 0.35, 0.45, 0.7)
+	portrait_panel.add_theme_stylebox_override("panel", portrait_box)
+
+	vbox.add_child(portrait_panel)
+
+	# Name label underneath
+	var name_lbl = Label.new()
+	name_lbl.name = "NameLabel"
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_lbl.text = CharacterRegistry.get_display_name(char_id)
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.add_theme_color_override("font_color", Color(0.85, 0.9, 0.95, 1.0))
+	name_lbl.clip_text = true
+	name_lbl.custom_minimum_size = Vector2(80, 20)
+	vbox.add_child(name_lbl)
+
+	btn.pressed.connect(func(): _select_character(char_id))
+	return btn
+
+func _update_character_grid_selection() -> void:
+	for cid in _character_card_nodes:
+		var card: Button = _character_card_nodes[cid]
+		if not is_instance_valid(card):
+			continue
+		var is_selected = (cid == selected_character) or (cid == "cleodolinda" and selected_character == "cleo")
+		var p_panel = card.get_node_or_null("VBox/PortraitPanel") as PanelContainer
+		var name_lbl = card.get_node_or_null("VBox/NameLabel") as Label
+		
+		if p_panel:
+			var box = p_panel.get_theme_stylebox("panel") as StyleBoxFlat
+			if box:
+				var new_box = box.duplicate() as StyleBoxFlat
+				if is_selected:
+					new_box.border_color = Color(0.25, 0.85, 1.0, 1.0)
+					new_box.border_width_left = 3
+					new_box.border_width_top = 3
+					new_box.border_width_right = 3
+					new_box.border_width_bottom = 3
+					new_box.bg_color = Color(0.16, 0.26, 0.38, 0.95)
+				else:
+					new_box.border_color = Color(0.28, 0.35, 0.45, 0.7)
+					new_box.border_width_left = 2
+					new_box.border_width_top = 2
+					new_box.border_width_right = 2
+					new_box.border_width_bottom = 2
+					new_box.bg_color = Color(0.12, 0.15, 0.20, 0.95)
+				p_panel.add_theme_stylebox_override("panel", new_box)
+				
+		if name_lbl:
+			var base_name = CharacterRegistry.get_display_name(cid)
+			if is_selected:
+				name_lbl.text = "★ " + base_name
+				name_lbl.add_theme_color_override("font_color", Color(0.3, 0.9, 1.0, 1.0))
+			else:
+				name_lbl.text = base_name
+				name_lbl.remove_theme_color_override("font_color")
+
+func _refresh_character_selection_ui() -> void:
+	_rebuild_character_grid()
 	if switch_poke_btn: switch_poke_btn.visible = EnabledCharacters.is_character_enabled("poke")
 	if switch_crush_btn: switch_crush_btn.visible = EnabledCharacters.is_character_enabled("crush")
 	if switch_asparsas_btn: switch_asparsas_btn.visible = EnabledCharacters.is_character_enabled("asparsas")
@@ -539,54 +696,25 @@ func _select_character(char_key: String) -> void:
 		else:
 			return
 	selected_character = char_key
-	select_poke_button.text = "Arash (Select)"
-	select_crush_button.text = "Heracles (Select)"
-	select_asparsas_button.text = "Urvashi (Select)"
-	if select_reaper_button:
-		select_reaper_button.text = "Keres (Select)"
-	if select_morrigan_button:
-		select_morrigan_button.text = "Morrigan (Select)"
-	if select_monkey_button:
-		select_monkey_button.text = "The Great Sage (Select)"
-	if select_silene_button:
-		select_silene_button.text = "Saint Silene (Select)"
-	if select_artist_button:
-		select_artist_button.text = "The Painted Sage (Select)"
-	if select_cleo_button:
-		select_cleo_button.text = "Cleo (Select)"
+	_update_character_grid_selection()
 
 	if char_key == "poke":
-		select_poke_button.text = "★ Arash (Selected)"
 		char_desc_label.text = "ARASH: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
 	elif char_key == "crush":
-		select_crush_button.text = "★ Heracles (Selected)"
 		char_desc_label.text = "HERACLES: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
 	elif char_key == "asparsas":
-		select_asparsas_button.text = "★ Urvashi (Selected)"
 		char_desc_label.text = "URVASHI: Skirmisher (240 HP). Passive [Rupture Marks]: Stacking burst marks detonated for damage and 11-15% missing HP heal. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
 	elif char_key == "reaper":
-		if select_reaper_button:
-			select_reaper_button.text = "★ Keres (Selected)"
 		char_desc_label.text = "KERES: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (Charged throw: grounds + progressive slow -> roots & disables all movement). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
 	elif char_key == "morrigan":
-		if select_morrigan_button:
-			select_morrigan_button.text = "★ Morrigan (Selected)"
 		char_desc_label.text = "MORRIGAN: Mage (90 HP). Passive [Harbinger of Doom]: Ability hits spawn orbiting crows that seek nearby enemies (20 dmg + 35% slow). [LMB]: Black Plumage (Chargeable up to 5 rapid burst feathers). [RMB]: Omen of Death (Parabolic mortar shell). [Q]: Inescapable Ends (Dual-cast magnetic tether). [E]: Cry of the Banshee (Large cone shriek + 1.4s silence). [R]: Born of Blood (1s channel -> massive 45m piercing wave + stun). [Shift]: Crowstorm (Steered flight + 60% MS + 50% DR)."
 	elif char_key == "monkey":
-		if select_monkey_button:
-			select_monkey_button.text = "★ The Great Sage (Selected)"
 		char_desc_label.text = "THE GREAT SAGE: Trickster (160 HP). Passive [Stone Monkey]: Critical health (30%) triggers 3s stone invulnerability + displacement immunity + 30% missing HP heal. [LMB]: Heavenly Pillar (Fast staff bonk). [RMB]: Enlarge (Chargeable dash & slam with sweet spot stun). [Q]: 72 Forms (Disguise wheel with Tree, Rock, Cancel). [E]: Sage's Mockery (Circular taunt & damage reduction). [R]: Shadow Rush Flurry (Stealth dash -> flurry rush recast)."
 	elif char_key == "silene":
-		if select_silene_button:
-			select_silene_button.text = "★ Saint Silene (Selected)"
 		char_desc_label.text = "SAINT SILENE: The Dragon of Silene (320 HP). Passive [Draconic Ferocity]: Flat bonus damage on all abilities. [LMB]: Claw Swipe (Annulus Sector). [Shift]: Dragon Leap/Rush (Grab & Slam, Wall Stop, Unstoppable when Charged). [RMB]: Dragon Bite (Annulus Sector % Max HP DMG & Heal). [Q]: Tail Lash (Annulus Sector Stun & DMG). [E]: Dragonfire Breath (Height-scaling Cone DOT, Terrain raycast). [R]: Primal Roar (Annulus Sector Silence & Drag) + Persistent +10 Max HP per takedown."
 	elif char_key == "artist":
-		if select_artist_button:
-			select_artist_button.text = "★ The Painted Sage (Selected)"
 		char_desc_label.text = "THE PAINTED SAGE: Calligrapher (200 HP). Passive [Ink Alchemy]: Elemental talisman ink alchemy. [Shift]: Brush Step (Swift evasive dash). [R]: Ink Alchemy (Vancian talisman wheel: Inscribe Hanzi [火 Fire, 水 Water, 风 Air, 土 Earth] to prepare spells, or recast to unleash prepared elements)."
 	elif char_key == "cleodolinda" or char_key == "cleo":
-		if select_cleo_button:
-			select_cleo_button.text = "★ Cleo (Selected)"
 		char_desc_label.text = "CLEO: Hoverboarder (180 HP). Passive: High agility hoverboard riding. [LMB]: Semicircle strike scaling with relative velocity. [RMB]: Delayed full-circle spinning sweep + slow. [Shift]: Hover Surge dash. [E]: Hover Boost (+50% accel and max speed). [R]: Maximum Suction (Vacuum pull + damage)."
 	
 	if connected_players.has(1):

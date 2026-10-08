@@ -7,6 +7,16 @@ enum ActionType {
 	ENVIRONMENT = 2  # Map Hazards / Void / Wall Impact
 }
 
+enum DamageType {
+	DAMAGE = 0,       # Standard damage (mitigated by armor & damage reduction, blocked by armor charges)
+	TRUE_DAMAGE = 1  # True damage (ignores damage reduction, armor, and armor charges)
+}
+
+const DAMAGE_TYPE_DAMAGE = DamageType.DAMAGE
+const DAMAGE_TYPE_TRUE = DamageType.TRUE_DAMAGE
+const DAMAGE_TYPE_NORMAL = DamageType.DAMAGE
+const DAMAGE_TYPE_TRUE_DAMAGE = DamageType.TRUE_DAMAGE
+
 signal attack_performed(attack_name: String)
 signal ability_cast(ability_name: String, slot_key: String)
 signal damage_dealt(target: Node, amount: float, action_type: int)
@@ -99,8 +109,17 @@ func reset_armor_charges() -> void:
 	if is_multiplayer_match() and is_server_authoritative():
 		sync_armor_charges.rpc(armor_charges)
 
-func take_projectile_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK) -> void:
-	take_damage(amount, attacker_id, action_type, true)
+func take_projectile_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK, damage_type: int = DamageType.DAMAGE) -> void:
+	take_damage(amount, attacker_id, action_type, true, damage_type)
+
+func drain_mana(amount: float) -> float:
+	if is_dead or amount <= 0.0:
+		return 0.0
+	var drained = min(current_mana, amount)
+	current_mana = clamp(current_mana - drained, 0.0, max_mana)
+	if drained > 0.0 and is_multiplayer_match() and is_server_authoritative():
+		sync_mana.rpc(current_mana)
+	return drained
 
 func add_shield(amount: float, duration: float = 5.0) -> void:
 	apply_shield(amount, duration)
@@ -291,6 +310,8 @@ var forward_vision_range: float = 24.0
 var forward_vision_angle: float = 45.0
 
 func get_custom_cone_radius() -> float:
+	if (has_method("is_nearsighted") and is_nearsighted()) or (has_method("is_blinded") and is_blinded()):
+		return 0.0
 	return forward_vision_range
 
 func get_custom_cone_half_angle_deg() -> float:
@@ -644,10 +665,12 @@ func sync_shield(new_shield: float) -> void:
 	current_shield = new_shield
 
 func modify_incoming_damage(amount: float, attacker_id: int, _action_type: int) -> float:
-	if attacker_id > 0 and get_tree():
+	if attacker_id > 0 and is_inside_tree() and get_tree() and get_tree().root:
 		var attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
 		if not attacker:
 			attacker = get_tree().root.find_child(str(attacker_id), true, false)
+		if not attacker and get_parent():
+			attacker = get_parent().get_node_or_null(str(attacker_id))
 		if attacker and attacker.has_method("get_taunt_damage_multiplier"):
 			amount *= attacker.get_taunt_damage_multiplier()
 	var dmg_reduction = get_item_stat("damage_reduction") + get_item_stat("armor")
@@ -655,7 +678,7 @@ func modify_incoming_damage(amount: float, attacker_id: int, _action_type: int) 
 		amount *= clamp(1.0 - (dmg_reduction / 100.0), 0.0, 1.0)
 	return amount
 
-func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK, is_projectile: bool = false) -> void:
+func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionType.ATTACK, is_projectile: bool = false, damage_type: int = DamageType.DAMAGE) -> void:
 	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 	if is_dead:
@@ -664,7 +687,9 @@ func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionT
 	if is_ethereal_active() or is_invulnerable():
 		return
 
-	if is_projectile and amount > 0.0 and armor_charges > 0:
+	var is_true_damage: bool = (damage_type == DamageType.TRUE_DAMAGE)
+
+	if not is_true_damage and is_projectile and amount > 0.0 and armor_charges > 0:
 		consume_armor_charge()
 		projectile_damage_resisted.emit(attacker_id, amount)
 		return
@@ -672,12 +697,16 @@ func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionT
 	if is_transformed and transformation_properties.get("break_on_damage", true):
 		break_transformation()
 
-	if attacker_id > 0:
+	if attacker_id > 0 and is_inside_tree() and get_tree() and get_tree().root:
 		var attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
+		if not attacker and get_parent():
+			attacker = get_parent().get_node_or_null(str(attacker_id))
 		if attacker and attacker.has_method("get_damage_multiplier"):
 			amount *= attacker.get_damage_multiplier()
 
-	var final_dmg = modify_incoming_damage(amount, attacker_id, action_type)
+	var final_dmg = amount
+	if not is_true_damage:
+		final_dmg = modify_incoming_damage(amount, attacker_id, action_type)
 	if final_dmg <= 0.0:
 		return
 
@@ -700,25 +729,56 @@ func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionT
 	if attacker_id > 0:
 		recent_damage_dealers[attacker_id] = Time.get_ticks_msec() / 1000.0
 		var attacker = null
-		if get_tree() and get_tree().root:
+		if is_inside_tree() and get_tree() and get_tree().root:
 			attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
 			if not attacker and get_parent():
 				attacker = get_parent().get_node_or_null(str(attacker_id))
 			if not attacker:
 				attacker = get_tree().root.get_node_or_null(str(attacker_id))
 		if attacker and attacker.has_method("_on_damage_dealt"):
-			attacker._on_damage_dealt(self, final_dmg, action_type)
+			if attacker is BasePlayer:
+				attacker._on_damage_dealt(self, final_dmg, action_type, damage_type)
+			else:
+				attacker._on_damage_dealt(self, final_dmg, action_type)
 
 	if current_health <= 0.0:
 		die()
 
-func deal_damage(target: Node, amount: float, action_type: int = ActionType.ATTACK) -> void:
+func deal_damage(target: Node, amount: float, action_type: int = ActionType.ATTACK, damage_type: int = DamageType.DAMAGE, is_projectile: bool = false) -> void:
 	if not is_instance_valid(target) or not target.has_method("take_damage"):
 		return
 	var my_id = str(name).to_int() if str(name).is_valid_int() else 0
-	target.take_damage(amount, my_id, action_type)
+	if my_id == 0 and is_multiplayer_match():
+		my_id = multiplayer.get_unique_id()
+	
+	var initial_hp = target.current_health if "current_health" in target else (target.health if "health" in target else 0.0)
 
-func _on_damage_dealt(target: Node, amount: float, action_type: int) -> void:
+	if target is BasePlayer:
+		target.take_damage(amount, my_id, action_type, is_projectile, damage_type)
+	else:
+		var method_args = 3
+		for m in target.get_method_list():
+			if m.name == "take_damage":
+				method_args = m.args.size()
+				break
+		if method_args >= 5:
+			target.take_damage(amount, my_id, action_type, is_projectile, damage_type)
+		elif method_args == 4:
+			target.take_damage(amount, my_id, action_type, is_projectile)
+		elif method_args == 3:
+			target.take_damage(amount, my_id, action_type)
+		elif method_args == 2:
+			target.take_damage(amount, my_id)
+		else:
+			target.take_damage(amount)
+	
+	if my_id <= 0 or not is_inside_tree() or not get_tree() or not get_tree().root or not get_tree().root.get_node_or_null("Main/Players/" + str(my_id)):
+		var post_hp = target.current_health if "current_health" in target else (target.health if "health" in target else 0.0)
+		var actual_dealt = max(0.0, initial_hp - post_hp) if initial_hp > 0.0 else amount
+		if actual_dealt > 0.0:
+			_on_damage_dealt(target, actual_dealt, action_type, damage_type)
+
+func _on_damage_dealt(target: Node, amount: float, action_type: int = ActionType.ATTACK, damage_type: int = DamageType.DAMAGE) -> void:
 	damage_dealt.emit(target, amount, action_type)
 	_on_character_damage_dealt(target, amount, action_type)
 	
@@ -726,6 +786,8 @@ func _on_damage_dealt(target: Node, amount: float, action_type: int) -> void:
 	var vamp = get_item_stat("lifesteal") + get_item_stat("omnivamp") + get_item_stat("vamp")
 	if vamp > 0.0 and amount > 0.0:
 		heal(amount * (vamp / 100.0))
+	
+	_check_ascetic_touch_proc(target, amount, action_type, damage_type)
 
 func _on_takedown(victim: Node) -> void:
 	takedown_scored.emit(victim)
@@ -929,6 +991,7 @@ func die() -> void:
 	dismiss_all_ability_indicators()
 	cleanse_cc()
 	clear_buffered_ability()
+	_trigger_hymn_of_the_underworld()
 
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var main_node = get_tree().current_scene if get_tree() else null
@@ -2617,6 +2680,8 @@ func request_cast_ability(slot_key: String, origin: Vector3, direction: Vector3,
 		start_windup_cast(slot_key, origin, direction, target_pos, delay, charge_ratio)
 	else:
 		ab.execute_server(self, origin, direction, target_pos, charge_ratio)
+		if slot_key == "SHIFT":
+			on_dash_performed()
 		if is_multiplayer_match():
 			sync_cast_ability.rpc(slot_key, origin, direction, target_pos, charge_ratio)
 		else:
@@ -2627,3 +2692,291 @@ func sync_cast_ability(slot_key: String, origin: Vector3, direction: Vector3, ta
 	var ab = abilities.get(slot_key) as AbilityClass
 	if ab:
 		ab.execute_client(self, origin, direction, target_pos, charge_ratio)
+
+# --- Character Leveling & Upgrade System ---
+var acquired_upgrades: Array[String] = []
+var _last_dash_performed_frame: int = -1
+
+func has_upgrade(upgrade_id: String) -> bool:
+	var norm = upgrade_id.to_lower().strip_edges()
+	return acquired_upgrades.has(norm)
+
+func apply_upgrade(upgrade_id: String, _data: Dictionary = {}) -> void:
+	var norm = upgrade_id.to_lower().strip_edges()
+	if not acquired_upgrades.has(norm):
+		acquired_upgrades.append(norm)
+	
+	if is_multiplayer_match() and is_server_authoritative():
+		sync_apply_upgrade.rpc(norm)
+	
+	_activate_upgrade_effects(norm)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_upgrade(upgrade_id: String) -> void:
+	if not _is_sender_host():
+		return
+	if not acquired_upgrades.has(upgrade_id):
+		acquired_upgrades.append(upgrade_id)
+	_activate_upgrade_effects(upgrade_id)
+
+func _activate_upgrade_effects(upgrade_id: String) -> void:
+	match upgrade_id:
+		"atalantas_stride", "quick_feet", "mortal_cunning_1":
+			_apply_atalantas_stride_upgrade()
+		"ascetic_touch", "spellthief", "mortal_cunning_2":
+			_apply_ascetic_touch_upgrade()
+		"hymn_of_the_underworld", "mortal_cunning_3":
+			_apply_hymn_of_the_underworld_upgrade()
+
+func _apply_atalantas_stride_upgrade() -> void:
+	var dash_ab = get_ability_for_slot("SHIFT")
+	if not (dash_ab is AbilityClass):
+		var ab_node = get_node_or_null("Abilities/SHIFT")
+		if ab_node is AbilityClass:
+			dash_ab = ab_node
+	if not (dash_ab is AbilityClass):
+		for ab in abilities.values():
+			if ab is AbilityClass and (ab.slot_key == "SHIFT" or "dash" in ab.ability_id.to_lower() or "dash" in ab.name.to_lower()):
+				dash_ab = ab
+				break
+	if dash_ab is AbilityClass:
+		dash_ab.max_charges += 1
+		dash_ab.current_charges = min(dash_ab.max_charges, dash_ab.current_charges + 1)
+		if dash_ab.recharge_time <= 0.0:
+			dash_ab.recharge_time = dash_ab.cooldown
+
+func _apply_quick_feet_upgrade() -> void:
+	_apply_atalantas_stride_upgrade()
+
+func on_dash_performed() -> void:
+	var cur_frame = Engine.get_physics_frames()
+	if cur_frame == _last_dash_performed_frame:
+		return
+	_last_dash_performed_frame = cur_frame
+	
+	if has_upgrade("atalantas_stride") or has_upgrade("quick_feet") or has_upgrade("mortal_cunning_1"):
+		apply_speed_boost(2.0, 0.30, true)
+
+# --- Ascetic Touch (Tier 2 Mortal Cunning) Upgrade Mechanics ---
+var _is_proc_damage: bool = false
+var ascetic_touch_target_cooldowns: Dictionary = {}
+var spellthief_target_cooldowns: Dictionary:
+	get: return ascetic_touch_target_cooldowns
+	set(val): ascetic_touch_target_cooldowns = val
+
+const ASCETIC_TOUCH_COOLDOWN_PER_TARGET: float = 10.0
+const ASCETIC_TOUCH_HP_PERCENT: float = 0.05
+const ASCETIC_TOUCH_MANA_STEAL: float = 15.0
+
+const SPELLTHIEF_COOLDOWN_PER_TARGET: float = ASCETIC_TOUCH_COOLDOWN_PER_TARGET
+const SPELLTHIEF_HP_PERCENT: float = ASCETIC_TOUCH_HP_PERCENT
+const SPELLTHIEF_MANA_STEAL: float = ASCETIC_TOUCH_MANA_STEAL
+
+func _apply_ascetic_touch_upgrade() -> void:
+	ascetic_touch_target_cooldowns.clear()
+
+func _apply_spellthief_upgrade() -> void:
+	_apply_ascetic_touch_upgrade()
+
+func _check_ascetic_touch_proc(target: Node, amount: float, _action_type: int, _damage_type: int) -> void:
+	if _is_proc_damage:
+		return
+	if not (has_upgrade("ascetic_touch") or has_upgrade("spellthief") or has_upgrade("mortal_cunning_2")):
+		return
+	if not is_instance_valid(target) or amount <= 0.0:
+		return
+	if "is_dead" in target and target.is_dead:
+		return
+
+	# Per-target cooldown check (10 seconds per target)
+	var target_key = target.get_instance_id()
+	var current_time = Time.get_ticks_msec() / 1000.0
+	var last_trigger_time = ascetic_touch_target_cooldowns.get(target_key, -999.0)
+	if (current_time - last_trigger_time) < ASCETIC_TOUCH_COOLDOWN_PER_TARGET:
+		return
+
+	# Set per-target cooldown
+	ascetic_touch_target_cooldowns[target_key] = current_time
+
+	# 1. Deal 5% max HP True Damage (ignores damage reduction and armor charges)
+	var target_max_hp: float = 100.0
+	if "max_health" in target:
+		target_max_hp = float(target.max_health)
+	elif "health" in target:
+		target_max_hp = float(target.health)
+	var true_damage_amount: float = max(1.0, target_max_hp * ASCETIC_TOUCH_HP_PERCENT)
+
+	_is_proc_damage = true
+	deal_damage(target, true_damage_amount, ActionType.ABILITY, DamageType.TRUE_DAMAGE)
+	_is_proc_damage = false
+
+	# 2. Steal moderate amount of mana (15.0)
+	var stolen: float = 0.0
+	if target.has_method("drain_mana"):
+		stolen = target.drain_mana(ASCETIC_TOUCH_MANA_STEAL)
+	elif "current_mana" in target:
+		stolen = min(target.current_mana, ASCETIC_TOUCH_MANA_STEAL)
+		target.current_mana = max(0.0, target.current_mana - stolen)
+		if target.has_method("is_multiplayer_match") and target.is_multiplayer_match() and target.is_server_authoritative():
+			target.sync_mana.rpc(target.current_mana)
+	else:
+		stolen = ASCETIC_TOUCH_MANA_STEAL
+	
+	restore_mana(ASCETIC_TOUCH_MANA_STEAL)
+
+func _check_spellthief_proc(target: Node, amount: float, action_type: int, damage_type: int) -> void:
+	_check_ascetic_touch_proc(target, amount, action_type, damage_type)
+
+func get_ascetic_touch_target_cooldown(target: Node) -> float:
+	if not is_instance_valid(target):
+		return 0.0
+	var key = target.get_instance_id()
+	var last_time = ascetic_touch_target_cooldowns.get(key, -999.0)
+	var elapsed = (Time.get_ticks_msec() / 1000.0) - last_time
+	return max(0.0, ASCETIC_TOUCH_COOLDOWN_PER_TARGET - elapsed)
+
+func is_ascetic_touch_ready_for_target(target: Node) -> bool:
+	return get_ascetic_touch_target_cooldown(target) <= 0.0
+
+func get_spellthief_target_cooldown(target: Node) -> float:
+	return get_ascetic_touch_target_cooldown(target)
+
+func is_spellthief_ready_for_target(target: Node) -> bool:
+	return is_ascetic_touch_ready_for_target(target)
+
+# --- Hymn of the Underworld (Tier 3 Mortal Cunning) Upgrade Mechanics ---
+const ShadeProjectileClass = preload("res://characters/leveling/shade_projectile.gd")
+const HYMN_SCREEN_RANGE: float = 28.0
+
+func _apply_hymn_of_the_underworld_upgrade() -> void:
+	pass
+
+func _trigger_hymn_of_the_underworld() -> void:
+	if not (has_upgrade("hymn_of_the_underworld") or has_upgrade("mortal_cunning_3")):
+		return
+	
+	var death_pos = global_position
+	var enemies = get_enemies_who_saw_death(death_pos)
+	for enemy in enemies:
+		spawn_shade_projectile(enemy, death_pos)
+
+func get_enemies_who_saw_death(death_pos: Vector3) -> Array[Node]:
+	var eligible_enemies: Array[Node] = []
+	var all_players = get_all_match_players()
+	
+	# 1. Filter living enemies
+	var living_enemies: Array[Node] = []
+	for p in all_players:
+		if not is_instance_valid(p) or p == self:
+			continue
+		if "is_dead" in p and p.is_dead:
+			continue
+		var is_enemy = false
+		if "team_id" in self and self.team_id != 0:
+			var p_team = p.team_id if "team_id" in p else 0
+			is_enemy = (p_team != self.team_id)
+		else:
+			is_enemy = true
+		if is_enemy:
+			living_enemies.append(p)
+
+	# 2. Extract map obstacles for line of sight if in a match
+	var obstacles: Array[Dictionary] = []
+	if is_inside_tree() and get_tree() and get_tree().root:
+		var main_node = get_tree().root.get_node_or_null("Main")
+		if main_node:
+			obstacles = PlayerVision.extract_map_obstacles_2d(main_node)
+
+	# 3. For each enemy, check if they are in screen range and if their team saw the death
+	for enemy in living_enemies:
+		var dist_to_death = (enemy.global_position - death_pos).length()
+		# Must be within limited range that encompasses the screen
+		if dist_to_death > HYMN_SCREEN_RANGE:
+			continue
+		
+		# Check if enemy sees death either through their own vision or an ally's
+		var enemy_team = enemy.team_id if "team_id" in enemy else 0
+		var allies: Array[Node] = []
+		for ally in living_enemies:
+			var a_team = ally.team_id if "team_id" in ally else 0
+			if (enemy_team != 0 and a_team == enemy_team) or ally == enemy:
+				allies.append(ally)
+		
+		var team_saw_death = false
+		for ally in allies:
+			if check_viewer_sees_position(ally, death_pos, obstacles):
+				team_saw_death = true
+				break
+		
+		if team_saw_death:
+			eligible_enemies.append(enemy)
+
+	return eligible_enemies
+
+func check_viewer_sees_position(viewer: Node, target_pos: Vector3, obstacles: Array[Dictionary]) -> bool:
+	if not is_instance_valid(viewer):
+		return false
+	var v_pos = viewer.global_position
+	var diff = target_pos - v_pos
+	var diff_2d = Vector2(diff.x, diff.z)
+	var dist = diff_2d.length()
+	
+	var height_mult = PlayerVision.get_height_vision_multiplier(v_pos.y)
+	var close_rad = PlayerVision.CLOSE_RADIUS_M * height_mult
+	var in_shape = false
+	
+	# 1. Proximity circle
+	if dist <= close_rad:
+		in_shape = true
+	else:
+		# 2. Forward cone (only if not blinded/nearsighted)
+		var base_cone_radius = viewer.get_custom_cone_radius() if viewer.has_method("get_custom_cone_radius") else PlayerVision.CONE_RADIUS_M
+		var effective_cone_radius = base_cone_radius * height_mult
+		if dist <= effective_cone_radius and diff_2d.length_squared() > 0.0001:
+			var fwd_3d = viewer.get_facing_direction_3d() if viewer.has_method("get_facing_direction_3d") else -viewer.global_transform.basis.z.normalized()
+			fwd_3d.y = 0.0
+			var fwd_2d = Vector2(fwd_3d.x, fwd_3d.z).normalized()
+			if fwd_2d.length_squared() > 0.0001:
+				var angle_deg = rad_to_deg(fwd_2d.angle_to(diff_2d.normalized()))
+				var half_angle = viewer.get_custom_cone_half_angle_deg() if viewer.has_method("get_custom_cone_half_angle_deg") else PlayerVision.CONE_HALF_ANGLE_DEG
+				if abs(angle_deg) <= half_angle:
+					in_shape = true
+
+	if not in_shape:
+		return false
+	
+	# Line of sight check
+	if not obstacles.is_empty():
+		var v_eye_y = v_pos.y + 1.25
+		var t_eye_y = target_pos.y + 1.0
+		return PlayerVision.is_target_visible_2d(v_pos, v_eye_y, target_pos, t_eye_y, obstacles)
+	
+	return true
+
+func get_all_match_players() -> Array[Node]:
+	var result: Array[Node] = []
+	if is_inside_tree() and get_tree():
+		for p in get_tree().get_nodes_in_group("players"):
+			if not result.has(p):
+				result.append(p)
+		if get_tree().root:
+			var main_node = get_tree().root.get_node_or_null("Main")
+			if main_node and main_node.has_node("Players"):
+				for c in main_node.get_node("Players").get_children():
+					if not result.has(c):
+						result.append(c)
+	if get_parent():
+		for c in get_parent().get_children():
+			if c != self and c is BasePlayer and not result.has(c):
+				result.append(c)
+	return result
+
+func spawn_shade_projectile(enemy: Node, spawn_pos: Vector3) -> Node:
+	var shade = ShadeProjectileClass.new()
+	shade.target = enemy
+	if is_inside_tree() and get_tree() and get_tree().root:
+		get_tree().root.add_child(shade)
+	elif get_parent():
+		get_parent().add_child(shade)
+	shade.global_position = spawn_pos + Vector3(0, 1.0, 0)
+	return shade

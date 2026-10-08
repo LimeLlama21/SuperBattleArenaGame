@@ -19,10 +19,13 @@ func get_hitbox_radius() -> float:
 		return target.get_hitbox_radius()
 	return 0.4
 
-func take_damage(amount: float, attacker_id: int = 0, action_type: int = 0) -> void:
+func take_damage(amount: float, attacker_id: int = 0, action_type: int = 0, is_projectile: bool = false, damage_type: int = 0) -> void:
 	var target = get_character()
 	if is_instance_valid(target) and target.has_method("take_damage"):
-		target.take_damage(amount, attacker_id, action_type)
+		if target is BasePlayer:
+			target.take_damage(amount, attacker_id, action_type, is_projectile, damage_type)
+		else:
+			target.take_damage(amount, attacker_id, action_type)
 
 func apply_stun(duration: float) -> void:
 	var target = get_character()

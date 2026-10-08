@@ -7,6 +7,7 @@ static func create() -> CharacterData:
 	data.character_name = "Asparsas"
 	data.display_name = "Urvashi"
 	data.archetype = "Skirmisher"
+	data.origins = [CharacterOrigin.ID_DIVINE]
 	data.max_health = 240.0
 	data.max_move_speed = 5.7
 	data.ground_acceleration = 25.0

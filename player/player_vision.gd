@@ -15,6 +15,8 @@ static func get_height_vision_multiplier(pos_y: float) -> float:
 	return clamp(1.0 + (height * HEIGHT_SCALE_FACTOR), 1.0, MAX_HEIGHT_MULT)
 
 func get_custom_cone_radius() -> float:
+	if (has_method("is_nearsighted") and is_nearsighted()) or (has_method("is_blinded") and is_blinded()):
+		return 0.0
 	return CONE_RADIUS_M
 
 func get_custom_cone_half_angle_deg() -> float:

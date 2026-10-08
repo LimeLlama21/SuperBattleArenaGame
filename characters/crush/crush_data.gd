@@ -7,6 +7,7 @@ static func create() -> CharacterData:
 	data.character_name = "Crush"
 	data.display_name = "Heracles"
 	data.archetype = "Juggernaut"
+	data.origins = [CharacterOrigin.ID_MORTAL, CharacterOrigin.ID_DIVINE]
 	data.max_health = 320.0
 	data.max_move_speed = 5.1
 	data.ground_acceleration = 20.0

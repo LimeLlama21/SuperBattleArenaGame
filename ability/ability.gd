@@ -514,14 +514,19 @@ func process_lifecycle(delta: float) -> void:
 	if current_cooldown > 0.0:
 		current_cooldown = max(0.0, current_cooldown - delta)
 	
-	if max_charges > 1 and recharge_time > 0.0 and current_charges < max_charges:
+	var effective_recharge = recharge_time if recharge_time > 0.0 else cooldown
+	if max_charges > 1 and effective_recharge > 0.0 and current_charges < max_charges:
 		recharge_timer -= delta
 		if recharge_timer <= 0.0:
 			current_charges = min(max_charges, current_charges + 1)
 			if current_charges < max_charges:
-				recharge_timer = recharge_time
+				recharge_timer = effective_recharge
 			else:
 				recharge_timer = 0.0
+		if current_charges > 0:
+			current_cooldown = 0.0
+		else:
+			current_cooldown = recharge_timer
 
 func get_mana_cost(caster: Node = null) -> float:
 	if not caster:
@@ -561,10 +566,12 @@ func can_cast(caster: Node) -> bool:
 		return false
 	if is_instance_valid(caster) and "is_dead" in caster and caster.is_dead:
 		return false
-	if current_cooldown > 0.0:
-		return false
-	if max_charges > 1 and current_charges <= 0:
-		return false
+	if max_charges > 1:
+		if current_charges <= 0:
+			return false
+	else:
+		if current_cooldown > 0.0:
+			return false
 	
 	if is_instance_valid(caster):
 		if caster.has_method("is_stunned") and caster.is_stunned():
@@ -609,11 +616,14 @@ func consume_resources(caster: Node = null) -> void:
 		if is_instance_valid(caster) and caster.has_method("get_cooldown_multiplier"):
 			cd_duration *= caster.get_cooldown_multiplier()
 		if max_charges > 1:
+			var effective_recharge = recharge_time if recharge_time > 0.0 else cd_duration
 			current_charges = max(0, current_charges - 1)
 			if recharge_timer <= 0.0 and current_charges < max_charges:
-				recharge_timer = recharge_time
+				recharge_timer = effective_recharge
 			if current_charges == 0:
-				current_cooldown = cd_duration if cd_duration > 0.0 else recharge_time
+				current_cooldown = recharge_timer
+			else:
+				current_cooldown = 0.0
 		else:
 			current_cooldown = cd_duration
 

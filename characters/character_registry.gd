@@ -172,3 +172,27 @@ static func is_character_enabled(key: String) -> bool:
 	if script and script.has_method("is_character_enabled"):
 		return script.is_character_enabled(key)
 	return has_character(key)
+
+static func get_characters_by_origin(origin_val: Variant) -> Array[String]:
+	_ensure_initialized()
+	var norm = CharacterOrigin.normalize_id(origin_val)
+	var matches: Array[String] = []
+	for key in get_all_character_keys():
+		var data = get_character_data(key)
+		if data and data.has_origin(norm):
+			matches.append(key)
+	return matches
+
+static func get_character_origins(character_key: String) -> Array[String]:
+	_ensure_initialized()
+	var data = get_character_data(character_key)
+	if data:
+		return data.get_origins()
+	return []
+
+static func character_has_origin(character_key: String, origin_val: Variant) -> bool:
+	_ensure_initialized()
+	var data = get_character_data(character_key)
+	if data:
+		return data.has_origin(origin_val)
+	return false

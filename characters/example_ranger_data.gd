@@ -13,6 +13,7 @@ static func create() -> CharacterData:
 	data.character_name = "Ranger"
 	data.display_name = "Swift Ranger"
 	data.archetype = "Sharpshooter"
+	data.origins = [CharacterOrigin.ID_MORTAL]
 	data.description = "Agile ranged skirmisher with high mobility and tactical abilities."
 	
 	# --- 2. Vitals & Combat ---

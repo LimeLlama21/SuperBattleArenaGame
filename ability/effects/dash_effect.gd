@@ -34,3 +34,5 @@ func _apply_dash(caster: Node, direction: Vector3) -> void:
 		effective_impulse = caster.get_effective_dash_impulse(impulse)
 	
 	caster.apply_velocity_impulse(Vector3(dash_dir.x * effective_impulse, 0, dash_dir.z * effective_impulse), true)
+	if is_instance_valid(caster) and caster.has_method("on_dash_performed"):
+		caster.on_dash_performed()

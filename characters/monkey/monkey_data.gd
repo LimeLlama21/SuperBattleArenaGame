@@ -9,6 +9,7 @@ static func create() -> CharacterData:
 	data.character_name = "Monkey"
 	data.display_name = "The Great Sage"
 	data.archetype = "Trickster"
+	data.origins = [CharacterOrigin.ID_DIVINE, CharacterOrigin.ID_MONSTROUS]
 	data.max_health = 160.0
 	data.max_move_speed = 6.0
 	data.ground_acceleration = 25.0

@@ -19,6 +19,10 @@ var cripple_intensity: float = 0.35
 var ethereal_timer: float = 0.0
 var speed_boost_timer: float = 0.0
 var speed_boost_percent: float = 0.0
+var speed_boost_initial_duration: float = 0.0
+var speed_boost_initial_percent: float = 0.0
+var speed_boost_decaying: bool = false
+var blind_timer: float = 0.0
 var is_cc_immune: bool = false
 
 # --- Extended Statuses: Invisibility, Taunt, Transformation, Invulnerability ---
@@ -103,6 +107,12 @@ func is_invisible() -> bool:
 
 func is_taunted() -> bool:
 	return taunt_timer > 0.0
+
+func is_blinded() -> bool:
+	return blind_timer > 0.0
+
+func is_nearsighted() -> bool:
+	return blind_timer > 0.0
 
 func get_taunt_target() -> Node:
 	return taunter_node if is_instance_valid(taunter_node) else null
@@ -330,6 +340,25 @@ func sync_apply_cripple(duration: float, intensity: float = 0.35) -> void:
 	cripple_timer = max(cripple_timer, duration)
 	cripple_intensity = intensity
 
+func apply_blind(duration: float) -> void:
+	if is_cc_immune or is_ethereal_active():
+		return
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_blind.rpc(duration)
+	else:
+		sync_apply_blind(duration)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_blind(duration: float) -> void:
+	if not _is_sender_host():
+		return
+	blind_timer = max(blind_timer, duration)
+
+func apply_nearsight(duration: float) -> void:
+	apply_blind(duration)
+
 func apply_ethereal(duration: float) -> void:
 	if is_multiplayer_match():
 		if not is_server_authoritative():
@@ -344,20 +373,28 @@ func sync_apply_ethereal(duration: float) -> void:
 		return
 	ethereal_timer = max(ethereal_timer, duration)
 
-func apply_speed_boost(duration: float, percent: float) -> void:
+func apply_speed_boost(duration: float, percent: float, decaying: bool = false) -> void:
 	if is_multiplayer_match():
 		if not is_server_authoritative():
 			return
-		sync_apply_speed_boost.rpc(duration, percent)
+		sync_apply_speed_boost.rpc(duration, percent, decaying)
 	else:
-		sync_apply_speed_boost(duration, percent)
+		sync_apply_speed_boost(duration, percent, decaying)
 
 @rpc("any_peer", "call_local", "reliable")
-func sync_apply_speed_boost(duration: float, percent: float) -> void:
+func sync_apply_speed_boost(duration: float, percent: float, decaying: bool = false) -> void:
 	if not _is_sender_host():
 		return
 	speed_boost_timer = max(speed_boost_timer, duration)
 	speed_boost_percent = max(speed_boost_percent, percent)
+	if decaying:
+		speed_boost_initial_duration = duration
+		speed_boost_initial_percent = percent
+		speed_boost_decaying = true
+	else:
+		speed_boost_decaying = false
+		speed_boost_initial_duration = 0.0
+		speed_boost_initial_percent = 0.0
 
 func apply_float(duration: float = FLOAT_TOTAL_DURATION) -> void:
 	if is_cc_immune or is_ethereal_active():
@@ -420,6 +457,7 @@ func sync_cleanse_cc() -> void:
 	root_timer = 0.0
 	grounded_timer = 0.0
 	cripple_timer = 0.0
+	blind_timer = 0.0
 	is_floating = false
 	float_timer = 0.0
 	taunt_timer = 0.0
@@ -652,12 +690,20 @@ func _process_status_timers(delta: float) -> void:
 		grounded_timer = max(0.0, grounded_timer - delta)
 	if cripple_timer > 0.0:
 		cripple_timer = max(0.0, cripple_timer - delta)
+	if blind_timer > 0.0:
+		blind_timer = max(0.0, blind_timer - delta)
 	if ethereal_timer > 0.0:
 		ethereal_timer = max(0.0, ethereal_timer - delta)
 	if speed_boost_timer > 0.0:
 		speed_boost_timer = max(0.0, speed_boost_timer - delta)
 		if speed_boost_timer <= 0.0:
 			speed_boost_percent = 0.0
+			speed_boost_initial_duration = 0.0
+			speed_boost_initial_percent = 0.0
+			speed_boost_decaying = false
+		elif speed_boost_decaying and speed_boost_initial_duration > 0.0:
+			var remaining_ratio = speed_boost_timer / speed_boost_initial_duration
+			speed_boost_percent = speed_boost_initial_percent * remaining_ratio
 
 	# Extended Status Timers
 	if invisibility_timer > 0.0:

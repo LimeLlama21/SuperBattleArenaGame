@@ -296,6 +296,7 @@ func start_dash(_origin: Vector3, dir: Vector3, charge_ratio: float) -> void:
 	grabbed_victim = null
 	collateral_hit_victims.clear()
 	look_at(global_position + dash_direction, Vector3.UP)
+	on_dash_performed()
 
 func _process_dash(delta: float) -> void:
 	if not is_silene_dashing:

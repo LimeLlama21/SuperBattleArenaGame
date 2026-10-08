@@ -7,7 +7,8 @@ static func create() -> CharacterData:
 	data.character_name = "Artist"
 	data.display_name = "The Painted Sage"
 	data.archetype = "Calligrapher"
-	data.description = "The Painted Sage, master of ink alchemy and Vancian talismans. Prepares elemental Hanzi with celestial brushstrokes and unleashes prepared magic in battle."
+	data.origins = [CharacterOrigin.ID_MORTAL]
+	data.description = "The Painted Sage, master of ink alchemy and Vancian talismans. Prepares elemental Hanzi with his brush to unleash it in battle."
 	data.max_health = 200.0
 	data.max_move_speed = 6.8
 	data.ground_acceleration = 28.0
