@@ -1833,6 +1833,8 @@ func on_player_died(peer_id: int) -> void:
 		connected_players[killer_id]["kills"] = connected_players[killer_id].get("kills", 0) + 1
 		connected_players[killer_id]["gold"] = connected_players[killer_id].get("gold", 0) + 50
 		var killer_node = players_container.get_node_or_null(str(killer_id))
+		if killer_node and killer_node.has_method("on_kill_scored"):
+			killer_node.on_kill_scored(victim)
 		if killer_node and killer_node.has_method("sync_inventory"):
 			killer_node.sync_inventory.rpc(killer_node.item_slots, connected_players[killer_id]["gold"])
 	
@@ -1847,6 +1849,8 @@ func on_player_died(peer_id: int) -> void:
 						connected_players[a_id]["assists"] = connected_players[a_id].get("assists", 0) + 1
 						connected_players[a_id]["gold"] = connected_players[a_id].get("gold", 0) + 25
 						var assister_node = players_container.get_node_or_null(str(a_id))
+						if assister_node and assister_node.has_method("on_assist_scored"):
+							assister_node.on_assist_scored(victim)
 						if assister_node and assister_node.has_method("sync_inventory"):
 							assister_node.sync_inventory.rpc(assister_node.item_slots, connected_players[a_id]["gold"])
 	

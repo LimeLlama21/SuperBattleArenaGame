@@ -24,11 +24,38 @@ signal damage_taken(attacker_id: int, amount: float, action_type: int)
 signal takedown_scored(victim: Node)
 signal armor_charges_changed(current: int, max_val: int)
 signal projectile_damage_resisted(attacker_id: int, original_amount: float)
+signal xp_changed(current_xp: float, max_xp: float, level: int)
+signal leveled_up(new_level: int, available_points: int)
+signal progression_changed(current_xp: float, max_xp: float, level: int, points: int)
+signal upgrade_lockout_changed(is_locked: bool, time_remaining: float)
 
 # --- Character Identification & Team ---
 @export var id: String = "" # Canonical identifier matching folder name & code references (e.g. "poke", "silene")
 @export var character_name: String = "Character"
 @export var display_name: String = "Character" # Player-facing display name (e.g. "Arash", "Saint Silene")
+@export var character_origin: String = "mortal"
+var character_origins: Array[String] = []
+
+# --- Progression Currency & Leveling State ---
+@export var current_xp: float = 0.0
+@export var xp_per_level: float = 1000.0
+@export var player_level: int = 1
+@export var upgrade_points: int = 0
+@export var ring_moves_count: int = 0
+@export var enforce_upgrade_points: bool = false
+
+const BASE_PASSIVE_XP_PER_SEC: float = 1.0
+const BASE_KILL_XP: float = 50.0
+const BASE_ASSIST_XP: float = 25.0
+const MIN_UPGRADE_LOCKOUT_DURATION: float = 5.0
+
+var ring_xp_multiplier: float:
+	get: return pow(2.0, ring_moves_count)
+
+# Upgrade Menu & Minimum 5-Second Lockout State
+var is_upgrading: bool = false
+var upgrade_lockout_timer: float = 0.0
+var upgrade_menu_instance: Node = null
 
 var character_id: String:
 	get: return id
@@ -42,6 +69,16 @@ func get_display_name() -> String:
 	if not id.is_empty():
 		return CharacterRegistry.get_display_name(id)
 	return "Character"
+
+func get_primary_origin() -> String:
+	return character_origin
+
+func get_origins() -> Array[String]:
+	return character_origins.duplicate()
+
+func has_origin(origin_val: Variant) -> bool:
+	var norm = CharacterOriginClass.normalize_id(origin_val)
+	return character_origins.has(norm)
 
 @export var team_id: int = 1:
 	set(value):
@@ -170,6 +207,7 @@ var item_move_speed_bonus: float = 0.0
 
 const AbilityClass = preload("res://ability/ability.gd")
 const PlayerSharedEffects = preload("res://player/player_shared_effects.gd")
+const CharacterOriginClass = preload("res://characters/leveling/origins/character_origin.gd")
 
 # --- Shared Takedown Effects ---
 var takedown_effects: Array[Callable] = []
@@ -377,6 +415,9 @@ func _ready() -> void:
 	base_jump_velocity = jump_velocity
 	base_ground_acceleration = ground_acceleration
 	apply_all_items()
+	if is_local:
+		_ensure_upgrade_menu_instance()
+		_update_hud_progression()
 
 func _physics_process(delta: float) -> void:
 	# Deadzone / Void Check
@@ -409,6 +450,13 @@ func _physics_process(delta: float) -> void:
 	# Base physics timers decrement (CC, float, wall impact, channeling)
 	_process_physics_timers(delta)
 
+	# Upgrade lockout timers decrement
+	if upgrade_lockout_timer > 0.0:
+		upgrade_lockout_timer = max(0.0, upgrade_lockout_timer - delta)
+		_update_hud_lockout_status()
+		if upgrade_lockout_timer == 0.0:
+			upgrade_lockout_changed.emit(is_upgrading, 0.0)
+
 	# Ability Lockout timers decrement
 	if cast_lockout_timer > 0.0:
 		cast_lockout_timer -= delta
@@ -421,6 +469,10 @@ func _physics_process(delta: float) -> void:
 		if move_lockout_timer <= 0.0:
 			move_lockout_timer = 0.0
 			current_move_lockout_ability_id = ""
+
+	# Passive XP gain (1 XP/sec base, doubles with ring moves)
+	if not is_dead:
+		add_xp(BASE_PASSIVE_XP_PER_SEC * ring_xp_multiplier * delta)
 
 	# Update unified ability buffer
 	if ability_buffer:
@@ -992,23 +1044,50 @@ func die() -> void:
 	cleanse_cc()
 	clear_buffered_ability()
 	_trigger_hymn_of_the_underworld()
+	is_upgrading = false
+	upgrade_lockout_timer = 0.0
+	if upgrade_menu_instance and upgrade_menu_instance.visible:
+		upgrade_menu_instance.close()
 
 	var current_time = Time.get_ticks_msec() / 1000.0
 	var main_node = get_tree().current_scene if get_tree() else null
 	if not main_node or not main_node.has_method("on_player_died"):
 		main_node = get_tree().root.get_node_or_null("Main")
 
-	# Notify all eligible attackers who damaged this player within the last 3.0s of takedown
+	# Find killer and assisters from recent damage dealers
+	var killer_id = 0
+	var newest_time = -1.0
+	for attacker_id in recent_damage_dealers.keys():
+		if str(attacker_id) != str(peer_id) and str(attacker_id) != str(name):
+			var dt = recent_damage_dealers[attacker_id]
+			if dt > newest_time:
+				newest_time = dt
+				killer_id = int(attacker_id)
+
+	# Notify all eligible attackers who damaged this player within the last 10.0s of takedown
 	for attacker_id in recent_damage_dealers.keys():
 		var damage_time = recent_damage_dealers[attacker_id]
-		if current_time - damage_time <= 3.0:
+		if current_time - damage_time <= 10.0:
 			var attacker = null
 			if main_node:
 				var players_c = main_node.get_node_or_null("Players")
 				if players_c:
 					attacker = players_c.get_node_or_null(str(attacker_id))
-			if attacker and attacker.has_method("_on_takedown"):
-				attacker._on_takedown(self)
+			if not attacker and get_parent():
+				attacker = get_parent().get_node_or_null(str(attacker_id))
+			if not attacker and is_inside_tree() and get_tree() and get_tree().root:
+				attacker = get_tree().root.get_node_or_null("Main/Players/" + str(attacker_id))
+				if not attacker:
+					attacker = get_tree().root.get_node_or_null(str(attacker_id))
+			if attacker and attacker != self:
+				if int(attacker_id) == killer_id:
+					if attacker.has_method("on_kill_scored"):
+						attacker.on_kill_scored(self)
+				else:
+					if attacker.has_method("on_assist_scored"):
+						attacker.on_assist_scored(self)
+				if attacker.has_method("_on_takedown"):
+					attacker._on_takedown(self)
 
 	var in_training = (main_node and main_node.get("is_training_mode") == true) if main_node else false
 
@@ -1496,6 +1575,23 @@ func load_character_data(data: CharacterData) -> void:
 		display_name = data.character_name
 	elif not data.id.is_empty():
 		display_name = data.id.capitalize()
+
+	# Origins
+	character_origins.clear()
+	if data.has_method("get_origins"):
+		for item in data.get_origins():
+			character_origins.append(str(item))
+	elif "origins" in data and not data.origins.is_empty():
+		for item in data.origins:
+			var s = CharacterOriginClass.normalize_id(item)
+			if not s.is_empty() and not character_origins.has(s):
+				character_origins.append(s)
+	
+	if not character_origins.is_empty():
+		character_origin = character_origins[0]
+	else:
+		character_origin = "mortal"
+		character_origins = ["mortal"]
 	
 	# Vitals & Defense
 	base_max_health = data.max_health
@@ -1904,6 +2000,8 @@ func get_ability(slot_or_id: String) -> RefCounted:
 
 # --- Ability Registers, Buffering & Lockout Logic ---
 func is_in_cast_lockout() -> bool:
+	if is_upgrading or upgrade_lockout_timer > 0.0:
+		return true
 	if cast_lockout_timer > 0.0 or is_channeling:
 		return true
 	if active_windup_id != "":
@@ -1913,6 +2011,8 @@ func is_in_cast_lockout() -> bool:
 	return false
 
 func is_in_move_lockout() -> bool:
+	if is_upgrading or upgrade_lockout_timer > 0.0:
+		return true
 	if move_lockout_timer > 0.0:
 		return true
 	if active_windup_id != "":
@@ -2368,6 +2468,12 @@ func _process_abilities_lifecycle(delta: float) -> void:
 					custom_text
 				)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if is_local_player() and not is_dead:
+		if event.is_action_pressed("upgrade_menu") or (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_U):
+			toggle_upgrade_menu()
+			get_viewport().set_input_as_handled()
+
 func _process_abilities_input(delta: float) -> void:
 	if is_dead or is_stunned() or is_bound() or is_silenced():
 		cancel_active_windup()
@@ -2694,8 +2800,102 @@ func sync_cast_ability(slot_key: String, origin: Vector3, direction: Vector3, ta
 		ab.execute_client(self, origin, direction, target_pos, charge_ratio)
 
 # --- Character Leveling & Upgrade System ---
+const UpgradeMenuClass = preload("res://characters/leveling/upgrade_menu.gd")
+
 var acquired_upgrades: Array[String] = []
 var _last_dash_performed_frame: int = -1
+
+func notify_ring_moved() -> void:
+	ring_moves_count += 1
+
+func get_ring_multiplier() -> float:
+	return ring_xp_multiplier
+
+func add_xp(amount: float) -> void:
+	if is_dead or amount <= 0.0:
+		return
+	current_xp += amount
+	var leveled = false
+	while current_xp >= xp_per_level:
+		current_xp -= xp_per_level
+		player_level += 1
+		upgrade_points += 1
+		leveled = true
+	if leveled:
+		leveled_up.emit(player_level, upgrade_points)
+	xp_changed.emit(current_xp, xp_per_level, player_level)
+	progression_changed.emit(current_xp, xp_per_level, player_level, upgrade_points)
+	_update_hud_progression()
+	if upgrade_menu_instance and upgrade_menu_instance.visible:
+		upgrade_menu_instance.refresh_menu()
+
+func on_kill_scored(_victim: Node = null) -> void:
+	add_xp(BASE_KILL_XP * ring_xp_multiplier)
+
+func on_assist_scored(_victim: Node = null) -> void:
+	add_xp(BASE_ASSIST_XP * ring_xp_multiplier)
+
+func can_spend_upgrade_point() -> bool:
+	if not enforce_upgrade_points:
+		return true
+	return upgrade_points > 0
+
+func spend_upgrade_point() -> bool:
+	if not enforce_upgrade_points:
+		return true
+	if upgrade_points > 0:
+		upgrade_points -= 1
+		progression_changed.emit(current_xp, xp_per_level, player_level, upgrade_points)
+		_update_hud_progression()
+		return true
+	return false
+
+func _ensure_upgrade_menu_instance() -> void:
+	if not upgrade_menu_instance or not is_instance_valid(upgrade_menu_instance):
+		upgrade_menu_instance = UpgradeMenuClass.new()
+		add_child(upgrade_menu_instance)
+		upgrade_menu_instance.menu_closed.connect(func():
+			is_upgrading = false
+			_update_hud_lockout_status()
+		)
+
+func toggle_upgrade_menu() -> void:
+	if is_dead:
+		return
+	if is_upgrading or (upgrade_menu_instance and upgrade_menu_instance.visible):
+		close_upgrade_menu()
+	else:
+		open_upgrade_menu()
+
+func open_upgrade_menu() -> void:
+	if is_dead:
+		return
+	_ensure_upgrade_menu_instance()
+	if not upgrade_menu_instance:
+		return
+	is_upgrading = true
+	upgrade_lockout_timer = max(upgrade_lockout_timer, MIN_UPGRADE_LOCKOUT_DURATION)
+	cancel_channel()
+	cancel_active_windup()
+	velocity = Vector3.ZERO
+	upgrade_menu_instance.open(character_origin, self)
+	upgrade_lockout_changed.emit(true, upgrade_lockout_timer)
+	_update_hud_lockout_status()
+
+func close_upgrade_menu() -> void:
+	is_upgrading = false
+	if upgrade_menu_instance and upgrade_menu_instance.visible:
+		upgrade_menu_instance.close()
+	upgrade_lockout_changed.emit(upgrade_lockout_timer > 0.0, upgrade_lockout_timer)
+	_update_hud_lockout_status()
+
+func _update_hud_progression() -> void:
+	if hud and hud.has_method("update_xp"):
+		hud.update_xp(current_xp, xp_per_level, player_level, upgrade_points)
+
+func _update_hud_lockout_status() -> void:
+	if hud and hud.has_method("update_upgrade_lockout"):
+		hud.update_upgrade_lockout(upgrade_lockout_timer)
 
 func has_upgrade(upgrade_id: String) -> bool:
 	var norm = upgrade_id.to_lower().strip_edges()

@@ -1,14 +1,11 @@
 [gd_scene format=3 uid="uid://b12b5b3x4x8y7"]
 
-[ext_resource type="Script" path="res://main.gd" id="1_2"]
-[ext_resource type="Script" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
-[ext_resource type="Script" path="res://settings_ui.gd" id="3_settings_script"]
-[ext_resource type="Shader" path="res://fog_of_war.gdshader" id="4_fow_shader"]
+[ext_resource type="Script" uid="uid://dsaqsqxo21eyq" path="res://main.gd" id="1_2"]
+[ext_resource type="Script" uid="uid://yjhqyaxakvat" path="res://fog_of_war_overlay.gd" id="2_fow_script"]
+[ext_resource type="Script" uid="uid://c37alorw1xphn" path="res://settings_ui.gd" id="3_settings_script"]
+[ext_resource type="Shader" uid="uid://efvpbxr8womh" path="res://fog_of_war.gdshader" id="4_fow_shader"]
 [ext_resource type="PackedScene" uid="uid://dmcolosseum01" path="res://maps/map_colosseum.tscn" id="5_colosseum"]
 [ext_resource type="PackedScene" uid="uid://dmtraining01" path="res://maps/map_training.tscn" id="6_training"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fow"]
-shader = ExtResource("4_fow_shader")
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -23,101 +20,106 @@ sky = SubResource("Sky_1")
 tonemap_mode = 2
 glow_enabled = true
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fow"]
+shader = ExtResource("4_fow_shader")
+shader_parameter/fow_darkness = 0.6
+shader_parameter/fow_desaturation = 0.85
+shader_parameter/fow_tint = Color(0.65, 0.7, 0.8, 1)
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=732439594]
 script = ExtResource("1_2")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1874605467]
 environment = SubResource("Environment_1")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1836993354]
 transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75, -0.433013, 0, 25, 0)
 shadow_enabled = true
 
-[node name="Arena" type="Node3D" parent="."]
+[node name="Arena" type="Node3D" parent="." unique_id=458819601]
 
-[node name="DefaultMap" parent="Arena" instance=ExtResource("5_colosseum")]
+[node name="DefaultMap" parent="Arena" unique_id=1896792888 instance=ExtResource("5_colosseum")]
 
-[node name="TrainingMap" parent="Arena" instance=ExtResource("6_training")]
+[node name="TrainingMap" parent="Arena" unique_id=1298114138 instance=ExtResource("6_training")]
 visible = false
 
-[node name="SpawnPoints" type="Node3D" parent="."]
+[node name="SpawnPoints" type="Node3D" parent="." unique_id=1069927825]
 
-[node name="Team1_Spawns" type="Node3D" parent="SpawnPoints"]
+[node name="Team1_Spawns" type="Node3D" parent="SpawnPoints" unique_id=1653785923]
 
-[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team1_Spawns" unique_id=1940310082]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, -5)
 
-[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team1_Spawns" unique_id=493043173]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 0)
 
-[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team1_Spawns"]
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team1_Spawns" unique_id=103343901]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0.1, 5)
 
-[node name="Team2_Spawns" type="Node3D" parent="SpawnPoints"]
+[node name="Team2_Spawns" type="Node3D" parent="SpawnPoints" unique_id=867878416]
 
-[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team2_Spawns" unique_id=2073166700]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, -5)
 
-[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team2_Spawns" unique_id=1271058595]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 0)
 
-[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team2_Spawns"]
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team2_Spawns" unique_id=865965899]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0.1, 5)
 
-[node name="Team3_Spawns" type="Node3D" parent="SpawnPoints"]
+[node name="Team3_Spawns" type="Node3D" parent="SpawnPoints" unique_id=1371577267]
 
-[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team3_Spawns"]
+[node name="Spawn1" type="Marker3D" parent="SpawnPoints/Team3_Spawns" unique_id=349833434]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.1, -24)
 
-[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team3_Spawns"]
+[node name="Spawn2" type="Marker3D" parent="SpawnPoints/Team3_Spawns" unique_id=301333501]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -24)
 
-[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team3_Spawns"]
+[node name="Spawn3" type="Marker3D" parent="SpawnPoints/Team3_Spawns" unique_id=1262459001]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, -24)
 
-[node name="Players" type="Node3D" parent="."]
+[node name="Players" type="Node3D" parent="." unique_id=1665982379]
 
-[node name="Projectiles" type="Node3D" parent="."]
+[node name="Projectiles" type="Node3D" parent="." unique_id=899722884]
 
-[node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="." unique_id=1703441779]
 spawn_path = NodePath("../Players")
 
-[node name="ProjectileSpawner" type="MultiplayerSpawner" parent="."]
+[node name="ProjectileSpawner" type="MultiplayerSpawner" parent="." unique_id=2080755138]
 spawn_path = NodePath("../Projectiles")
 
-[node name="TerrainObjects" type="Node3D" parent="."]
+[node name="TerrainObjects" type="Node3D" parent="." unique_id=451228752]
 
-[node name="TerrainSpawner" type="MultiplayerSpawner" parent="."]
+[node name="TerrainSpawner" type="MultiplayerSpawner" parent="." unique_id=1470316371]
 spawn_path = NodePath("../TerrainObjects")
 
-[node name="VisionZones" type="Node3D" parent="."]
+[node name="VisionZones" type="Node3D" parent="." unique_id=1049945769]
 
-[node name="VisionSpawner" type="MultiplayerSpawner" parent="."]
+[node name="VisionSpawner" type="MultiplayerSpawner" parent="." unique_id=1430349401]
 spawn_path = NodePath("../VisionZones")
 
-[node name="HazardZones" type="Node3D" parent="."]
+[node name="HazardZones" type="Node3D" parent="." unique_id=1188165381]
 
-[node name="HazardSpawner" type="MultiplayerSpawner" parent="."]
+[node name="HazardSpawner" type="MultiplayerSpawner" parent="." unique_id=2113590502]
 spawn_path = NodePath("../HazardZones")
 
-[node name="FogOfWarCanvas" type="CanvasLayer" parent="."]
+[node name="FogOfWarCanvas" type="CanvasLayer" parent="." unique_id=1718495595]
 layer = 2
 
-[node name="VisionSubViewport" type="SubViewport" parent="FogOfWarCanvas"]
+[node name="VisionSubViewport" type="SubViewport" parent="FogOfWarCanvas" unique_id=707365399]
 disable_3d = true
-transparent_bg = false
 size = Vector2i(1280, 720)
 render_target_update_mode = 4
 
-[node name="VisionDrawer" type="Control" parent="FogOfWarCanvas/VisionSubViewport"]
+[node name="VisionDrawer" type="Control" parent="FogOfWarCanvas/VisionSubViewport" unique_id=1761391212]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 script = ExtResource("2_fow_script")
 
-[node name="FogOfWarTexture" type="TextureRect" parent="FogOfWarCanvas"]
+[node name="FogOfWarTexture" type="TextureRect" parent="FogOfWarCanvas" unique_id=357531480]
 material = SubResource("ShaderMaterial_fow")
 anchors_preset = 15
 anchor_right = 1.0
@@ -127,10 +129,10 @@ grow_vertical = 2
 mouse_filter = 2
 expand_mode = 1
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=52696944]
 layer = 10
 
-[node name="MainMenu" type="PanelContainer" parent="UI"]
+[node name="MainMenu" type="PanelContainer" parent="UI" unique_id=213846294]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -143,42 +145,42 @@ offset_bottom = 115.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="UI/MainMenu"]
+[node name="VBox" type="VBoxContainer" parent="UI/MainMenu" unique_id=741783222]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="UI/MainMenu/VBox"]
+[node name="Title" type="Label" parent="UI/MainMenu/VBox" unique_id=649558254]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "SUPERVIVE SANDBOX"
 horizontal_alignment = 1
 
-[node name="HostButton" type="Button" parent="UI/MainMenu/VBox"]
+[node name="HostButton" type="Button" parent="UI/MainMenu/VBox" unique_id=666597587]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Create Lobby (Host)"
 
-[node name="JoinButton" type="Button" parent="UI/MainMenu/VBox"]
+[node name="JoinButton" type="Button" parent="UI/MainMenu/VBox" unique_id=580113951]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Join Lobby"
 
-[node name="TrainingButton" type="Button" parent="UI/MainMenu/VBox"]
+[node name="TrainingButton" type="Button" parent="UI/MainMenu/VBox" unique_id=1599690154]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "🎯 Solo Training Session"
 
-[node name="SettingsButton" type="Button" parent="UI/MainMenu/VBox"]
+[node name="SettingsButton" type="Button" parent="UI/MainMenu/VBox" unique_id=33693645]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "⚙ Settings"
 
-[node name="QuitButton" type="Button" parent="UI/MainMenu/VBox"]
+[node name="QuitButton" type="Button" parent="UI/MainMenu/VBox" unique_id=92261193]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Quit Game"
 
-[node name="JoinDialog" type="PanelContainer" parent="UI"]
+[node name="JoinDialog" type="PanelContainer" parent="UI" unique_id=1227039182]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -192,30 +194,30 @@ offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="UI/JoinDialog"]
+[node name="VBox" type="VBoxContainer" parent="UI/JoinDialog" unique_id=2036319385]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="UI/JoinDialog/VBox"]
+[node name="Title" type="Label" parent="UI/JoinDialog/VBox" unique_id=932049287]
 layout_mode = 2
 theme_override_font_sizes/font_size = 17
 text = "JOIN LOBBY"
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="UI/JoinDialog/VBox"]
+[node name="Desc" type="Label" parent="UI/JoinDialog/VBox" unique_id=204765070]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
 theme_override_font_sizes/font_size = 12
 text = "Enter Room Code, 'localhost', or IP:"
 horizontal_alignment = 1
 
-[node name="HostIPInput" type="LineEdit" parent="UI/JoinDialog/VBox"]
+[node name="HostIPInput" type="LineEdit" parent="UI/JoinDialog/VBox" unique_id=1167134597]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 placeholder_text = "Room Code or click Localhost"
 alignment = 1
 
-[node name="JoinStatusLabel" type="Label" parent="UI/JoinDialog/VBox"]
+[node name="JoinStatusLabel" type="Label" parent="UI/JoinDialog/VBox" unique_id=1828480371]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
@@ -223,29 +225,29 @@ theme_override_font_sizes/font_size = 11
 text = "Connecting..."
 horizontal_alignment = 1
 
-[node name="HBox" type="HBoxContainer" parent="UI/JoinDialog/VBox"]
+[node name="HBox" type="HBoxContainer" parent="UI/JoinDialog/VBox" unique_id=631080642]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="CancelButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
+[node name="CancelButton" type="Button" parent="UI/JoinDialog/VBox/HBox" unique_id=1349106914]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Cancel"
 
-[node name="JoinLocalButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
+[node name="JoinLocalButton" type="Button" parent="UI/JoinDialog/VBox/HBox" unique_id=603806276]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Localhost"
 
-[node name="ConfirmJoinButton" type="Button" parent="UI/JoinDialog/VBox/HBox"]
+[node name="ConfirmJoinButton" type="Button" parent="UI/JoinDialog/VBox/HBox" unique_id=2046497310]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Join"
 
-[node name="LobbyRoom" type="PanelContainer" parent="UI"]
+[node name="LobbyRoom" type="PanelContainer" parent="UI" unique_id=773555417]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -259,149 +261,149 @@ offset_bottom = 320.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="UI/LobbyRoom"]
+[node name="VBox" type="VBoxContainer" parent="UI/LobbyRoom" unique_id=775091162]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="HBoxRoomCode" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+[node name="HBoxRoomCode" type="HBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=1859167096]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="HostIPDisplay" type="Label" parent="UI/LobbyRoom/VBox/HBoxRoomCode"]
+[node name="HostIPDisplay" type="Label" parent="UI/LobbyRoom/VBox/HBoxRoomCode" unique_id=872465012]
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 text = "ROOM CODE: ABC123"
 horizontal_alignment = 1
 
-[node name="CopyCodeButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxRoomCode"]
+[node name="CopyCodeButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxRoomCode" unique_id=1849566183]
 custom_minimum_size = Vector2(80, 26)
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "📋 Copy"
 
-[node name="HBoxGameMode" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+[node name="HBoxGameMode" type="HBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=1315149772]
 layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="GameModeLabel" type="Label" parent="UI/LobbyRoom/VBox/HBoxGameMode"]
+[node name="GameModeLabel" type="Label" parent="UI/LobbyRoom/VBox/HBoxGameMode" unique_id=1742486686]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Game Mode:"
 
-[node name="GameModeOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxGameMode"]
+[node name="GameModeOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxGameMode" unique_id=909348506]
 custom_minimum_size = Vector2(250, 34)
 layout_mode = 2
 
-[node name="HBoxMap" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+[node name="HBoxMap" type="HBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=2071524653]
 layout_mode = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="MapLabel" type="Label" parent="UI/LobbyRoom/VBox/HBoxMap"]
+[node name="MapLabel" type="Label" parent="UI/LobbyRoom/VBox/HBoxMap" unique_id=1283367365]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Map:"
 
-[node name="MapOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxMap"]
+[node name="MapOption" type="OptionButton" parent="UI/LobbyRoom/VBox/HBoxMap" unique_id=1740244703]
 custom_minimum_size = Vector2(250, 34)
 layout_mode = 2
 
-[node name="SelectHeader" type="Label" parent="UI/LobbyRoom/VBox"]
+[node name="SelectHeader" type="Label" parent="UI/LobbyRoom/VBox" unique_id=57275343]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "1. Choose Your Character:"
 horizontal_alignment = 1
 
-[node name="CharSelectSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox"]
+[node name="CharSelectSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=1382273331]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="OriginsBar" type="HBoxContainer" parent="UI/LobbyRoom/VBox/CharSelectSection"]
+[node name="OriginsBar" type="HBoxContainer" parent="UI/LobbyRoom/VBox/CharSelectSection" unique_id=1795628185]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="OriginLabel" type="Label" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar"]
+[node name="OriginLabel" type="Label" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar" unique_id=2138644771]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "ORIGIN:"
 
-[node name="OriginAll" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar"]
+[node name="OriginAll" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar" unique_id=656979039]
 custom_minimum_size = Vector2(70, 28)
 layout_mode = 2
 text = "All"
 
-[node name="OriginMortal" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar"]
+[node name="OriginMortal" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar" unique_id=1970223612]
 custom_minimum_size = Vector2(85, 28)
 layout_mode = 2
 text = "Mortal"
 
-[node name="OriginDivine" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar"]
+[node name="OriginDivine" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar" unique_id=1421041514]
 custom_minimum_size = Vector2(85, 28)
 layout_mode = 2
 text = "Divine"
 
-[node name="OriginMonstrous" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar"]
+[node name="OriginMonstrous" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/OriginsBar" unique_id=868583394]
 custom_minimum_size = Vector2(95, 28)
 layout_mode = 2
 text = "Monstrous"
 
-[node name="BodyHBox" type="HBoxContainer" parent="UI/LobbyRoom/VBox/CharSelectSection"]
+[node name="BodyHBox" type="HBoxContainer" parent="UI/LobbyRoom/VBox/CharSelectSection" unique_id=1182742970]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="ArchetypeSidebar" type="VBoxContainer" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox"]
+[node name="ArchetypeSidebar" type="VBoxContainer" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox" unique_id=1869801153]
 custom_minimum_size = Vector2(105, 0)
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ArchLabel" type="Label" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar"]
+[node name="ArchLabel" type="Label" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar" unique_id=1903988040]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "ARCHETYPE"
 horizontal_alignment = 1
 
-[node name="ArchAll" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar"]
+[node name="ArchAll" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar" unique_id=952074192]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 text = "All"
 
-[node name="ArchVanguard" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar"]
+[node name="ArchVanguard" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar" unique_id=746898026]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 text = "Vanguard"
 
-[node name="ArchBrawler" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar"]
+[node name="ArchBrawler" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar" unique_id=61727499]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 text = "Brawler"
 
-[node name="ArchStriker" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar"]
+[node name="ArchStriker" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar" unique_id=1453755696]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 text = "Striker"
 
-[node name="ArchBlaster" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar"]
+[node name="ArchBlaster" type="Button" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/ArchetypeSidebar" unique_id=1911975740]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 text = "Blaster"
 
-[node name="CharGridScroll" type="ScrollContainer" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox"]
+[node name="CharGridScroll" type="ScrollContainer" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox" unique_id=352592310]
 custom_minimum_size = Vector2(0, 190)
 layout_mode = 2
 size_flags_horizontal = 3
 horizontal_scroll_mode = 0
 
-[node name="CharGrid" type="GridContainer" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/CharGridScroll"]
+[node name="CharGrid" type="GridContainer" parent="UI/LobbyRoom/VBox/CharSelectSection/BodyHBox/CharGridScroll" unique_id=1415591628]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 5
 
-[node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox"]
+[node name="CharDescLabel" type="Label" parent="UI/LobbyRoom/VBox" unique_id=1968407157]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
@@ -409,118 +411,118 @@ theme_override_font_sizes/font_size = 11
 text = "ARASH: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
 autowrap_mode = 2
 
-[node name="TeamSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox"]
+[node name="TeamSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=1268054102]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TeamHeader" type="Label" parent="UI/LobbyRoom/VBox/TeamSection"]
+[node name="TeamHeader" type="Label" parent="UI/LobbyRoom/VBox/TeamSection" unique_id=1032887544]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "2. Select Team & Slot (4v4 Max):"
 horizontal_alignment = 1
 
-[node name="HBoxTeams" type="HBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection"]
+[node name="HBoxTeams" type="HBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection" unique_id=1037502695]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="VBoxTeam1" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
+[node name="VBoxTeam1" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams" unique_id=1666675822]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="Team1Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+[node name="Team1Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1" unique_id=994803363]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 13
 text = "TEAM 1 (BLUE)"
 horizontal_alignment = 1
 
-[node name="T1Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+[node name="T1Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1" unique_id=1098413395]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 1 : Open ]"
 
-[node name="T1Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+[node name="T1Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1" unique_id=1650741228]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 2 : Open ]"
 
-[node name="T1Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1"]
+[node name="T1Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1" unique_id=274120044]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
-[node name="VBoxTeam2" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
+[node name="VBoxTeam2" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams" unique_id=1547632235]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="Team2Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+[node name="Team2Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2" unique_id=1267031774]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.4, 0.35, 1)
 theme_override_font_sizes/font_size = 13
 text = "TEAM 2 (RED)"
 horizontal_alignment = 1
 
-[node name="T2Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+[node name="T2Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2" unique_id=308551219]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 1 : Open ]"
 
-[node name="T2Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+[node name="T2Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2" unique_id=1982526111]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 2 : Open ]"
 
-[node name="T2Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2"]
+[node name="T2Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam2" unique_id=1839593723]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
-[node name="VBoxTeam3" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams"]
+[node name="VBoxTeam3" type="VBoxContainer" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams" unique_id=2070969056]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="Team3Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+[node name="Team3Title" type="Label" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3" unique_id=198428646]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.25, 0.9, 0.45, 1)
 theme_override_font_sizes/font_size = 13
 text = "TEAM 3 (GREEN)"
 horizontal_alignment = 1
 
-[node name="T3Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+[node name="T3Slot0" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3" unique_id=1588352244]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 1 : Open ]"
 
-[node name="T3Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+[node name="T3Slot1" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3" unique_id=1199641274]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 2 : Open ]"
 
-[node name="T3Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3"]
+[node name="T3Slot2" type="Button" parent="UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam3" unique_id=967343257]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "[ Slot 3 : Open ]"
 
-[node name="HBoxLobbyActions" type="HBoxContainer" parent="UI/LobbyRoom/VBox"]
+[node name="HBoxLobbyActions" type="HBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=856304633]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="LobbyBackButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxLobbyActions"]
+[node name="LobbyBackButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxLobbyActions" unique_id=429304854]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "← Back to Menu"
 
-[node name="StartMatchButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxLobbyActions"]
+[node name="StartMatchButton" type="Button" parent="UI/LobbyRoom/VBox/HBoxLobbyActions" unique_id=104394179]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "START MATCH"
 
-[node name="MatchOverPanel" type="PanelContainer" parent="UI"]
+[node name="MatchOverPanel" type="PanelContainer" parent="UI" unique_id=2029150425]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -534,24 +536,24 @@ offset_bottom = 60.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="UI/MatchOverPanel"]
+[node name="VBox" type="VBoxContainer" parent="UI/MatchOverPanel" unique_id=385730915]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="WinnerLabel" type="Label" parent="UI/MatchOverPanel/VBox"]
+[node name="WinnerLabel" type="Label" parent="UI/MatchOverPanel/VBox" unique_id=1142607700]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "MATCH OVER!
 TEAM 1 WINS!"
 horizontal_alignment = 1
 
-[node name="SubLabel" type="Label" parent="UI/MatchOverPanel/VBox"]
+[node name="SubLabel" type="Label" parent="UI/MatchOverPanel/VBox" unique_id=1048113964]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Returning to lobby in 3 seconds..."
 horizontal_alignment = 1
 
-[node name="EscapeMenu" type="PanelContainer" parent="UI"]
+[node name="EscapeMenu" type="PanelContainer" parent="UI" unique_id=2104276543]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -565,125 +567,129 @@ offset_bottom = 165.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="UI/EscapeMenu"]
+[node name="VBox" type="VBoxContainer" parent="UI/EscapeMenu" unique_id=946497547]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="EscapeTabContainer" type="TabContainer" parent="UI/EscapeMenu/VBox"]
+[node name="EscapeTabContainer" type="TabContainer" parent="UI/EscapeMenu/VBox" unique_id=437163247]
 layout_mode = 2
 size_flags_vertical = 3
+current_tab = 0
 
-[node name="Menu" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+[node name="Menu" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer" unique_id=1644274513]
 layout_mode = 2
 theme_override_constants/separation = 10
+metadata/_tab_index = 0
 
-[node name="Title" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+[node name="Title" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu" unique_id=517192645]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "MATCH PAUSED"
 horizontal_alignment = 1
 
-[node name="ResumeButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+[node name="ResumeButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu" unique_id=1256952713]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Resume Game"
 
-[node name="SettingsButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+[node name="SettingsButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu" unique_id=564654981]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "⚙ Settings"
 
-[node name="ExitMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+[node name="ExitMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu" unique_id=317647687]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Exit Match (Return to Lobby)"
 
-[node name="LeaveMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu"]
+[node name="LeaveMatchButton" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Menu" unique_id=526797010]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Leave Game / Main Menu"
 
-[node name="Switch Character" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+[node name="Switch Character" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer" unique_id=1966329656]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
+metadata/_tab_index = 1
 
-[node name="SwitchHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=1191812270]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Select Character to Swap Instantly:"
 horizontal_alignment = 1
 
-[node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=2079780901]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🏹 Arash (Sniper - 160 HP)"
 
-[node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=249957685]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🛡 Heracles (Juggernaut - 320 HP)"
 
-[node name="SwitchAsparsas" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchAsparsas" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=391905427]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "💥 Urvashi (Skirmisher - 240 HP)"
 
-[node name="SwitchReaper" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchReaper" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=1464007808]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "💀 Keres (Assassin - 200 HP)"
 
-[node name="SwitchMorrigan" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchMorrigan" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=790133282]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🔮 Morrigan (Mage - 180 HP)"
 
-[node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character"]
+[node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=232657744]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 11
 text = "Swaps your character immediately at your current position with full health."
-autowrap_mode = 2
 horizontal_alignment = 1
+autowrap_mode = 2
 
-[node name="Switch Map" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer"]
+[node name="Switch Map" type="VBoxContainer" parent="UI/EscapeMenu/VBox/EscapeTabContainer" unique_id=1279459924]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
+metadata/_tab_index = 2
 
-[node name="SwitchMapHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+[node name="SwitchMapHeader" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map" unique_id=530931039]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Select Map to Load Instantly:"
 horizontal_alignment = 1
 
-[node name="SwitchMapStandard" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+[node name="SwitchMapStandard" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map" unique_id=1707226866]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "🎯 Standard Training Map"
 
-[node name="SwitchMapColosseum" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+[node name="SwitchMapColosseum" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map" unique_id=1762449104]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "⚔ Colosseum"
 
-[node name="SwitchMapChasm" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+[node name="SwitchMapChasm" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map" unique_id=392954842]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "⚔ The Jagged Chasm"
 
-[node name="SwitchMapIslands" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+[node name="SwitchMapIslands" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map" unique_id=14037465]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "⚔ Shattered Archipelago"
 
-[node name="SwitchMapExpanse" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map"]
+[node name="SwitchMapExpanse" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map" unique_id=1027211820]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "⚔ The Great Expanse"
 
-[node name="SettingsMenu" type="PanelContainer" parent="UI"]
+[node name="SettingsMenu" type="PanelContainer" parent="UI" unique_id=1476147844]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -698,93 +704,97 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_settings_script")
 
-[node name="VBox" type="VBoxContainer" parent="UI/SettingsMenu"]
+[node name="VBox" type="VBoxContainer" parent="UI/SettingsMenu" unique_id=1676051726]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="UI/SettingsMenu/VBox"]
+[node name="Title" type="Label" parent="UI/SettingsMenu/VBox" unique_id=95715725]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "SETTINGS"
 horizontal_alignment = 1
 
-[node name="TabContainer" type="TabContainer" parent="UI/SettingsMenu/VBox"]
+[node name="TabContainer" type="TabContainer" parent="UI/SettingsMenu/VBox" unique_id=281688764]
 layout_mode = 2
 size_flags_vertical = 3
+current_tab = 0
 
-[node name="Display" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer"]
+[node name="Display" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer" unique_id=143442024]
 layout_mode = 2
 theme_override_constants/separation = 12
+metadata/_tab_index = 0
 
-[node name="HBoxMode" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Display"]
+[node name="HBoxMode" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Display" unique_id=760174728]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxMode"]
+[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxMode" unique_id=1689750671]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Window Mode:"
 
-[node name="WindowModeOption" type="OptionButton" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxMode"]
+[node name="WindowModeOption" type="OptionButton" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxMode" unique_id=1191914546]
 custom_minimum_size = Vector2(180, 32)
 layout_mode = 2
 
-[node name="HBoxVSync" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Display"]
+[node name="HBoxVSync" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Display" unique_id=1279306303]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxVSync"]
+[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxVSync" unique_id=1905097423]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Vertical Sync (VSync):"
 
-[node name="VSyncCheck" type="CheckBox" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxVSync"]
+[node name="VSyncCheck" type="CheckBox" parent="UI/SettingsMenu/VBox/TabContainer/Display/HBoxVSync" unique_id=2126807832]
 layout_mode = 2
 text = "Enabled"
 
-[node name="Audio" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer"]
+[node name="Audio" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer" unique_id=697326360]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 12
+metadata/_tab_index = 1
 
-[node name="HBoxMaster" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Audio"]
+[node name="HBoxMaster" type="HBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Audio" unique_id=1504942038]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster"]
+[node name="Label" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster" unique_id=231358723]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Master Volume:"
 
-[node name="MasterSlider" type="HSlider" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster"]
+[node name="MasterSlider" type="HSlider" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster" unique_id=1211417915]
 custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
 size_flags_vertical = 4
 value = 100.0
 
-[node name="MasterValLabel" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster"]
+[node name="MasterValLabel" type="Label" parent="UI/SettingsMenu/VBox/TabContainer/Audio/HBoxMaster" unique_id=1594359313]
 custom_minimum_size = Vector2(45, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
 
-[node name="Controls" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer"]
+[node name="Controls" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer" unique_id=1227933244]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
+metadata/_tab_index = 2
 
-[node name="Scroll" type="ScrollContainer" parent="UI/SettingsMenu/VBox/TabContainer/Controls"]
+[node name="Scroll" type="ScrollContainer" parent="UI/SettingsMenu/VBox/TabContainer/Controls" unique_id=2037939763]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ControlsContainer" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Controls/Scroll"]
+[node name="ControlsContainer" type="VBoxContainer" parent="UI/SettingsMenu/VBox/TabContainer/Controls/Scroll" unique_id=1956137823]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="ResetControlsButton" type="Button" parent="UI/SettingsMenu/VBox/TabContainer/Controls"]
+[node name="ResetControlsButton" type="Button" parent="UI/SettingsMenu/VBox/TabContainer/Controls" unique_id=1011753956]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 text = "Reset Controls to Default"
 
-[node name="CloseButton" type="Button" parent="UI/SettingsMenu/VBox"]
+[node name="CloseButton" type="Button" parent="UI/SettingsMenu/VBox" unique_id=878590120]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Save & Close Settings"

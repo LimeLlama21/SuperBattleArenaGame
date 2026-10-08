@@ -157,7 +157,10 @@ func has_origin(origin_val: Variant) -> bool:
 	return origins.has(norm)
 
 func get_origins() -> Array[String]:
-	return origins.duplicate()
+	var result: Array[String] = []
+	for item in origins:
+		result.append(str(item))
+	return result
 
 func is_multi_origin() -> bool:
 	return origins.size() > 1

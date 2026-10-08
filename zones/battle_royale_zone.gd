@@ -529,6 +529,10 @@ func _enter_state(state: State) -> void:
 			relocation_cycle_count += 1
 			
 			movement_started.emit(start_position, target_position, state_duration)
+			if is_inside_tree() and get_tree():
+				for p in get_tree().get_nodes_in_group("players"):
+					if is_instance_valid(p) and p.has_method("notify_ring_moved"):
+						p.notify_ring_moved()
 			_set_visual_warning(1.0)
 			_update_telegraph_visuals(true)
 

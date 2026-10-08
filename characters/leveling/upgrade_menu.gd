@@ -32,6 +32,7 @@ var origin_label: Label
 var origin_tabs_container: HBoxContainer
 var strips_container: HBoxContainer
 var close_btn: Button
+var guidance_label: Label
 var target_player: Node = null
 
 # Progression tracking: origin_id -> { "resilience": 0..3, "fervor": 0..3, "cunning": 0..3 }
@@ -183,6 +184,14 @@ func refresh_menu() -> void:
 			origin_label.modulate = Color.WHITE
 			
 	_update_origin_tab_styles()
+	
+	if guidance_label:
+		var pts_str = ""
+		if is_instance_valid(target_player) and ("upgrade_points" in target_player):
+			var pts = target_player.upgrade_points
+			var lvl = target_player.player_level if "player_level" in target_player else 1
+			pts_str = " | LVL %d (Available Points: %d)" % [lvl, pts]
+		guidance_label.text = "Unlock upgrades from bottom to top (Tier 1 → Tier 2 → Tier 3)%s. Caution: Minimum 5s lockout upon entering forge." % pts_str
 	
 	var tree_data = UpgradeTreesClass.get_tree(origin_key)
 	
@@ -583,12 +592,19 @@ func _on_upgrade_card_clicked(origin: String, branch: String, tier: int, data: D
 		return
 	
 	if tier == current_tier + 1:
+		if is_instance_valid(target_player) and target_player.has_method("can_spend_upgrade_point"):
+			if not target_player.can_spend_upgrade_point():
+				_shake_locked_slot(branch, tier)
+				return
+			target_player.spend_upgrade_point()
+		
 		# Valid sequential progression: unlock this tier!
 		set_branch_tier(origin, branch, tier)
 		var up_id = data.get("id", "%s_%s_%d" % [origin, branch, tier])
 		if is_instance_valid(target_player) and target_player.has_method("apply_upgrade"):
 			target_player.apply_upgrade(up_id, data)
 		upgrade_selected.emit(origin, branch, tier, data)
+		refresh_menu()
 	else:
 		# Locked: player clicked a higher tier before unlocking prior tiers
 		_shake_locked_slot(branch, tier)
@@ -722,9 +738,10 @@ func _build_ui_structure() -> void:
 	
 	# Subtitle Warning/Guidance banner
 	var guidance_lbl = Label.new()
-	guidance_lbl.text = "Unlock upgrades from bottom to top (Tier 1 → Tier 2 → Tier 3). Caution: You are vulnerable while accessing the forge."
+	guidance_lbl.text = "Unlock upgrades from bottom to top (Tier 1 → Tier 2 → Tier 3). Caution: Minimum 5s lockout upon entering forge."
 	guidance_lbl.add_theme_font_size_override("font_size", 11)
 	guidance_lbl.add_theme_color_override("font_color", Color(0.70, 0.75, 0.85))
+	guidance_label = guidance_lbl
 	window_vbox.add_child(guidance_lbl)
 	
 	# 2. Main Three Vertical Slices (HBoxContainer)

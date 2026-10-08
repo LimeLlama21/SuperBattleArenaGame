@@ -41,6 +41,9 @@ func get_effective_acceleration(current_calculated_accel: float) -> float:
 func has_custom_movement_control() -> bool:
 	return false
 
+func is_in_move_lockout() -> bool:
+	return false
+
 func is_sliding_down_slope() -> bool:
 	if not is_on_floor():
 		return false
@@ -284,7 +287,7 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	var slow_mult = get_slow_multiplier()
 
 	# Jump
-	if not stunned and not rooted and not grounded and not is_channeling_active:
+	if not stunned and not rooted and not grounded and not is_channeling_active and not is_in_move_lockout():
 		if Input.is_action_just_pressed("jump") and on_floor:
 			velocity.y = jump_velocity
 			
@@ -307,7 +310,7 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 
 	# Movement Vector: natural movement works under any circumstance unless immobilized (rooted) or stunned
 	var input_dir := Vector2.ZERO
-	if not stunned and not rooted:
+	if not stunned and not rooted and not is_in_move_lockout():
 		if is_taunted():
 			var taunter = get_taunt_target()
 			if is_instance_valid(taunter):

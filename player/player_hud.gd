@@ -123,6 +123,22 @@ func set_status_text(text: String) -> void:
 	if status_cc_label:
 		status_cc_label.text = text
 
+func update_xp(current: float, max_val: float, level: int, points: int = 0) -> void:
+	if char_name_label:
+		var raw_text = char_name_label.text
+		var base_name = char_name_label.get_meta("base_character_name", "")
+		if base_name.is_empty():
+			base_name = raw_text.split(" - LVL")[0]
+			char_name_label.set_meta("base_character_name", base_name)
+		var points_str = "  [PRESS U: +%d UPGRADE!]" % points if points > 0 else ""
+		char_name_label.text = "%s - LVL %d (%d/%d XP)%s" % [base_name, level, int(current), int(max_val), points_str]
+
+func update_upgrade_lockout(time_left: float) -> void:
+	if time_left > 0.0:
+		set_status_text("UPGRADING... LOCKED (%.1fs)" % time_left)
+	elif status_cc_label and status_cc_label.text.begins_with("UPGRADING"):
+		set_status_text("")
+
 func _on_ability_hovered(slot: AbilitySlot) -> void:
 	if not ability_tooltip:
 		return

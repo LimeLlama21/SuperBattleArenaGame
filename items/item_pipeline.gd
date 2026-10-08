@@ -22,10 +22,10 @@ class ItemDefinition extends RefCounted:
 	var unique_feature_config: Dictionary = {} # Declarative config compiled to node tree
 	var description: String = ""
 	var art_texture: Texture2D = null # Blank for now
-
+	
 	func has_unique_feature() -> bool:
 		return unique_feature != null or not unique_feature_config.is_empty()
-
+	
 	func instantiate_ability() -> Node:
 		if unique_feature is PackedScene:
 			var node = unique_feature.instantiate()
@@ -39,7 +39,7 @@ class ItemDefinition extends RefCounted:
 		elif not unique_feature_config.is_empty():
 			return AbilityClass.create_from_config(unique_feature_config)
 		return null
-
+	
 	func get_stats_description() -> String:
 		if stats.is_empty():
 			return "No stat bonuses"
@@ -50,7 +50,7 @@ class ItemDefinition extends RefCounted:
 		if parts.is_empty():
 			return "No stat bonuses"
 		return "\n".join(parts)
-
+	
 	static func _format_stat(stat_key: String, val: float) -> String:
 		var sign_str = "+" if val >= 0.0 else ""
 		match stat_key:
@@ -104,7 +104,7 @@ class ItemDefinition extends RefCounted:
 					return "%s%d %s" % [sign_str, int(val), label]
 				else:
 					return "%s%.1f %s" % [sign_str, val, label]
-
+	
 	func get_unique_feature_description() -> String:
 		if not has_unique_feature():
 			return "None (Stats only)"
