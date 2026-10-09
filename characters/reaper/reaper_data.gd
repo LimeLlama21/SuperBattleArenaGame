@@ -9,7 +9,9 @@ static func create() -> CharacterData:
 	data.archetype = "Reaper"
 	data.origins = [CharacterOrigin.ID_MONSTROUS]
 	data.max_health = 200.0
-	data.max_move_speed = 6.0
+	data.damage = 28.0
+	data.max_move_speed = CharacterData.DEFAULT_MOVE_SPEED
+	data.haste = 0.0
 	data.ground_acceleration = 40.0
 	data.ground_deceleration = 40.0
 	data.air_acceleration = 12.0

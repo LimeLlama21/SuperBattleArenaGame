@@ -9,7 +9,9 @@ static func create() -> CharacterData:
 	data.archetype = "Sharpshooter"
 	data.origins = [CharacterOrigin.ID_MORTAL]
 	data.max_health = 160.0
-	data.max_move_speed = 6.9
+	data.damage = 30.0
+	data.max_move_speed = CharacterData.DEFAULT_MOVE_SPEED
+	data.haste = 0.0
 	data.ground_acceleration = 30.0
 	data.ground_deceleration = 40.0
 	data.air_acceleration = 9.0

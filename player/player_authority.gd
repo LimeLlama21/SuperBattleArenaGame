@@ -9,7 +9,7 @@ func is_multiplayer_match() -> bool:
 	var main_node = get_tree().root.get_node_or_null("Main") if get_tree() else null
 	if main_node:
 		if main_node.get("is_training_mode") == true:
-			return false
+			return multiplayer.get_peers().size() > 0
 		if main_node.has_method("is_multiplayer_match"):
 			return main_node.is_multiplayer_match()
 		if "connected_players" in main_node and main_node.connected_players is Dictionary:
@@ -82,6 +82,8 @@ func _setup_synchronizer() -> void:
 	_add_sync_property(server_config, NodePath(".:current_shield"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 	_add_sync_property(server_config, NodePath(".:is_dead"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 	_add_sync_property(server_config, NodePath(".:active_windup_id"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+	_add_sync_property(server_config, NodePath(".:player_level"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+
 
 func _add_sync_property(config: SceneReplicationConfig, prop_path: NodePath, mode: int) -> void:
 	if not config.has_property(prop_path):

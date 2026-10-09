@@ -1690,8 +1690,10 @@ func test_data_driven_character_pipeline() -> void:
 	assert(player.display_name == "Swift Ranger", "Display name must be Swift Ranger")
 	assert(player.max_health == 190.0, "Max health must be 190.0")
 	assert(player.current_health == 190.0, "Current health must be 190.0")
+	assert(player.damage == 28.0, "Damage must be 28.0")
 	assert(player.max_shield == 50.0, "Max shield must be 50.0")
-	assert(player.max_move_speed == 6.8, "Max move speed must be 6.8")
+	assert(player.max_move_speed == 6.0, "Max move speed must be 6.0")
+	assert(player.haste == 0.0, "Haste must be 0.0")
 	assert(player.crit_chance == 0.10, "Crit chance must be 0.10")
 	print("  ✓ Stats automatically applied by player_base.gd.")
 
@@ -2892,7 +2894,7 @@ func test_cleodolinda_animations() -> void:
 
 	# 4. Verify Spell 3 (E) Hold & Release Cycle + 50% Boost:
 	# Verify baseline (inactive) movement metrics
-	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 7.0), "Baseline max move speed must be 7.0")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 6.0), "Baseline max move speed must be 6.0")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 28.0), "Baseline ground acceleration must be 28.0")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 8.0), "Baseline air acceleration must be 8.0")
 
@@ -2900,15 +2902,15 @@ func test_cleodolinda_animations() -> void:
 	cleo.press_spell_3()
 	assert(cleo.is_spell_3_active == true, "Spell 3 must be active on press")
 	assert(anim_player.current_animation == "spell 3 boost start", "Pressing E must play 'spell 3 boost start'")
-	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 10.5), "Spell 3 active must increase ms cap by 50% (7.0 -> 10.5)")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 9.0), "Spell 3 active must increase ms cap by 50% (6.0 -> 9.0)")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 42.0), "Spell 3 active must increase ground acceleration by 50% (28.0 -> 42.0)")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 12.0), "Spell 3 active must increase air acceleration by 50% (8.0 -> 12.0)")
-	print("  ✓ Spell 3 boost values (+50% acceleration: 42.0 ground / 12.0 air, +50% ms cap: 10.5) verified while active.")
+	print("  ✓ Spell 3 boost values (+50% acceleration: 42.0 ground / 12.0 air, +50% ms cap: 9.0) verified while active.")
 
 	# While holding, when start completes -> 'spell 3 continuous' loops
 	cleo._on_animation_finished("spell 3 boost start")
 	assert(anim_player.current_animation == "spell 3 continuous", "Completing start while held must transition to 'spell 3 continuous'")
-	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 10.5), "MS cap must remain boosted during continuous loop")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 9.0), "MS cap must remain boosted during continuous loop")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 42.0), "Acceleration must remain boosted during continuous loop")
 
 	# Release E -> 'spell 3 end' plays once
@@ -2919,7 +2921,7 @@ func test_cleodolinda_animations() -> void:
 	cleo._on_animation_finished("spell 3 end")
 	assert(cleo.is_spell_3_active == false, "Spell 3 must no longer be active")
 	assert(anim_player.current_animation == "Idle", "Completing 'spell 3 end' must return to Idle")
-	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 7.0), "Max move speed must return to 7.0 baseline after boost ends")
+	assert(is_equal_approx(cleo.get_effective_max_speed(cleo.max_move_speed), 6.0), "Max move speed must return to 6.0 baseline after boost ends")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.ground_acceleration), 28.0), "Ground acceleration must return to 28.0 baseline after boost ends")
 	assert(is_equal_approx(cleo.get_effective_acceleration(cleo.air_acceleration), 8.0), "Air acceleration must return to 8.0 baseline after boost ends")
 	print("  ✓ Spell 3 (E) press -> continuous loop -> release -> end -> Idle lifecycle and boost reset verified.")

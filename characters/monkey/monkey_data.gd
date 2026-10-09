@@ -11,7 +11,9 @@ static func create() -> CharacterData:
 	data.archetype = "Trickster"
 	data.origins = [CharacterOrigin.ID_DIVINE, CharacterOrigin.ID_MONSTROUS]
 	data.max_health = 160.0
-	data.max_move_speed = 6.0
+	data.damage = 24.0
+	data.max_move_speed = CharacterData.DEFAULT_MOVE_SPEED
+	data.haste = 0.0
 	data.ground_acceleration = 25.0
 	data.ground_deceleration = 40.0
 	data.air_acceleration = 7.5

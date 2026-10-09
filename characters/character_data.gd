@@ -20,9 +20,47 @@ extends Resource
 			if not s.is_empty() and not origins.has(s):
 				origins.append(s)
 
+# --- Core Character Stats ---
+# Characters have 4 core stats: Health, Damage, Movement Speed (same for all characters), and Haste (0 by default).
+const DEFAULT_MOVE_SPEED: float = 6.0
+
+@export_group("Core Stats")
+@export var max_health: float = 200.0
+@export var damage: float = 25.0
+@export var max_move_speed: float = DEFAULT_MOVE_SPEED
+@export var haste: float = 0.0
+
+# Aliases for clean access and backward compatibility
+var health: float:
+	get: return max_health
+	set(v): max_health = v
+
+var base_health: float:
+	get: return max_health
+	set(v): max_health = v
+
+var base_damage: float:
+	get: return damage
+	set(v): damage = v
+
+var move_speed: float:
+	get: return max_move_speed
+	set(v): max_move_speed = v
+
+var base_move_speed: float:
+	get: return max_move_speed
+	set(v): max_move_speed = v
+
+var ability_haste: float:
+	get: return haste
+	set(v): haste = v
+
+var base_haste: float:
+	get: return haste
+	set(v): haste = v
+
 # --- Core Vitals & Defense ---
 @export_group("Vitals & Defense")
-@export var max_health: float = 200.0
 @export var max_shield: float = 100.0
 @export var max_mana: float = 100.0
 @export var mana_regen: float = 3.0
@@ -34,7 +72,6 @@ extends Resource
 
 # --- Movement Mechanics ---
 @export_group("Movement Mechanics")
-@export var max_move_speed: float = 6.0
 @export var ground_acceleration: float = 25.0
 @export var ground_deceleration: float = 40.0
 @export var intentional_movement_friction: float = 75.0

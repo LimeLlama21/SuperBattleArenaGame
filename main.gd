@@ -5,6 +5,7 @@ const PORT: int = 7000
 const CharacterRegistry = preload("res://characters/character_registry.gd")
 const CharacterData = preload("res://characters/character_data.gd")
 const EnabledCharacters = preload("res://characters/enabled_characters.gd")
+const LevelBadgeClass = preload("res://characters/leveling/level_badge.gd")
 
 const CHARACTERS: Dictionary = {
 	"poke": preload("res://characters/poke/poke.tscn"),
@@ -245,10 +246,14 @@ func _sync_all_kda() -> void:
 		return
 	var kda_dict: Dictionary = {}
 	for pid in connected_players.keys():
+		var p_node = players_container.get_node_or_null(str(pid))
+		var lvl = p_node.player_level if (p_node and "player_level" in p_node) else connected_players[pid].get("level", 1)
+		connected_players[pid]["level"] = lvl
 		kda_dict[pid] = {
 			"kills": connected_players[pid].get("kills", 0),
 			"deaths": connected_players[pid].get("deaths", 0),
-			"assists": connected_players[pid].get("assists", 0)
+			"assists": connected_players[pid].get("assists", 0),
+			"level": lvl
 		}
 	sync_player_kda.rpc(kda_dict)
 
@@ -262,6 +267,7 @@ func sync_player_kda(kda_dict: Dictionary) -> void:
 				connected_players[k]["kills"] = kda_dict[pid].get("kills", 0)
 				connected_players[k]["deaths"] = kda_dict[pid].get("deaths", 0)
 				connected_players[k]["assists"] = kda_dict[pid].get("assists", 0)
+				connected_players[k]["level"] = kda_dict[pid].get("level", 1)
 	if scoreboard_panel and scoreboard_panel.visible:
 		_update_scoreboard_content(false)
 
@@ -279,6 +285,16 @@ var scoreboard_t3_list: VBoxContainer = null
 var scoreboard_dm_container: VBoxContainer = null
 var scoreboard_dm_scroll: ScrollContainer = null
 var scoreboard_dm_list: VBoxContainer = null
+var scoreboard_training_container: HBoxContainer = null
+var scoreboard_training_scroll: ScrollContainer = null
+var scoreboard_training_list: VBoxContainer = null
+var scoreboard_training_status_label: Label = null
+var scoreboard_training_count_label: Label = null
+var scoreboard_training_code_box: VBoxContainer = null
+var scoreboard_training_code_label: Label = null
+var scoreboard_training_copy_btn: Button = null
+var scoreboard_training_toggle_btn: Button = null
+var scoreboard_footer_label: Label = null
 var _scoreboard_refresh_timer: float = 0.0
 
 # --- Multi-Map Architecture Variables ---
@@ -900,12 +916,13 @@ func _register_room_backend(code: String, ip: String, port: int) -> void:
 		print("Backend room registration failed: ", err)
 
 func _on_backend_create_room_completed(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
-	if not lobby_panel.visible or is_training_mode:
-		return
-	if result == HTTPRequest.RESULT_SUCCESS and response_code == 200:
-		lobby_ip_label.text = "ROOM CODE: %s" % current_room_code
-	else:
-		lobby_ip_label.text = "ROOM CODE: %s (Local)" % current_room_code
+	var code_display = current_room_code
+	if not (result == HTTPRequest.RESULT_SUCCESS and response_code == 200):
+		code_display = "%s (Local)" % current_room_code
+	if lobby_panel and lobby_panel.visible:
+		lobby_ip_label.text = "ROOM CODE: %s" % code_display
+	if scoreboard_training_code_label:
+		scoreboard_training_code_label.text = "ROOM CODE: %s" % code_display
 
 func _on_join_pressed() -> void:
 	var uism = get_node_or_null("/root/UIStateMachine")
@@ -1075,6 +1092,11 @@ func _on_connection_failed() -> void:
 
 func _on_peer_connected(id: int) -> void:
 	if multiplayer.is_server():
+		if is_training_mode:
+			if connected_players.size() >= 5:
+				print("Training lobby full (cap 5). Disconnecting peer ", id)
+				multiplayer.multiplayer_peer.disconnect_peer(id)
+				return
 		var has_player = false
 		for k in connected_players.keys():
 			if str(k) == str(id):
@@ -1085,10 +1107,16 @@ func _on_peer_connected(id: int) -> void:
 			connected_players[id] = {
 				"character": "poke",
 				"name": "Player " + str(id),
-				"team": slot_info["team"],
-				"slot": slot_info["slot"]
+				"team": id if is_training_mode else slot_info["team"],
+				"slot": slot_info["slot"],
+				"gold": 999999 if is_training_mode else 0,
+				"items": []
 			}
-		sync_lobby_state.rpc(connected_players, game_mode)
+		if not is_training_mode:
+			sync_lobby_state.rpc(connected_players, game_mode)
+		else:
+			if scoreboard_panel and scoreboard_panel.visible:
+				_update_scoreboard_content(false)
 
 func _on_server_disconnected() -> void:
 	_leave_to_main_menu()
@@ -1099,6 +1127,19 @@ func _on_peer_disconnected(id: int) -> void:
 		return
 	if multiplayer.is_server():
 		if is_training_mode:
+			var target_key = null
+			for k in connected_players.keys():
+				if str(k) == str(id):
+					target_key = k
+					break
+			if target_key != null:
+				connected_players.erase(target_key)
+			var player_node = players_container.get_node_or_null(str(id))
+			if player_node:
+				player_node.queue_free()
+			cleanup_player_entities(id)
+			if scoreboard_panel and scoreboard_panel.visible:
+				_update_scoreboard_content(false)
 			return
 		
 		# If a match or round transition is active, defer removal until next round start
@@ -1165,6 +1206,11 @@ func register_player_to_server(char_key: String) -> void:
 		var en = EnabledCharacters.get_enabled_characters()
 		char_key = en[0] if not en.is_empty() else "poke"
 	var sender_id = multiplayer.get_remote_sender_id()
+	
+	if is_training_mode and connected_players.size() >= 5 and not connected_players.has(sender_id):
+		multiplayer.multiplayer_peer.disconnect_peer(sender_id)
+		return
+
 	var target_key = null
 	for k in connected_players.keys():
 		if str(k) == str(sender_id):
@@ -1175,12 +1221,20 @@ func register_player_to_server(char_key: String) -> void:
 		connected_players[sender_id] = {
 			"character": char_key,
 			"name": "Player " + str(sender_id),
-			"team": slot_info["team"],
-			"slot": slot_info["slot"]
+			"team": sender_id if is_training_mode else slot_info["team"],
+			"slot": slot_info["slot"],
+			"gold": 999999 if is_training_mode else 0,
+			"items": []
 		}
 	else:
 		connected_players[target_key]["character"] = char_key
-	sync_lobby_state.rpc(connected_players, game_mode)
+		if is_training_mode:
+			connected_players[target_key]["team"] = sender_id
+	
+	if is_training_mode and match_in_progress:
+		_spawn_joining_training_player(sender_id)
+	else:
+		sync_lobby_state.rpc(connected_players, game_mode)
 
 @rpc("any_peer", "call_remote", "reliable")
 func update_player_character(char_key: String) -> void:
@@ -1473,12 +1527,12 @@ func _on_start_match_pressed() -> void:
 	start_game.rpc()
 
 func is_multiplayer_match() -> bool:
-	if is_training_mode:
-		return false
 	if not _is_network_active():
 		return false
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return false
+	if is_training_mode:
+		return multiplayer.get_peers().size() > 0
 	return connected_players.size() > 1 or multiplayer.get_peers().size() > 0 or (connected_players.size() >= 1 and (OS.is_debug_build() or game_mode == "dm"))
 
 func get_player_team(peer_id: int) -> int:
@@ -1520,6 +1574,20 @@ func start_game() -> void:
 			sync_active_map(training_selected_map)
 	
 	if not is_multiplayer_match() or multiplayer.is_server():
+		# For Best of Five, compute round progression: 1 level per round, capped at 4 (round 5 doesn't change anything)
+		if game_mode == "bo5":
+			var current_round = bo5_score_t1 + bo5_score_t2 + bo5_score_t3 + 1
+			var bo5_target_level = clamp(current_round, 1, 4)
+			for pid in connected_players.keys():
+				var prev_level = connected_players[pid].get("level", 1)
+				if bo5_target_level > prev_level:
+					var levels_gained = bo5_target_level - prev_level
+					connected_players[pid]["level"] = bo5_target_level
+					connected_players[pid]["upgrade_points"] = connected_players[pid].get("upgrade_points", 0) + levels_gained
+				elif not connected_players[pid].has("level"):
+					connected_players[pid]["level"] = bo5_target_level
+					connected_players[pid]["upgrade_points"] = bo5_target_level - 1
+
 		for c in players_container.get_children():
 			c.queue_free()
 		for proj in projectiles_container.get_children():
@@ -1558,10 +1626,10 @@ func start_game() -> void:
 					player_pos = Vector3(-24.0, 0.1, 0.0)
 				player_rot_y = 0.0
 			
-			# Spawn Training Dummy (Team 2)
+			# Spawn Training Dummy (Free-For-All: Team 99)
 			var dummy = training_dummy_scene.instantiate()
 			dummy.name = "TrainingDummy"
-			dummy.team_id = 2
+			dummy.team_id = 99
 			dummy.global_position = dummy_pos
 			dummy.rotation.y = dummy_rot_y
 			dummy.set("home_position", dummy_pos)
@@ -1681,6 +1749,16 @@ func start_game() -> void:
 
 func _custom_spawn_player(data: Variant) -> Node:
 	var char_key = data.get("character", "poke")
+	if char_key == "dummy":
+		var dummy = training_dummy_scene.instantiate()
+		dummy.name = "TrainingDummy"
+		dummy.team_id = data.get("team_id", 99)
+		dummy.position = data.get("pos", Vector3.ZERO)
+		if data.has("rot_y"):
+			dummy.rotation.y = data["rot_y"]
+		dummy.set("home_position", dummy.position)
+		call_deferred("_refresh_all_player_team_visuals")
+		return dummy
 	var packed_scene = CharacterRegistry.get_character_scene(char_key)
 	if not packed_scene:
 		packed_scene = CHARACTERS.get(char_key, CHARACTERS["poke"])
@@ -1705,6 +1783,23 @@ func _custom_spawn_player(data: Variant) -> Node:
 			saved_hp = connected_players[data["peer_id"]].get("silene_bonus_hp", 0.0)
 		if saved_hp > 0.0:
 			player_instance.restore_saved_takedown_bonus_hp(saved_hp)
+	# Restore / apply level and upgrade progression
+	var pid_int = int(data.get("peer_id", -1))
+	if connected_players.has(pid_int):
+		var p_info = connected_players[pid_int]
+		var p_lvl = p_info.get("level", 1)
+		var p_pts = p_info.get("upgrade_points", 0)
+		var p_ups = p_info.get("acquired_upgrades", [])
+		player_instance.player_level = p_lvl
+		player_instance.upgrade_points = p_pts
+		player_instance.acquired_upgrades.clear()
+		for u in p_ups:
+			player_instance.acquired_upgrades.append(str(u))
+			if player_instance.has_method("_activate_upgrade_effects"):
+				player_instance._activate_upgrade_effects(str(u))
+		if is_multiplayer_match() and multiplayer.is_server():
+			player_instance.sync_progression.rpc(0.0, player_instance.xp_per_level, player_instance.player_level, player_instance.upgrade_points)
+
 	call_deferred("_refresh_all_player_team_visuals")
 	return player_instance
 
@@ -1801,14 +1896,33 @@ func get_respawn_position(player_node: Node) -> Vector3:
 	return spawns[randi() % spawns.size()]
 
 func on_player_died(peer_id: int) -> void:
-	if not is_multiplayer_match() or not multiplayer.is_server() or not match_in_progress or is_training_mode:
-		if is_training_mode:
-			if peer_id == 0 or peer_id == 2:
-				training_kills += 1
-			else:
+	if is_training_mode:
+		if peer_id == 0 or peer_id == 99:
+			training_kills += 1
+			var dummy_node = players_container.get_node_or_null("TrainingDummy")
+			if dummy_node:
+				get_tree().create_timer(2.0).timeout.connect(func():
+					if is_instance_valid(dummy_node) and dummy_node.get("is_dead"):
+						dummy_node.respawn()
+				)
+		else:
+			if peer_id == 1:
 				training_deaths += 1
-			if scoreboard_panel and scoreboard_panel.visible:
-				_update_scoreboard_content(false)
+			if connected_players.has(peer_id):
+				connected_players[peer_id]["deaths"] = connected_players[peer_id].get("deaths", 0) + 1
+			var victim = players_container.get_node_or_null(str(peer_id))
+			if victim and victim.has_method("sync_death_state"):
+				victim.sync_death_state.rpc(true, 3.0)
+			get_tree().create_timer(3.0).timeout.connect(func():
+				if match_in_progress and is_instance_valid(victim) and victim.get("is_dead"):
+					var spawn_pos = get_respawn_position(victim)
+					victim.respawn(spawn_pos)
+			)
+		if scoreboard_panel and scoreboard_panel.visible:
+			_update_scoreboard_content(false)
+		return
+
+	if not is_multiplayer_match() or not multiplayer.is_server() or not match_in_progress:
 		return
 	
 	# 1. Update Deaths for the victim
@@ -1945,6 +2059,14 @@ func end_round(round_winner: String, score1: int, score2: int, score3: int = 0) 
 	match_over_panel.hide()
 	
 	if multiplayer.is_server():
+		# Save players' level, upgrade points, and acquired upgrades across rounds
+		for c in players_container.get_children():
+			var c_id = c.name.to_int()
+			if c_id > 0 and connected_players.has(c_id):
+				connected_players[c_id]["level"] = c.player_level if ("player_level" in c) else 1
+				connected_players[c_id]["upgrade_points"] = c.upgrade_points if ("upgrade_points" in c) else 0
+				connected_players[c_id]["acquired_upgrades"] = c.acquired_upgrades.duplicate() if ("acquired_upgrades" in c) else []
+		
 		for c in players_container.get_children():
 			c.queue_free()
 		for proj in projectiles_container.get_children():
@@ -2043,6 +2165,10 @@ func end_match(winner_name: String) -> void:
 			v.queue_free()
 		for h in hazard_container.get_children():
 			h.queue_free()
+		for pid in connected_players.keys():
+			connected_players[pid]["level"] = 1
+			connected_players[pid]["upgrade_points"] = 0
+			connected_players[pid]["acquired_upgrades"] = []
 		_process_pending_disconnects()
 		bo5_score_t1 = 0
 		bo5_score_t2 = 0
@@ -2056,6 +2182,10 @@ func terminate_match(reason: String = "A team has no remaining players.") -> voi
 	_bo5_round_transition_active = false
 	bo5_score_t1 = 0
 	bo5_score_t2 = 0
+	for pid in connected_players.keys():
+		connected_players[pid]["level"] = 1
+		connected_players[pid]["upgrade_points"] = 0
+		connected_players[pid]["acquired_upgrades"] = []
 	_show_shop(false)
 	if dm_timer_label:
 		dm_timer_label.hide()
@@ -2546,18 +2676,25 @@ func _process(delta: float) -> void:
 	elif dm_timer_label and dm_timer_label.visible and not (active_mode and ("has_zone" in active_mode and active_mode.has_zone)):
 		dm_timer_label.hide()
 
-	if Input.is_key_pressed(KEY_TAB):
-		if not scoreboard_panel.visible:
-			_show_scoreboard(true)
-			_scoreboard_refresh_timer = 0.25
-		else:
+	if is_training_mode:
+		if scoreboard_panel and scoreboard_panel.visible:
 			_scoreboard_refresh_timer -= delta
 			if _scoreboard_refresh_timer <= 0.0:
 				_scoreboard_refresh_timer = 0.25
 				_update_scoreboard_content(false)
 	else:
-		if scoreboard_panel and scoreboard_panel.visible:
-			_show_scoreboard(false)
+		if Input.is_key_pressed(KEY_TAB):
+			if not scoreboard_panel.visible:
+				_show_scoreboard(true)
+				_scoreboard_refresh_timer = 0.25
+			else:
+				_scoreboard_refresh_timer -= delta
+				if _scoreboard_refresh_timer <= 0.0:
+					_scoreboard_refresh_timer = 0.25
+					_update_scoreboard_content(false)
+		else:
+			if scoreboard_panel and scoreboard_panel.visible:
+				_show_scoreboard(false)
 
 func _setup_scoreboard_ui() -> void:
 	var ui_node = get_node_or_null("UI")
@@ -2572,10 +2709,10 @@ func _setup_scoreboard_ui() -> void:
 	scoreboard_panel.anchor_top = 0.5
 	scoreboard_panel.anchor_right = 0.5
 	scoreboard_panel.anchor_bottom = 0.5
-	scoreboard_panel.offset_left = -380.0
-	scoreboard_panel.offset_top = -250.0
-	scoreboard_panel.offset_right = 380.0
-	scoreboard_panel.offset_bottom = 250.0
+	scoreboard_panel.offset_left = -420.0
+	scoreboard_panel.offset_top = -260.0
+	scoreboard_panel.offset_right = 420.0
+	scoreboard_panel.offset_bottom = 260.0
 	scoreboard_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	scoreboard_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	scoreboard_panel.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -2665,18 +2802,11 @@ func _setup_scoreboard_ui() -> void:
 	var t1_sub_hdr = HBoxContainer.new()
 	t1_sub_hdr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var t1_lbl_p = Label.new()
-	t1_lbl_p.text = "PLAYER"
+	t1_lbl_p.text = "PLAYER / HERO"
 	t1_lbl_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t1_lbl_p.add_theme_font_size_override("font_size", 11)
 	t1_lbl_p.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
 	t1_sub_hdr.add_child(t1_lbl_p)
-	var t1_lbl_s = Label.new()
-	t1_lbl_s.text = "STATUS"
-	t1_lbl_s.custom_minimum_size = Vector2(85, 0)
-	t1_lbl_s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	t1_lbl_s.add_theme_font_size_override("font_size", 11)
-	t1_lbl_s.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
-	t1_sub_hdr.add_child(t1_lbl_s)
 	var t1_lbl_k = Label.new()
 	t1_lbl_k.text = "K / D / A"
 	t1_lbl_k.custom_minimum_size = Vector2(75, 0)
@@ -2719,18 +2849,11 @@ func _setup_scoreboard_ui() -> void:
 	var t2_sub_hdr = HBoxContainer.new()
 	t2_sub_hdr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var t2_lbl_p = Label.new()
-	t2_lbl_p.text = "PLAYER"
+	t2_lbl_p.text = "PLAYER / HERO"
 	t2_lbl_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t2_lbl_p.add_theme_font_size_override("font_size", 11)
 	t2_lbl_p.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
 	t2_sub_hdr.add_child(t2_lbl_p)
-	var t2_lbl_s = Label.new()
-	t2_lbl_s.text = "STATUS"
-	t2_lbl_s.custom_minimum_size = Vector2(85, 0)
-	t2_lbl_s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	t2_lbl_s.add_theme_font_size_override("font_size", 11)
-	t2_lbl_s.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
-	t2_sub_hdr.add_child(t2_lbl_s)
 	var t2_lbl_k = Label.new()
 	t2_lbl_k.text = "K / D / A"
 	t2_lbl_k.custom_minimum_size = Vector2(75, 0)
@@ -2773,18 +2896,11 @@ func _setup_scoreboard_ui() -> void:
 	var t3_sub_hdr = HBoxContainer.new()
 	t3_sub_hdr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var t3_lbl_p = Label.new()
-	t3_lbl_p.text = "PLAYER"
+	t3_lbl_p.text = "PLAYER / HERO"
 	t3_lbl_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t3_lbl_p.add_theme_font_size_override("font_size", 11)
 	t3_lbl_p.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
 	t3_sub_hdr.add_child(t3_lbl_p)
-	var t3_lbl_s = Label.new()
-	t3_lbl_s.text = "STATUS"
-	t3_lbl_s.custom_minimum_size = Vector2(85, 0)
-	t3_lbl_s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	t3_lbl_s.add_theme_font_size_override("font_size", 11)
-	t3_lbl_s.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
-	t3_sub_hdr.add_child(t3_lbl_s)
 	var t3_lbl_k = Label.new()
 	t3_lbl_k.text = "K / D / A"
 	t3_lbl_k.custom_minimum_size = Vector2(75, 0)
@@ -2859,6 +2975,178 @@ func _setup_scoreboard_ui() -> void:
 	scoreboard_dm_list.add_theme_constant_override("separation", 4)
 	scoreboard_dm_scroll.add_child(scoreboard_dm_list)
 	
+	# 3. Training Free-For-All Container (Training Mode)
+	scoreboard_training_container = HBoxContainer.new()
+	scoreboard_training_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_training_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_training_container.add_theme_constant_override("separation", 16)
+	scoreboard_training_container.visible = false
+	main_vbox.add_child(scoreboard_training_container)
+
+	# Left Column: FFA Fighters Roster (Up to 5 players + Dummy)
+	var tr_left_vbox = VBoxContainer.new()
+	tr_left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tr_left_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tr_left_vbox.add_theme_constant_override("separation", 6)
+	scoreboard_training_container.add_child(tr_left_vbox)
+
+	var tr_hdr_row = HBoxContainer.new()
+	tr_hdr_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var tr_hdr_player = Label.new()
+	tr_hdr_player.text = "FIGHTER / HERO"
+	tr_hdr_player.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tr_hdr_player.add_theme_font_size_override("font_size", 12)
+	tr_hdr_player.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	tr_hdr_row.add_child(tr_hdr_player)
+
+	var tr_hdr_status = Label.new()
+	tr_hdr_status.text = "STATUS"
+	tr_hdr_status.custom_minimum_size = Vector2(130, 0)
+	tr_hdr_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tr_hdr_status.add_theme_font_size_override("font_size", 12)
+	tr_hdr_status.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	tr_hdr_row.add_child(tr_hdr_status)
+
+	var tr_hdr_kda = Label.new()
+	tr_hdr_kda.text = "K / D / A"
+	tr_hdr_kda.custom_minimum_size = Vector2(110, 0)
+	tr_hdr_kda.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tr_hdr_kda.add_theme_font_size_override("font_size", 12)
+	tr_hdr_kda.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	tr_hdr_row.add_child(tr_hdr_kda)
+
+	tr_left_vbox.add_child(tr_hdr_row)
+
+	scoreboard_training_scroll = ScrollContainer.new()
+	scoreboard_training_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_training_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_training_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scoreboard_training_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scoreboard_training_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	tr_left_vbox.add_child(scoreboard_training_scroll)
+
+	scoreboard_training_list = VBoxContainer.new()
+	scoreboard_training_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scoreboard_training_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scoreboard_training_list.add_theme_constant_override("separation", 4)
+	scoreboard_training_scroll.add_child(scoreboard_training_list)
+
+	# Vertical separator between roster list and lobby management column
+	var tr_vsep = VSeparator.new()
+	scoreboard_training_container.add_child(tr_vsep)
+
+	# Right Column: Lobby Management (small column)
+	var tr_right_vbox = VBoxContainer.new()
+	tr_right_vbox.custom_minimum_size = Vector2(240, 0)
+	tr_right_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tr_right_vbox.add_theme_constant_override("separation", 10)
+	scoreboard_training_container.add_child(tr_right_vbox)
+
+	var tr_panel = PanelContainer.new()
+	tr_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tr_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var tr_box_style = StyleBoxFlat.new()
+	tr_box_style.bg_color = Color(0.04, 0.06, 0.10, 0.85)
+	tr_box_style.border_color = Color(0.2, 0.3, 0.45, 0.7)
+	tr_box_style.border_width_left = 1
+	tr_box_style.border_width_top = 1
+	tr_box_style.border_width_right = 1
+	tr_box_style.border_width_bottom = 1
+	tr_box_style.corner_radius_top_left = 8
+	tr_box_style.corner_radius_top_right = 8
+	tr_box_style.corner_radius_bottom_left = 8
+	tr_box_style.corner_radius_bottom_right = 8
+	tr_box_style.content_margin_left = 12
+	tr_box_style.content_margin_top = 12
+	tr_box_style.content_margin_right = 12
+	tr_box_style.content_margin_bottom = 12
+	tr_panel.add_theme_stylebox_override("panel", tr_box_style)
+	tr_right_vbox.add_child(tr_panel)
+
+	var tr_inner_vbox = VBoxContainer.new()
+	tr_inner_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tr_inner_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tr_inner_vbox.add_theme_constant_override("separation", 10)
+	tr_panel.add_child(tr_inner_vbox)
+
+	var tr_lbl_title = Label.new()
+	tr_lbl_title.text = "SESSION LOBBY"
+	tr_lbl_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tr_lbl_title.add_theme_font_size_override("font_size", 14)
+	tr_lbl_title.add_theme_color_override("font_color", Color(0.4, 0.85, 1.0))
+	tr_inner_vbox.add_child(tr_lbl_title)
+
+	scoreboard_training_status_label = Label.new()
+	scoreboard_training_status_label.text = "🔒 LOCAL (SOLO)"
+	scoreboard_training_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_training_status_label.add_theme_font_size_override("font_size", 12)
+	scoreboard_training_status_label.add_theme_color_override("font_color", Color(0.65, 0.75, 0.85))
+	tr_inner_vbox.add_child(scoreboard_training_status_label)
+
+	scoreboard_training_count_label = Label.new()
+	scoreboard_training_count_label.text = "Players: 1 / 5"
+	scoreboard_training_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_training_count_label.add_theme_font_size_override("font_size", 12)
+	scoreboard_training_count_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4))
+	tr_inner_vbox.add_child(scoreboard_training_count_label)
+
+	var tr_div = HSeparator.new()
+	tr_inner_vbox.add_child(tr_div)
+
+	var tr_spacer = Control.new()
+	tr_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tr_inner_vbox.add_child(tr_spacer)
+
+	# Main Toggle Button (Open / Close Lobby)
+	scoreboard_training_toggle_btn = Button.new()
+	scoreboard_training_toggle_btn.text = "🌐 Open Lobby (Online)"
+	scoreboard_training_toggle_btn.custom_minimum_size = Vector2(0, 38)
+	scoreboard_training_toggle_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	tr_inner_vbox.add_child(scoreboard_training_toggle_btn)
+	scoreboard_training_toggle_btn.pressed.connect(_on_training_lobby_toggle_pressed)
+
+	# Room Code Container (shown directly below the button when online)
+	var code_card = PanelContainer.new()
+	code_card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var code_style = StyleBoxFlat.new()
+	code_style.bg_color = Color(0.02, 0.04, 0.07, 0.9)
+	code_style.border_color = Color(0.18, 0.5, 0.35, 0.8)
+	code_style.border_width_left = 1
+	code_style.border_width_top = 1
+	code_style.border_width_right = 1
+	code_style.border_width_bottom = 1
+	code_style.corner_radius_top_left = 6
+	code_style.corner_radius_top_right = 6
+	code_style.corner_radius_bottom_left = 6
+	code_style.corner_radius_bottom_right = 6
+	code_style.content_margin_left = 8
+	code_style.content_margin_top = 8
+	code_style.content_margin_right = 8
+	code_style.content_margin_bottom = 8
+	code_card.add_theme_stylebox_override("panel", code_style)
+	scoreboard_training_code_box = code_card
+	scoreboard_training_code_box.visible = false
+	tr_inner_vbox.add_child(scoreboard_training_code_box)
+
+	var code_inner_vbox = VBoxContainer.new()
+	code_inner_vbox.add_theme_constant_override("separation", 6)
+	code_card.add_child(code_inner_vbox)
+
+	scoreboard_training_code_label = Label.new()
+	scoreboard_training_code_label.text = "ROOM CODE: ----"
+	scoreboard_training_code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scoreboard_training_code_label.add_theme_font_size_override("font_size", 14)
+	scoreboard_training_code_label.add_theme_color_override("font_color", Color(0.35, 1.0, 0.6))
+	code_inner_vbox.add_child(scoreboard_training_code_label)
+
+	scoreboard_training_copy_btn = Button.new()
+	scoreboard_training_copy_btn.text = "📋 Copy Room Code"
+	scoreboard_training_copy_btn.custom_minimum_size = Vector2(0, 32)
+	scoreboard_training_copy_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	code_inner_vbox.add_child(scoreboard_training_copy_btn)
+	scoreboard_training_copy_btn.pressed.connect(_on_training_copy_code_pressed)
+	
 	var sep2 = HSeparator.new()
 	main_vbox.add_child(sep2)
 	
@@ -2868,6 +3156,7 @@ func _setup_scoreboard_ui() -> void:
 	footer_lbl.add_theme_font_size_override("font_size", 11)
 	footer_lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
 	main_vbox.add_child(footer_lbl)
+	scoreboard_footer_label = footer_lbl
 	
 	ui_node.add_child(scoreboard_panel)
 
@@ -2905,6 +3194,16 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 	if scoreboard_dm_list:
 		for c in scoreboard_dm_list.get_children():
 			c.queue_free()
+	if scoreboard_training_list:
+		for c in scoreboard_training_list.get_children():
+			c.queue_free()
+
+	if scoreboard_footer_label:
+		if is_training_mode:
+			scoreboard_footer_label.text = "[ Press TAB or ESC to close • Training Session Roster & Lobby ]"
+		else:
+			scoreboard_footer_label.text = "[ Hold TAB to view • Scroll wheel to view more ]"
+
 	var current_scoreboard_mode = GameModes.get_mode(game_mode)
 	if scoreboard_score_container:
 		if current_scoreboard_mode.has_rounds and not is_training_mode:
@@ -2919,20 +3218,56 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 			scoreboard_score_container.visible = false
 	
 	if is_training_mode:
-		if scoreboard_team_container: scoreboard_team_container.visible = true
+		if scoreboard_team_container: scoreboard_team_container.visible = false
 		if scoreboard_dm_container: scoreboard_dm_container.visible = false
+		if scoreboard_training_container: scoreboard_training_container.visible = true
+		
 		var map_str = ("  •  MAP: " + MAP_NAMES[current_map_id].to_upper()) if (current_map_id >= 0 and current_map_id < MAP_NAMES.size()) else "  •  MAP: STANDARD TRAINING"
-		scoreboard_status_label.text = "TRAINING ARENA SESSION" + map_str
-		var p_node = players_container.get_node_or_null(str(my_id))
-		var row = _create_scoreboard_player_row(my_id, "Player (YOU)", selected_character, p_node, true, training_kills, training_deaths, training_assists, false)
-		if scoreboard_t1_list:
-			scoreboard_t1_list.add_child(row)
-		var dummy_node = players_container.get_node_or_null("TrainingDummy")
-		if dummy_node:
-			var dummy_row = _create_scoreboard_player_row(0, "Training Dummy", "dummy", dummy_node, not dummy_node.get("is_dead"), training_deaths, training_kills, 0, false)
-			if scoreboard_t2_list:
-				scoreboard_t2_list.add_child(dummy_row)
+		scoreboard_status_label.text = "TRAINING ARENA (FREE FOR ALL • CAP: 5 PLAYERS)" + map_str
+		
+		# Populate FFA Roster on Left (up to 5 players + dummy)
+		if scoreboard_training_list:
+			var p_keys = connected_players.keys()
+			for pid in p_keys:
+				var p_info = connected_players[pid]
+				var p_name = p_info.get("name", "Player %s" % str(pid))
+				var p_char = p_info.get("character", "poke")
+				var p_node = players_container.get_node_or_null(str(pid))
+				var is_alive = true
+				if match_in_progress and p_node != null:
+					is_alive = not p_node.get("is_dead")
+				var k = p_info.get("kills", training_kills if pid == my_id else 0)
+				var d = p_info.get("deaths", training_deaths if pid == my_id else 0)
+				var a = p_info.get("assists", training_assists if pid == my_id else 0)
+				var row = _create_scoreboard_player_row(pid, p_name + (" (YOU)" if pid == my_id else ""), p_char, p_node, is_alive, k, d, a, true)
+				scoreboard_training_list.add_child(row)
+			
+			# Training Dummy row
+			var dummy_node = players_container.get_node_or_null("TrainingDummy")
+			if dummy_node:
+				var dummy_row = _create_scoreboard_player_row(0, "Training Dummy", "dummy", dummy_node, not dummy_node.get("is_dead"), training_deaths, training_kills, 0, true)
+				scoreboard_training_list.add_child(dummy_row)
+		
+		# Update Right Column Controls
+		var is_online = _is_network_active() and multiplayer.is_server()
+		if scoreboard_training_status_label:
+			scoreboard_training_status_label.text = "🟢 ONLINE LOBBY" if is_online else "🔒 LOCAL (SOLO)"
+			scoreboard_training_status_label.add_theme_color_override("font_color", Color(0.3, 0.9, 0.5) if is_online else Color(0.65, 0.75, 0.85))
+		if scoreboard_training_count_label:
+			scoreboard_training_count_label.text = "Players: %d / 5" % connected_players.size()
+		if scoreboard_training_code_box:
+			scoreboard_training_code_box.visible = is_online and not current_room_code.is_empty()
+		if scoreboard_training_code_label:
+			scoreboard_training_code_label.text = "ROOM CODE: %s" % current_room_code
+		if scoreboard_training_toggle_btn:
+			if is_online:
+				scoreboard_training_toggle_btn.text = "🔒 Close Lobby (Go Offline)"
+			else:
+				scoreboard_training_toggle_btn.text = "🌐 Open Lobby (Go Online)"
 		return
+
+	if scoreboard_training_container:
+		scoreboard_training_container.visible = false
 
 	if game_mode == "dm":
 		if scoreboard_team_container: scoreboard_team_container.visible = false
@@ -3036,66 +3371,129 @@ func _update_scoreboard_content(reset_scroll: bool = true) -> void:
 		scoreboard_status_label.text = "LOBBY ROSTER (%d Connected Players)" % connected_players.size()
 
 func _create_scoreboard_player_row(pid: int, p_name: String, char_key: String, p_node: Node, is_alive: bool, kills: int = 0, deaths: int = 0, assists: int = 0, is_dm: bool = false) -> Control:
-	var row = HBoxContainer.new()
+	var row = PanelContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.custom_minimum_size = Vector2(0, 26)
+	row.custom_minimum_size = Vector2(0, 38)
+	
+	var row_style = StyleBoxFlat.new()
+	row_style.bg_color = Color(0.08, 0.10, 0.15, 0.75)
+	row_style.border_color = Color(0.18, 0.24, 0.35, 0.6)
+	row_style.border_width_left = 1
+	row_style.border_width_top = 1
+	row_style.border_width_right = 1
+	row_style.border_width_bottom = 1
+	row_style.corner_radius_top_left = 6
+	row_style.corner_radius_top_right = 6
+	row_style.corner_radius_bottom_left = 6
+	row_style.corner_radius_bottom_right = 6
+	row_style.content_margin_left = 6
+	row_style.content_margin_top = 3
+	row_style.content_margin_right = 8
+	row_style.content_margin_bottom = 3
+	row.add_theme_stylebox_override("panel", row_style)
+	
+	var hbox = HBoxContainer.new()
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_theme_constant_override("separation", 8)
+	row.add_child(hbox)
 	
 	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
 	var is_me = (pid == my_id)
 	
-	# 1. Left side: Name and Hero
-	var left_box = HBoxContainer.new()
-	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_box.add_theme_constant_override("separation", 6)
-	row.add_child(left_box)
+	# Determine level and origin
+	var p_level = 1
+	var p_origin = "mortal"
+	if p_node:
+		if "player_level" in p_node:
+			p_level = p_node.player_level
+		if "character_origin" in p_node:
+			p_origin = p_node.character_origin
+	elif connected_players.has(pid):
+		p_level = connected_players[pid].get("level", 1)
+	
+	# 1. Left side: Portrait box with circular level badge on the bottom left
+	var portrait_container = Control.new()
+	portrait_container.custom_minimum_size = Vector2(34, 34)
+	portrait_container.size = Vector2(34, 34)
+	hbox.add_child(portrait_container)
+	
+	var portrait_panel = PanelContainer.new()
+	portrait_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var port_style = StyleBoxFlat.new()
+	port_style.bg_color = Color(0.12, 0.15, 0.22, 0.95)
+	port_style.border_color = Color(0.35, 0.45, 0.65, 0.8)
+	port_style.border_width_left = 1
+	port_style.border_width_top = 1
+	port_style.border_width_right = 1
+	port_style.border_width_bottom = 1
+	port_style.corner_radius_top_left = 4
+	port_style.corner_radius_top_right = 4
+	port_style.corner_radius_bottom_left = 4
+	port_style.corner_radius_bottom_right = 4
+	portrait_panel.add_theme_stylebox_override("panel", port_style)
+	portrait_container.add_child(portrait_panel)
+	
+	var port_initials = Label.new()
+	port_initials.set_anchors_preset(Control.PRESET_FULL_RECT)
+	port_initials.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	port_initials.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	port_initials.text = char_key.substr(0, 3).to_upper()
+	port_initials.add_theme_font_size_override("font_size", 10)
+	port_initials.add_theme_color_override("font_color", Color(0.7, 0.8, 0.95))
+	portrait_panel.add_child(port_initials)
+	
+	# Circular level badge placed on the bottom left of the portrait
+	var level_badge = LevelBadgeClass.create_badge(p_origin, p_level, Vector2(18, 18), 10)
+	level_badge.position = Vector2(-3, 17)
+	portrait_container.add_child(level_badge)
+	
+	# 2. Player info (Name on top, Hero + Status underneath)
+	var info_vbox = VBoxContainer.new()
+	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	info_vbox.add_theme_constant_override("separation", 0)
+	hbox.add_child(info_vbox)
 	
 	var name_lbl = Label.new()
 	name_lbl.text = ("★ " if is_me else "• ") + p_name
-	name_lbl.add_theme_font_size_override("font_size", 13)
+	name_lbl.add_theme_font_size_override("font_size", 12)
 	if is_me:
 		name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 	else:
 		name_lbl.add_theme_color_override("font_color", Color(0.95, 0.95, 0.98))
-	left_box.add_child(name_lbl)
+	info_vbox.add_child(name_lbl)
 	
-	var char_lbl = Label.new()
-	char_lbl.text = "[" + get_character_display_name(char_key).to_upper() + "]"
-	char_lbl.add_theme_font_size_override("font_size", 11)
-	char_lbl.add_theme_color_override("font_color", Color(0.65, 0.85, 1.0))
-	left_box.add_child(char_lbl)
-	
-	# 2. Status Label
-	var status_lbl = Label.new()
-	status_lbl.custom_minimum_size = Vector2(130 if is_dm else 85, 0)
-	status_lbl.add_theme_font_size_override("font_size", 12)
-	status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if is_dm else HORIZONTAL_ALIGNMENT_RIGHT
-	
+	var sub_lbl = Label.new()
+	var char_title = get_character_display_name(char_key).to_upper()
+	var status_str = ""
+	var status_color = Color(0.6, 0.8, 1.0)
 	if match_in_progress:
 		if _is_peer_pending_disconnect(pid):
-			status_lbl.text = "✖ DC"
-			status_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65))
+			status_str = " • ✖ DC"
+			status_color = Color(0.65, 0.65, 0.65)
 		elif is_alive:
-			var hp_text = ""
-			if p_node and p_node.get("current_health") != null:
-				hp_text = " (%d HP)" % int(p_node.current_health)
-			status_lbl.text = "● ALIVE" + hp_text
-			status_lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+			status_str = " • ● ALIVE"
+			status_color = Color(0.3, 1.0, 0.4)
 		else:
-			status_lbl.text = "✖ DEAD"
-			status_lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+			status_str = " • ✖ DEAD"
+			status_color = Color(1.0, 0.35, 0.35)
 	else:
-		status_lbl.text = "READY"
-		status_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	row.add_child(status_lbl)
+		status_str = " • READY"
+		status_color = Color(0.6, 0.8, 1.0)
+	sub_lbl.text = char_title + status_str
+	sub_lbl.add_theme_font_size_override("font_size", 10)
+	sub_lbl.add_theme_color_override("font_color", status_color)
+	info_vbox.add_child(sub_lbl)
 	
 	# 3. Right side: K/D/A Score
 	var kda_lbl = Label.new()
 	kda_lbl.custom_minimum_size = Vector2(110 if is_dm else 75, 0)
 	kda_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	kda_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	kda_lbl.add_theme_font_size_override("font_size", 12)
 	kda_lbl.text = "%d / %d / %d" % [kills, deaths, assists]
 	kda_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4) if is_me else Color(0.9, 0.9, 0.95))
-	row.add_child(kda_lbl)
+	hbox.add_child(kda_lbl)
 	
 	return row
 
@@ -3636,6 +4034,15 @@ func _refresh_shop_ui() -> void:
 			shop_inspector_buy_btn.disabled = false
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_TAB or event.physical_keycode == KEY_TAB):
+		if is_training_mode and match_in_progress:
+			if scoreboard_panel and scoreboard_panel.visible:
+				_show_scoreboard(false)
+			else:
+				_show_scoreboard(true)
+			get_viewport().set_input_as_handled()
+			return
+
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_B or event.physical_keycode == KEY_B):
 		if shop_panel and shop_panel.visible:
 			_show_shop(false)
@@ -3647,6 +4054,10 @@ func _input(event: InputEvent) -> void:
 			return
 
 	if event.is_action_pressed("ui_cancel"):
+		if scoreboard_panel and scoreboard_panel.visible and is_training_mode:
+			_show_scoreboard(false)
+			get_viewport().set_input_as_handled()
+			return
 		if shop_panel and shop_panel.visible:
 			_show_shop(false)
 			get_viewport().set_input_as_handled()
@@ -3688,21 +4099,34 @@ func _switch_training_character(new_char_key: String) -> void:
 	
 	# Find and remove old player node immediately from tree
 	for p in players_container.get_children():
-		if p.name != "TrainingDummy":
+		if p.name == "1" or (p.name != "TrainingDummy" and p.name.to_int() == 1):
 			current_pos = p.global_position
 			current_rot_y = p.rotation.y
 			players_container.remove_child(p)
 			p.queue_free()
 			break
 
-	# Directly instantiate new character
-	var packed_scene = CHARACTERS.get(new_char_key, CHARACTERS["poke"])
-	var player_instance = packed_scene.instantiate()
-	player_instance.name = "1"
-	player_instance.team_id = 1
-	player_instance.position = current_pos
-	player_instance.rotation.y = current_rot_y
-	players_container.add_child(player_instance)
+	if _is_network_active() and multiplayer.is_server():
+		var spawn_payload = {
+			"peer_id": 1,
+			"character": new_char_key,
+			"team_id": 1,
+			"pos": current_pos,
+			"rot_y": current_rot_y,
+			"gold": 999999,
+			"items": []
+		}
+		player_spawner.spawn(spawn_payload)
+	else:
+		# Directly instantiate new character
+		var packed_scene = CHARACTERS.get(new_char_key, CHARACTERS["poke"])
+		var player_instance = packed_scene.instantiate()
+		player_instance.name = "1"
+		player_instance.team_id = 1
+		player_instance.position = current_pos
+		player_instance.rotation.y = current_rot_y
+		player_instance.gold = 999999
+		players_container.add_child(player_instance)
 	
 	cleanup_player_entities(1)
 	
@@ -3713,7 +4137,10 @@ func _switch_training_map(new_map_id: int) -> void:
 	if not is_training_mode:
 		return
 	training_selected_map = new_map_id
-	sync_active_map(new_map_id)
+	if _is_network_active() and multiplayer.is_server():
+		sync_active_map.rpc(new_map_id)
+	else:
+		sync_active_map(new_map_id)
 	
 	for proj in projectiles_container.get_children():
 		proj.queue_free()
@@ -3761,6 +4188,167 @@ func _switch_training_map(new_map_id: int) -> void:
 		player_node.knockback_velocity = Vector3.ZERO
 
 	escape_panel.hide()
+
+func _on_training_lobby_toggle_pressed() -> void:
+	if not is_training_mode:
+		return
+	if _is_network_active() and multiplayer.is_server():
+		_close_training_lobby_online()
+	else:
+		_open_training_lobby_online()
+
+func _on_training_copy_code_pressed() -> void:
+	if not current_room_code.is_empty():
+		DisplayServer.clipboard_set(current_room_code)
+		if scoreboard_training_copy_btn:
+			scoreboard_training_copy_btn.text = "✓ Copied!"
+			get_tree().create_timer(1.5).timeout.connect(func():
+				if is_instance_valid(scoreboard_training_copy_btn):
+					scoreboard_training_copy_btn.text = "📋 Copy Room Code"
+			)
+
+func _open_training_lobby_online() -> void:
+	if _is_network_active():
+		return
+	
+	randomize()
+	current_room_code = NetworkUtils.generate_room_code()
+	var peer = ENetMultiplayerPeer.new()
+	# Max clients: 4 remote peers + 1 host = 5 player cap
+	var err = peer.create_server(PORT, 4)
+	if err != OK:
+		print("Server host creation failed for training session: ", err)
+		return
+	
+	multiplayer.multiplayer_peer = peer
+	
+	var local_ip = NetworkUtils.get_local_ipv4()
+	if scoreboard_training_code_label:
+		scoreboard_training_code_label.text = "ROOM CODE: %s (Registering...)" % current_room_code
+	if scoreboard_training_copy_btn:
+		scoreboard_training_copy_btn.text = "📋 Copy Room Code"
+	
+	_register_room_backend(current_room_code, local_ip, PORT)
+	_start_upnp_discovery(PORT, local_ip)
+	
+	if match_in_progress:
+		_rebind_training_entities_to_spawner()
+	
+	_update_scoreboard_content(false)
+
+func _close_training_lobby_online() -> void:
+	if not _is_network_active():
+		return
+	
+	if multiplayer.is_server():
+		for pid in multiplayer.get_peers():
+			cleanup_player_entities(pid)
+			var p_node = players_container.get_node_or_null(str(pid))
+			if p_node:
+				p_node.queue_free()
+	
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	
+	current_room_code = ""
+	connected_players.clear()
+	connected_players[1] = {
+		"character": selected_character,
+		"name": "Player 1",
+		"team": 1,
+		"slot": 0,
+		"gold": 999999,
+		"items": []
+	}
+	
+	_update_scoreboard_content(false)
+
+func _rebind_training_entities_to_spawner() -> void:
+	var dummy_node = players_container.get_node_or_null("TrainingDummy")
+	var dummy_pos = dummy_node.global_position if dummy_node else Vector3(0.0, 0.0, 0.0)
+	var dummy_rot = dummy_node.rotation.y if dummy_node else 0.0
+	
+	var host_node = players_container.get_node_or_null("1")
+	var host_pos = host_node.global_position if host_node else Vector3(-8.0, 0.1, 0.0)
+	var host_rot = host_node.rotation.y if host_node else 0.0
+	var host_gold = host_node.gold if host_node else 999999
+	var host_items = host_node.item_slots if host_node else []
+	
+	if dummy_node:
+		players_container.remove_child(dummy_node)
+		dummy_node.queue_free()
+	if host_node:
+		players_container.remove_child(host_node)
+		host_node.queue_free()
+	
+	# Spawn dummy via PlayerSpawner with FFA team 99
+	player_spawner.spawn({
+		"character": "dummy",
+		"peer_id": 0,
+		"team_id": 99,
+		"pos": dummy_pos,
+		"rot_y": dummy_rot
+	})
+	
+	# Spawn host via PlayerSpawner with team 1
+	player_spawner.spawn({
+		"character": selected_character,
+		"peer_id": 1,
+		"team_id": 1,
+		"pos": host_pos,
+		"rot_y": host_rot,
+		"gold": host_gold,
+		"items": host_items
+	})
+
+func _spawn_joining_training_player(peer_id: int) -> void:
+	if not multiplayer.is_server() or not is_training_mode or not match_in_progress:
+		return
+	
+	sync_active_map.rpc_id(peer_id, training_selected_map)
+	client_start_training_match.rpc_id(peer_id)
+	
+	var spawn_pos = Vector3(-8.0 + randf_range(-3.0, 3.0), 0.1, randf_range(-3.0, 3.0))
+	if training_selected_map != -1:
+		var t1_spawns = spawn_points.get_node_or_null("Team1_Spawns")
+		if t1_spawns and t1_spawns.get_child_count() > 0:
+			var rand_idx = randi() % t1_spawns.get_child_count()
+			spawn_pos = t1_spawns.get_child(rand_idx).global_position
+	
+	var p_info = connected_players.get(peer_id, {})
+	var p_char = p_info.get("character", "poke")
+	
+	var spawn_payload = {
+		"peer_id": peer_id,
+		"character": p_char,
+		"team_id": peer_id,
+		"pos": spawn_pos,
+		"rot_y": 0.0,
+		"items": [],
+		"gold": 999999,
+		"silene_bonus_hp": 0.0
+	}
+	player_spawner.spawn(spawn_payload)
+	_sync_all_kda()
+	if scoreboard_panel and scoreboard_panel.visible:
+		_update_scoreboard_content(false)
+
+@rpc("any_peer", "call_remote", "reliable")
+func client_start_training_match() -> void:
+	is_training_mode = true
+	match_in_progress = true
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.IN_MATCH)
+	else:
+		lobby_panel.hide()
+		menu_panel.hide()
+		join_dialog.hide()
+		match_over_panel.hide()
+		escape_panel.hide()
+		if settings_panel:
+			settings_panel.hide()
 
 func _open_settings_menu() -> void:
 	if escape_panel:

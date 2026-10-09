@@ -10,7 +10,9 @@ static func create() -> CharacterData:
 	data.origins = [CharacterOrigin.ID_MONSTROUS, CharacterOrigin.ID_DIVINE]
 	data.description = "Saint Silene, the Dragon of Silene. An immense draconic juggernaut who cleaves enemies with claw and fang, breaths terrain-occluded dragonfire, and grows permanently stronger with every takedown."
 	data.max_health = 320.0
-	data.max_move_speed = 5.5
+	data.damage = 22.0
+	data.max_move_speed = CharacterData.DEFAULT_MOVE_SPEED
+	data.haste = 0.0
 	data.ground_acceleration = 22.0
 	data.ground_deceleration = 40.0
 	data.air_acceleration = 6.5

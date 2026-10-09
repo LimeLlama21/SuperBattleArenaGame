@@ -15,7 +15,7 @@ func _setup_character_kit() -> void:
 	id = "dummy"
 	character_name = "Training Dummy"
 	display_name = "Training Dummy"
-	team_id = 2
+	team_id = 99
 	max_health = 10000.0
 	current_health = 10000.0
 	max_move_speed = 0.0

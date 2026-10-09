@@ -65,15 +65,36 @@ func _unhandled_input(event: InputEvent) -> void:
 		close()
 		get_viewport().set_input_as_handled()
 
+func get_allowed_origins() -> Array[String]:
+	if is_instance_valid(target_player):
+		if target_player.has_method("get_origins"):
+			var ogs: Array[String] = target_player.get_origins()
+			if not ogs.is_empty():
+				return ogs
+		if "character_origins" in target_player and target_player.character_origins is Array and not target_player.character_origins.is_empty():
+			var arr: Array[String] = []
+			for x in target_player.character_origins:
+				var s = str(x).to_lower().strip_edges()
+				if not s.is_empty() and not arr.has(s):
+					arr.append(s)
+			if not arr.is_empty():
+				return arr
+		if "character_origin" in target_player and not str(target_player.character_origin).is_empty():
+			return [str(target_player.character_origin).to_lower().strip_edges()]
+	return [CharacterOriginClass.ID_MORTAL]
+
 func open(origin_id: String = "", player: Node = null) -> void:
 	if player != null:
 		target_player = player
-	if not origin_id.is_empty():
-		current_origin = origin_id
-	elif is_instance_valid(target_player) and "character_origin" in target_player and not str(target_player.character_origin).is_empty():
-		current_origin = str(target_player.character_origin)
-	else:
-		refresh_menu()
+	var allowed = get_allowed_origins()
+	var req_origin = origin_id.to_lower().strip_edges()
+	if not req_origin.is_empty() and allowed.has(req_origin):
+		current_origin = req_origin
+	elif is_instance_valid(target_player) and "character_origin" in target_player and allowed.has(str(target_player.character_origin).to_lower().strip_edges()):
+		current_origin = str(target_player.character_origin).to_lower().strip_edges()
+	elif not allowed.has(current_origin):
+		current_origin = allowed[0]
+	refresh_menu()
 	show()
 	menu_opened.emit(current_origin)
 	
@@ -182,8 +203,7 @@ func refresh_menu() -> void:
 			origin_label.modulate = origin_res.theme_color
 		else:
 			origin_label.modulate = Color.WHITE
-			
-	_update_origin_tab_styles()
+	_rebuild_origin_tabs()
 	
 	if guidance_label:
 		var pts_str = ""
@@ -585,6 +605,10 @@ func _create_tier_connector(branch_name: String, lower_tier: int) -> Control:
 	return container
 
 func _on_upgrade_card_clicked(origin: String, branch: String, tier: int, data: Dictionary) -> void:
+	var allowed = get_allowed_origins()
+	if not allowed.has(origin.to_lower().strip_edges()):
+		return
+	
 	var current_tier = get_branch_tier(origin, branch)
 	
 	if tier <= current_tier:
@@ -596,7 +620,6 @@ func _on_upgrade_card_clicked(origin: String, branch: String, tier: int, data: D
 			if not target_player.can_spend_upgrade_point():
 				_shake_locked_slot(branch, tier)
 				return
-			target_player.spend_upgrade_point()
 		
 		# Valid sequential progression: unlock this tier!
 		set_branch_tier(origin, branch, tier)
@@ -701,21 +724,11 @@ func _build_ui_structure() -> void:
 	header_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(header_spacer)
 	
-	# Origin Switch Tabs (Mortal | Divine | Monstrous) for seamless preview/testing
+	# Origin Switch Tabs (locked to character's allowed origins)
 	origin_tabs_container = HBoxContainer.new()
 	origin_tabs_container.add_theme_constant_override("separation", 6)
 	header_hbox.add_child(origin_tabs_container)
-	
-	for o_id in [CharacterOriginClass.ID_MORTAL, CharacterOriginClass.ID_DIVINE, CharacterOriginClass.ID_MONSTROUS]:
-		var tab_btn = Button.new()
-		tab_btn.name = "OriginTab_%s" % o_id
-		tab_btn.text = o_id.capitalize()
-		tab_btn.custom_minimum_size = Vector2(80, 28)
-		tab_btn.add_theme_font_size_override("font_size", 11)
-		tab_btn.pressed.connect(func():
-			current_origin = o_id
-		)
-		origin_tabs_container.add_child(tab_btn)
+	_rebuild_origin_tabs()
 	
 	# Reset button for testing progression
 	var reset_btn = Button.new()
@@ -840,6 +853,33 @@ func _create_vertical_strip_section(branch_name: String) -> PanelContainer:
 	
 	branch_columns[branch_name] = strip_vbox
 	return strip
+
+func _rebuild_origin_tabs() -> void:
+	if not origin_tabs_container:
+		return
+	for c in origin_tabs_container.get_children():
+		c.queue_free()
+	
+	var allowed = get_allowed_origins()
+	if not allowed.has(current_origin) and not allowed.is_empty():
+		current_origin = allowed[0]
+	
+	if allowed.size() <= 1:
+		origin_tabs_container.visible = false
+		return
+	
+	origin_tabs_container.visible = true
+	for o_id in allowed:
+		var tab_btn = Button.new()
+		tab_btn.name = "OriginTab_%s" % o_id
+		tab_btn.text = o_id.capitalize()
+		tab_btn.custom_minimum_size = Vector2(80, 28)
+		tab_btn.add_theme_font_size_override("font_size", 11)
+		tab_btn.pressed.connect(func():
+			current_origin = o_id
+		)
+		origin_tabs_container.add_child(tab_btn)
+	_update_origin_tab_styles()
 
 func _update_origin_tab_styles() -> void:
 	if not origin_tabs_container:

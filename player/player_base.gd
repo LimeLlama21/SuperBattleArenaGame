@@ -16,6 +16,7 @@ const DAMAGE_TYPE_DAMAGE = DamageType.DAMAGE
 const DAMAGE_TYPE_TRUE = DamageType.TRUE_DAMAGE
 const DAMAGE_TYPE_NORMAL = DamageType.DAMAGE
 const DAMAGE_TYPE_TRUE_DAMAGE = DamageType.TRUE_DAMAGE
+const LevelBadgeClass = preload("res://characters/leveling/level_badge.gd")
 
 signal attack_performed(attack_name: String)
 signal ability_cast(ability_name: String, slot_key: String)
@@ -37,12 +38,19 @@ signal upgrade_lockout_changed(is_locked: bool, time_remaining: float)
 var character_origins: Array[String] = []
 
 # --- Progression Currency & Leveling State ---
+const MAX_PLAYER_LEVEL: int = 4
+const START_PLAYER_LEVEL: int = 1
+
 @export var current_xp: float = 0.0
 @export var xp_per_level: float = 1000.0
-@export var player_level: int = 1
+@export var player_level: int = START_PLAYER_LEVEL:
+	set(value):
+		player_level = clamp(value, START_PLAYER_LEVEL, MAX_PLAYER_LEVEL)
+		if is_node_ready():
+			update_health_bar()
 @export var upgrade_points: int = 0
 @export var ring_moves_count: int = 0
-@export var enforce_upgrade_points: bool = false
+@export var enforce_upgrade_points: bool = true
 
 const BASE_PASSIVE_XP_PER_SEC: float = 1.0
 const BASE_KILL_XP: float = 50.0
@@ -51,6 +59,9 @@ const MIN_UPGRADE_LOCKOUT_DURATION: float = 5.0
 
 var ring_xp_multiplier: float:
 	get: return pow(2.0, ring_moves_count)
+
+var overhead_level_badge: Control = null
+var _accumulated_passive_xp: float = 0.0
 
 # Upgrade Menu & Minimum 5-Second Lockout State
 var is_upgrading: bool = false
@@ -188,6 +199,16 @@ var item_slots: Array[String] = []
 var item_ability_nodes: Array[Node] = []
 var item_stats: Dictionary = {} # Arbitrary aggregated stats from equipped items
 var gold: int = 0
+
+# --- Core Character Stats ---
+# Characters have 4 core stats: Health, Damage, Movement Speed (same for all characters), and Haste (0 by default).
+@export var damage: float = 25.0
+var base_damage: float = 25.0
+var item_damage_bonus: float = 0.0
+
+@export var haste: float = 0.0
+var base_haste: float = 0.0
+var item_haste_bonus: float = 0.0
 
 var base_max_health: float = 200.0
 var base_max_move_speed: float = 6.0
@@ -470,9 +491,12 @@ func _physics_process(delta: float) -> void:
 			move_lockout_timer = 0.0
 			current_move_lockout_ability_id = ""
 
-	# Passive XP gain (1 XP/sec base, doubles with ring moves)
-	if not is_dead:
-		add_xp(BASE_PASSIVE_XP_PER_SEC * ring_xp_multiplier * delta)
+	# Passive XP gain (server authoritative, primary mode only, capped at level 4)
+	if not is_dead and is_server_authoritative() and is_xp_enabled() and player_level < MAX_PLAYER_LEVEL:
+		_accumulated_passive_xp += BASE_PASSIVE_XP_PER_SEC * ring_xp_multiplier * delta
+		if _accumulated_passive_xp >= 10.0:
+			add_xp(_accumulated_passive_xp)
+			_accumulated_passive_xp = 0.0
 
 	# Update unified ability buffer
 	if ability_buffer:
@@ -935,9 +959,18 @@ func _setup_health_bars() -> void:
 	if not vp:
 		return
 	
-	var vp_size = vp.size if vp.size != Vector2i.ZERO else Vector2i(220, 28)
-	var sz = Vector2(vp_size.x, vp_size.y)
+	vp.size = Vector2i(256, 30)
+	var bar_sz = Vector2(220, 26)
+	var bar_pos = Vector2(34, 2)
 	
+	# Overhead circular level badge on left
+	overhead_level_badge = vp.get_node_or_null("OverheadLevelBadge") as Control
+	if not overhead_level_badge:
+		overhead_level_badge = LevelBadgeClass.create_badge(character_origin, player_level, Vector2(26, 26), 13)
+		overhead_level_badge.name = "OverheadLevelBadge"
+		overhead_level_badge.position = Vector2(3, 2)
+		vp.add_child(overhead_level_badge)
+
 	var bg_sb = StyleBoxFlat.new()
 	bg_sb.bg_color = Color(0.12, 0.12, 0.12, 0.85)
 	bg_sb.corner_radius_top_left = 4
@@ -966,9 +999,9 @@ func _setup_health_bars() -> void:
 		gray_health_bar.name = "GrayProgressBar"
 		vp.add_child(gray_health_bar)
 	
-	gray_health_bar.custom_minimum_size = sz
-	gray_health_bar.size = sz
-	gray_health_bar.position = Vector2.ZERO
+	gray_health_bar.custom_minimum_size = bar_sz
+	gray_health_bar.size = bar_sz
+	gray_health_bar.position = bar_pos
 	gray_health_bar.show_percentage = false
 	gray_health_bar.add_theme_stylebox_override("background", bg_sb)
 	gray_health_bar.add_theme_stylebox_override("fill", gray_fill_sb)
@@ -981,9 +1014,9 @@ func _setup_health_bars() -> void:
 		shield_bar.name = "ShieldProgressBar"
 		vp.add_child(shield_bar)
 	
-	shield_bar.custom_minimum_size = sz
-	shield_bar.size = sz
-	shield_bar.position = Vector2.ZERO
+	shield_bar.custom_minimum_size = bar_sz
+	shield_bar.size = bar_sz
+	shield_bar.position = bar_pos
 	shield_bar.show_percentage = false
 	shield_bar.add_theme_stylebox_override("background", StyleBoxEmpty.new())
 	shield_bar.add_theme_stylebox_override("fill", shield_fill_sb)
@@ -996,9 +1029,9 @@ func _setup_health_bars() -> void:
 		health_bar.name = "ProgressBar"
 		vp.add_child(health_bar)
 	
-	health_bar.custom_minimum_size = sz
-	health_bar.size = sz
-	health_bar.position = Vector2.ZERO
+	health_bar.custom_minimum_size = bar_sz
+	health_bar.size = bar_sz
+	health_bar.position = bar_pos
 	health_bar.show_percentage = false
 	health_bar.add_theme_stylebox_override("background", StyleBoxEmpty.new())
 	vp.move_child(health_bar, 2)
@@ -1011,6 +1044,9 @@ func update_health_bar() -> void:
 	var total_display_max = max(max_health, current_health + current_shield + gh)
 	
 	# Overhead 3D health bars
+	if overhead_level_badge:
+		LevelBadgeClass.update_badge(overhead_level_badge, player_level, character_origin)
+	
 	if gray_health_bar:
 		gray_health_bar.max_value = total_display_max
 		gray_health_bar.value = current_health + current_shield + gh
@@ -1024,6 +1060,8 @@ func update_health_bar() -> void:
 		health_bar.value = current_health
 
 	# Bottom-Left Large HUD Health & Mana Bars
+	if hud and hud.has_method("update_level"):
+		hud.update_level(player_level, character_origin)
 	if hud and hud.has_method("update_health"):
 		hud.update_health(current_health, max_health, current_shield, gh, armor_charges)
 	if hud and hud.has_method("update_armor_charges"):
@@ -1604,6 +1642,21 @@ func load_character_data(data: CharacterData) -> void:
 	current_mana = data.max_mana
 	if "mana_regen" in data:
 		base_mana_regen = data.mana_regen
+
+	# Core Combat Stats (Damage & Haste)
+	if "damage" in data:
+		base_damage = data.damage
+		damage = data.damage
+	else:
+		base_damage = 25.0
+		damage = 25.0
+	
+	if "haste" in data:
+		base_haste = data.haste
+		haste = data.haste
+	else:
+		base_haste = 0.0
+		haste = 0.0
 	
 	# Combat stats
 	if "crit_chance" in data:
@@ -1764,9 +1817,9 @@ func get_cooldown_multiplier() -> float:
 	var cdr = get_item_stat("cooldown_reduction") + get_item_stat("cdr")
 	if cdr > 0.0:
 		return clamp(1.0 - (cdr / 100.0), 0.1, 1.0)
-	var haste = get_item_stat("ability_haste") + get_item_stat("haste")
-	if haste > 0.0:
-		return 100.0 / (100.0 + haste)
+	var total_haste = haste + get_item_stat("ability_haste") + get_item_stat("haste")
+	if total_haste > 0.0:
+		return 100.0 / (100.0 + total_haste)
 	return 1.0
 
 func apply_all_items() -> void:
@@ -1828,7 +1881,15 @@ func apply_all_items() -> void:
 								ab_node.active_indicator.hide()
 	
 	# Apply arbitrary stats to core player parameters
-	item_damage_percent = get_item_stat("damage_percent") + get_item_stat("damage") + get_item_stat("attack_damage") + get_item_stat("all_damage")
+	item_damage_bonus = get_item_stat("attack_damage") + get_item_stat("flat_damage")
+	item_damage_percent = get_item_stat("damage_percent") + get_item_stat("all_damage")
+	if has_item_stat("damage") and not has_item_stat("damage_percent"):
+		item_damage_bonus += get_item_stat("damage")
+	damage = base_damage + item_damage_bonus
+
+	item_haste_bonus = get_item_stat("ability_haste") + get_item_stat("haste")
+	haste = base_haste + item_haste_bonus
+
 	item_health_bonus = get_item_stat("max_health") + get_item_stat("health")
 	item_move_speed_bonus = get_item_stat("move_speed") + get_item_stat("speed")
 
@@ -2811,29 +2872,75 @@ func notify_ring_moved() -> void:
 func get_ring_multiplier() -> float:
 	return ring_xp_multiplier
 
+func is_xp_enabled() -> bool:
+	var main_node = get_tree().root.get_node_or_null("Main") if get_tree() else null
+	if not main_node:
+		return true
+	if main_node.get("is_training_mode") == true:
+		return true
+	var gm = main_node.get("game_mode")
+	# In all game modes that aren't the primary ("tdm"), XP is disabled for now
+	return gm == "tdm" or gm == GameModes.MODE_TDM
+
 func add_xp(amount: float) -> void:
-	if is_dead or amount <= 0.0:
+	if not is_server_authoritative():
+		return
+	if is_dead or amount <= 0.0 or not is_xp_enabled() or player_level >= MAX_PLAYER_LEVEL:
 		return
 	current_xp += amount
 	var leveled = false
-	while current_xp >= xp_per_level:
+	while current_xp >= xp_per_level and player_level < MAX_PLAYER_LEVEL:
 		current_xp -= xp_per_level
 		player_level += 1
 		upgrade_points += 1
 		leveled = true
+	if player_level >= MAX_PLAYER_LEVEL:
+		current_xp = 0.0
+	
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_progression.rpc(current_xp, xp_per_level, player_level, upgrade_points)
+	_apply_local_progression(current_xp, xp_per_level, player_level, upgrade_points, leveled)
+
+func set_level(new_level: int, add_points: int = 0) -> void:
+	if not is_server_authoritative():
+		return
+	var old_level = player_level
+	player_level = clamp(new_level, START_PLAYER_LEVEL, MAX_PLAYER_LEVEL)
+	upgrade_points += add_points
+	current_xp = 0.0
+	var leveled = player_level > old_level
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_progression.rpc(current_xp, xp_per_level, player_level, upgrade_points)
+	_apply_local_progression(current_xp, xp_per_level, player_level, upgrade_points, leveled)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_progression(new_xp: float, new_max_xp: float, new_level: int, new_points: int) -> void:
+	if not _is_sender_host():
+		return
+	var leveled = new_level > player_level
+	current_xp = new_xp
+	xp_per_level = new_max_xp
+	player_level = clamp(new_level, START_PLAYER_LEVEL, MAX_PLAYER_LEVEL)
+	upgrade_points = new_points
+	_apply_local_progression(current_xp, xp_per_level, player_level, upgrade_points, leveled)
+
+func _apply_local_progression(xp_val: float, max_xp_val: float, lvl_val: int, pts_val: int, leveled: bool) -> void:
 	if leveled:
-		leveled_up.emit(player_level, upgrade_points)
-	xp_changed.emit(current_xp, xp_per_level, player_level)
-	progression_changed.emit(current_xp, xp_per_level, player_level, upgrade_points)
+		leveled_up.emit(lvl_val, pts_val)
+	xp_changed.emit(xp_val, max_xp_val, lvl_val)
+	progression_changed.emit(xp_val, max_xp_val, lvl_val, pts_val)
+	update_health_bar()
 	_update_hud_progression()
 	if upgrade_menu_instance and upgrade_menu_instance.visible:
 		upgrade_menu_instance.refresh_menu()
 
 func on_kill_scored(_victim: Node = null) -> void:
-	add_xp(BASE_KILL_XP * ring_xp_multiplier)
+	if is_xp_enabled():
+		add_xp(BASE_KILL_XP * ring_xp_multiplier)
 
 func on_assist_scored(_victim: Node = null) -> void:
-	add_xp(BASE_ASSIST_XP * ring_xp_multiplier)
+	if is_xp_enabled():
+		add_xp(BASE_ASSIST_XP * ring_xp_multiplier)
 
 func can_spend_upgrade_point() -> bool:
 	if not enforce_upgrade_points:
@@ -2901,23 +3008,50 @@ func has_upgrade(upgrade_id: String) -> bool:
 	var norm = upgrade_id.to_lower().strip_edges()
 	return acquired_upgrades.has(norm)
 
-func apply_upgrade(upgrade_id: String, _data: Dictionary = {}) -> void:
+func apply_upgrade(upgrade_id: String, data: Dictionary = {}) -> void:
 	var norm = upgrade_id.to_lower().strip_edges()
-	if not acquired_upgrades.has(norm):
-		acquired_upgrades.append(norm)
+	if is_multiplayer_match() and not multiplayer.is_server():
+		request_apply_upgrade.rpc_id(1, norm, data)
+		return
+	_server_apply_upgrade(norm, data)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_apply_upgrade(upgrade_id: String, data: Dictionary = {}) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender_id = multiplayer.get_remote_sender_id()
+	if name != str(sender_id):
+		return
+	_server_apply_upgrade(upgrade_id, data)
+
+func _server_apply_upgrade(upgrade_id: String, _data: Dictionary = {}) -> void:
+	var norm = upgrade_id.to_lower().strip_edges()
+	if acquired_upgrades.has(norm):
+		return
+	if enforce_upgrade_points:
+		if upgrade_points <= 0:
+			return
+		upgrade_points -= 1
+	
+	acquired_upgrades.append(norm)
 	
 	if is_multiplayer_match() and is_server_authoritative():
 		sync_apply_upgrade.rpc(norm)
+		sync_progression.rpc(current_xp, xp_per_level, player_level, upgrade_points)
 	
+	_apply_local_progression(current_xp, xp_per_level, player_level, upgrade_points, false)
 	_activate_upgrade_effects(norm)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_apply_upgrade(upgrade_id: String) -> void:
 	if not _is_sender_host():
 		return
-	if not acquired_upgrades.has(upgrade_id):
-		acquired_upgrades.append(upgrade_id)
-	_activate_upgrade_effects(upgrade_id)
+	var norm = upgrade_id.to_lower().strip_edges()
+	if not acquired_upgrades.has(norm):
+		acquired_upgrades.append(norm)
+	_activate_upgrade_effects(norm)
+	if upgrade_menu_instance and upgrade_menu_instance.visible:
+		upgrade_menu_instance.refresh_menu()
 
 func _activate_upgrade_effects(upgrade_id: String) -> void:
 	match upgrade_id:

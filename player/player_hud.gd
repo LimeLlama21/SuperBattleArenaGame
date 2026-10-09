@@ -27,9 +27,13 @@ extends CanvasLayer
 @onready var spectator_panel: PanelContainer = $SpectatorPanel
 @onready var spectator_label: Label = $SpectatorPanel/VBox/SpectatorLabel
 
+const LevelBadgeClass = preload("res://characters/leveling/level_badge.gd")
+
 var slots_by_key: Dictionary = {}
+var hud_level_badge: Control = null
 
 func _ready() -> void:
+	_setup_hud_level_badge()
 	slots_by_key = {
 		"LMB": slot_lmb,
 		"RMB": slot_rmb,
@@ -47,6 +51,37 @@ func _ready() -> void:
 				slot.ability_unhovered.connect(_on_ability_unhovered)
 	if ability_tooltip:
 		ability_tooltip.hide()
+
+func _setup_hud_level_badge() -> void:
+	if hud_level_badge:
+		return
+	var stack = get_node_or_null("HUDContainer/MainBar/HealthContainer/Margin/VBox/HealthBarStack")
+	if not stack:
+		return
+	var vbox = stack.get_parent()
+	if not vbox:
+		return
+	
+	var row = HBoxContainer.new()
+	row.name = "HealthBarRow"
+	row.add_theme_constant_override("separation", 8)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	
+	hud_level_badge = LevelBadgeClass.create_badge("mortal", 1, Vector2(32, 32), 15)
+	hud_level_badge.name = "HUDLevelBadge"
+	row.add_child(hud_level_badge)
+	
+	vbox.remove_child(stack)
+	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(stack)
+	vbox.add_child(row)
+	vbox.move_child(row, 1)
+
+func update_level(level: int, origin: String = "mortal") -> void:
+	_setup_hud_level_badge()
+	if hud_level_badge:
+		LevelBadgeClass.update_badge(hud_level_badge, level, origin)
+
 
 func setup_character_ui(character_name: String, ability_ui_configs: Dictionary) -> void:
 	if char_name_label:
@@ -124,6 +159,7 @@ func set_status_text(text: String) -> void:
 		status_cc_label.text = text
 
 func update_xp(current: float, max_val: float, level: int, points: int = 0) -> void:
+	update_level(level)
 	if char_name_label:
 		var raw_text = char_name_label.text
 		var base_name = char_name_label.get_meta("base_character_name", "")
@@ -132,6 +168,7 @@ func update_xp(current: float, max_val: float, level: int, points: int = 0) -> v
 			char_name_label.set_meta("base_character_name", base_name)
 		var points_str = "  [PRESS U: +%d UPGRADE!]" % points if points > 0 else ""
 		char_name_label.text = "%s - LVL %d (%d/%d XP)%s" % [base_name, level, int(current), int(max_val), points_str]
+
 
 func update_upgrade_lockout(time_left: float) -> void:
 	if time_left > 0.0:

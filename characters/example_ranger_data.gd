@@ -18,13 +18,15 @@ static func create() -> CharacterData:
 	
 	# --- 2. Vitals & Combat ---
 	data.max_health = 190.0
+	data.damage = 28.0
+	data.haste = 0.0
 	data.max_shield = 50.0
 	data.max_mana = 100.0
 	data.crit_chance = 0.10
 	data.crit_multiplier = 2.0
 	
 	# --- 3. Movement ---
-	data.max_move_speed = 6.8
+	data.max_move_speed = CharacterData.DEFAULT_MOVE_SPEED
 	data.ground_acceleration = 28.0
 	data.ground_deceleration = 40.0
 	data.air_acceleration = 8.5

@@ -9,7 +9,9 @@ static func create() -> CharacterData:
 	data.archetype = "Mage"
 	data.origins = [CharacterOrigin.ID_DIVINE]
 	data.max_health = 180.0
-	data.max_move_speed = 5.7
+	data.damage = 26.0
+	data.max_move_speed = CharacterData.DEFAULT_MOVE_SPEED
+	data.haste = 0.0
 	data.ground_acceleration = 25.0
 	data.ground_deceleration = 40.0
 	data.air_acceleration = 7.5
