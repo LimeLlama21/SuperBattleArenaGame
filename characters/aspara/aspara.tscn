@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cyulrhfo6xm6a"]
 
-[ext_resource type="Script" uid="uid://cuwqiw15mtppn" path="res://characters/asparsas/asparsas.gd" id="1_asparsas"]
+[ext_resource type="Script" path="res://characters/aspara/aspara.gd" id="1_aspara"]
 [ext_resource type="PackedScene" uid="uid://cdjy3oq13w80j" path="res://player/player_hud.tscn" id="3_player_hud"]
 [ext_resource type="PackedScene" path="res://ability/effects/stance_block_effect.tscn" id="ext_eff_block"]
 [ext_resource type="PackedScene" path="res://ability/effects/buff_effect.tscn" id="ext_eff_buff"]
@@ -97,12 +97,12 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[node name="Asparsas" type="CharacterBody3D" unique_id=581126200]
+[node name="Aspara" type="CharacterBody3D" unique_id=581126200]
 collision_layer = 2
-script = ExtResource("1_asparsas")
-id = "asparsas"
-character_name = "Asparsas"
-display_name = "Urvashi"
+script = ExtResource("1_aspara")
+id = "aspara"
+character_name = "Aspara"
+display_name = "Uru"
 max_health = 240.0
 current_health = 240.0
 max_move_speed = 6.0

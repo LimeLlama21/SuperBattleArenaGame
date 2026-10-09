@@ -17,7 +17,8 @@ const HealRiderClass = preload("res://ability/riders/heal_rider.gd")
 const PlayerSharedEffects = preload("res://player/player_shared_effects.gd")
 const CharacterRegistry = preload("res://characters/character_registry.gd")
 const CharacterData = preload("res://characters/character_data.gd")
-const AsparsasData = preload("res://characters/asparsas/asparsas_data.gd")
+const AsparsasData = preload("res://characters/aspara/aspara_data.gd")
+const AsparaData = preload("res://characters/aspara/aspara_data.gd")
 const BasePlayer = preload("res://player/player_base.gd")
 const SileneClass = preload("res://characters/silene/silene.gd")
 const SileneDataClass = preload("res://characters/silene/silene_data.gd")
@@ -316,8 +317,8 @@ func test_character_ability_registration() -> void:
 	var chars = [
 		"res://characters/poke/poke.tscn",
 		"res://characters/crush/crush.tscn",
-		"res://characters/reaper/reaper.tscn",
-		"res://characters/asparsas/asparsas.tscn",
+		"res://characters/Disabled characters/reaper/reaper.tscn",
+		"res://characters/aspara/aspara.tscn",
 		"res://characters/morrigan/morrigan.tscn",
 		"res://characters/monkey/monkey.tscn"
 	]
@@ -405,7 +406,7 @@ func test_melee_attack_execution() -> void:
 	player.free()
 	
 	# Test Dive Melee (32 damage)
-	var dive_player = (load("res://characters/asparsas/asparsas.tscn") as PackedScene).instantiate() as BasePlayer
+	var dive_player = (load("res://characters/aspara/aspara.tscn") as PackedScene).instantiate() as BasePlayer
 	dive_player.name = "2"
 	dive_player.team_id = 1
 	root.add_child(dive_player)
@@ -423,7 +424,7 @@ func test_melee_attack_execution() -> void:
 	dive_player.free()
 	
 	# Test Reaper Melee (36 damage)
-	var reaper_player = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var reaper_player = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	reaper_player.name = "3"
 	reaper_player.team_id = 1
 	root.add_child(reaper_player)
@@ -463,7 +464,7 @@ func test_character_kits_and_special_mechanics() -> void:
 	crush.free()
 	
 	# --- 2. Dive: Deflecting Guard mitigation & Rupture Marks ---
-	var dive = (load("res://characters/asparsas/asparsas.tscn") as PackedScene).instantiate() as BasePlayer
+	var dive = (load("res://characters/aspara/aspara.tscn") as PackedScene).instantiate() as BasePlayer
 	dive.name = "11"
 	dive.team_id = 1
 	root.add_child(dive)
@@ -486,7 +487,7 @@ func test_character_kits_and_special_mechanics() -> void:
 	dive.free()
 
 	# Dive Passive Proc Heal Testing (11% to 15% missing HP based on 1 to 5 marks)
-	var dive_attacker = (load("res://characters/asparsas/asparsas.tscn") as PackedScene).instantiate() as Asparsas
+	var dive_attacker = (load("res://characters/aspara/aspara.tscn") as PackedScene).instantiate() as Aspara
 	dive_attacker.name = "21"
 	dive_attacker.peer_id = 21
 	dive_attacker.team_id = 1
@@ -592,13 +593,13 @@ func test_character_kits_and_special_mechanics() -> void:
 	poke.free()
 
 	# --- 4. Reaper: Sweet-spot check & Movement Speed Steal ---
-	var reaper = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var reaper = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	reaper.name = "13"
 	reaper.team_id = 1
 	root.add_child(reaper)
 	if not reaper.is_node_ready(): reaper._ready()
 	
-	var dummy = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var dummy = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	dummy.name = "14"
 	dummy.team_id = 2
 	root.add_child(dummy)
@@ -1245,8 +1246,8 @@ func test_melee_visuals_and_indicators() -> void:
 	print("Testing Melee Visuals, Attack Animations, and Indicator Deduplication...")
 	
 	# 1. Verify Dive Q is restored to ProjectileEffect with correct projectile properties
-	var dive_scene = load("res://characters/asparsas/asparsas.tscn") as PackedScene
-	assert(dive_scene != null, "asparsas.tscn must exist and load")
+	var dive_scene = load("res://characters/aspara/aspara.tscn") as PackedScene
+	assert(dive_scene != null, "aspara.tscn must exist and load")
 	var dive_inst = dive_scene.instantiate() as BasePlayer
 	root.add_child(dive_inst)
 	if not dive_inst.is_node_ready():
@@ -1287,7 +1288,7 @@ func test_melee_visuals_and_indicators() -> void:
 	print("  ✓ Dive melee strike client execution does not activate legacy MeleeVisual box mesh.")
 
 	# 3. Verify Reaper melee strike & Cull the Weak
-	var reaper_scene = load("res://characters/reaper/reaper.tscn") as PackedScene
+	var reaper_scene = load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene
 	var reaper_inst = reaper_scene.instantiate() as BasePlayer
 	root.add_child(reaper_inst)
 	if not reaper_inst.is_node_ready():
@@ -1499,9 +1500,9 @@ func test_combat_hitbox_cylinder_and_no_autoaim() -> void:
 	print("Testing Combat Hitbox Cylinder & Leading Shots (No Auto-Aim)...")
 	var char_scenes = {
 		"Crush": "res://characters/crush/crush.tscn",
-		"Asparsas": "res://characters/asparsas/asparsas.tscn",
+		"Aspara": "res://characters/aspara/aspara.tscn",
 		"Poke": "res://characters/poke/poke.tscn",
-		"Reaper": "res://characters/reaper/reaper.tscn",
+		"Reaper": "res://characters/Disabled characters/reaper/reaper.tscn",
 		"Morrigan": "res://characters/morrigan/morrigan.tscn",
 		"Monkey": "res://characters/monkey/monkey.tscn",
 		"TrainingDummy": "res://training_dummy.tscn"
@@ -1609,7 +1610,7 @@ func test_aim_guide_and_projectile_indicator_filtering() -> void:
 
 	var morrigan_scene = load("res://characters/morrigan/morrigan.tscn") as PackedScene
 	var poke_scene = load("res://characters/poke/poke.tscn") as PackedScene
-	var reaper_scene = load("res://characters/reaper/reaper.tscn") as PackedScene
+	var reaper_scene = load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene
 
 	var morrigan = morrigan_scene.instantiate()
 	var poke = poke_scene.instantiate()
@@ -1738,38 +1739,40 @@ func test_data_driven_character_pipeline() -> void:
 		silene_instance._ready()
 	assert(silene_instance.id == "silene", "Silene instance id must be 'silene'")
 	assert(silene_instance.character_name == "The Dragon of Silene", "Instance character_name must be The Dragon of Silene")
-	assert(silene_instance.display_name == "Saint Silene", "Instance display_name must be Saint Silene")
+	assert(silene_instance.display_name == "Wynn Wyrmchilde", "Instance display_name must be Wynn Wyrmchilde")
 	silene_instance.queue_free()
-	print("  ✓ The Dragon of Silene (Saint Silene) registration and instantiation verified.")
+	print("  ✓ The Dragon of Silene (Wynn Wyrmchilde) registration and instantiation verified.")
 
-	# 7. Verify Urvashi (asparsas)
-	assert(CharacterRegistry.has_character("asparsas"), "CharacterRegistry must have asparsas")
-	assert(CharacterRegistry.get_display_name("asparsas") == "Urvashi", "Display name for asparsas must be Urvashi")
+	# 7. Verify Uru (aspara)
+	assert(CharacterRegistry.has_character("aspara"), "CharacterRegistry must have aspara")
+	assert(CharacterRegistry.get_display_name("aspara") == "Uru", "Display name for aspara must be Uru")
+	assert(CharacterRegistry.has_character("asparsas"), "CharacterRegistry must support alias asparsas")
+	assert(CharacterRegistry.get_display_name("asparsas") == "Uru", "Display name for alias asparsas must be Uru")
 	assert(not CharacterRegistry.has_character("dive"), "CharacterRegistry must not have obsolete 'dive' key")
-	var urvashi_data = CharacterRegistry.get_character_data("asparsas")
-	assert(urvashi_data.id == "asparsas", "Urvashi data id must be 'asparsas'")
-	assert(urvashi_data.display_name == "Urvashi", "Urvashi data display_name must be Urvashi")
-	var urvashi_instance = CharacterRegistry.create_player_instance("asparsas")
-	assert(urvashi_instance != null, "Urvashi instance must be created")
+	var urvashi_data = CharacterRegistry.get_character_data("aspara")
+	assert(urvashi_data.id == "aspara", "Uru data id must be 'aspara'")
+	assert(urvashi_data.display_name == "Uru", "Uru data display_name must be Uru")
+	var urvashi_instance = CharacterRegistry.create_player_instance("aspara")
+	assert(urvashi_instance != null, "Uru instance must be created")
 	root.add_child(urvashi_instance)
-	urvashi_instance.name = "urvashi_test"
+	urvashi_instance.name = "uru_test"
 	if not urvashi_instance.is_node_ready():
 		urvashi_instance._ready()
-	assert(urvashi_instance.id == "asparsas", "Instance id must be 'asparsas'")
-	assert(urvashi_instance.display_name == "Urvashi", "Instance display_name must be Urvashi")
+	assert(urvashi_instance.id == "aspara", "Instance id must be 'aspara'")
+	assert(urvashi_instance.display_name == "Uru", "Instance display_name must be Uru")
 	urvashi_instance.queue_free()
-	print("  ✓ Urvashi (asparsas) registration and display name verified.")
+	print("  ✓ Uru (aspara) registration and display name verified.")
 
-	# 8. Verify all 8 built-in characters have id matching folder name & display_name presented to players
+	# 8. Verify all canonical characters have id matching folder name & updated display_name
 	var canonical_expectations = {
-		"poke": "Arash",
-		"crush": "Heracles",
-		"asparsas": "Urvashi",
+		"poke": "Aslan",
+		"crush": "Gil",
+		"aspara": "Uru",
 		"reaper": "Keres",
-		"morrigan": "Morrigan",
-		"monkey": "The Great Sage",
-		"silene": "Saint Silene",
-		"artist": "The Painted Sage",
+		"morrigan": "Saga",
+		"monkey": "Sunny Kong",
+		"silene": "Wynn Wyrmchilde",
+		"artist": "Inky",
 		"cleodolinda": "Cleo"
 	}
 	for expected_id in canonical_expectations:
@@ -1787,18 +1790,24 @@ func test_data_driven_character_pipeline() -> void:
 		c_inst.queue_free()
 	print("  ✓ All 9 canonical characters verified with matching id (folder name) and player-facing display_name.")
 
-	# 9. Verify EnabledCharacters list and integration
+	# 9. Verify EnabledCharacters list and integration (Reaper disabled in Disabled characters folder)
 	var EnabledCharsClass = load("res://characters/enabled_characters.gd")
 	assert(EnabledCharsClass != null, "EnabledCharacters must load successfully")
 	var enabled_chars = EnabledCharsClass.get_enabled_characters()
-	assert(enabled_chars.size() == 9, "Expected 9 enabled characters, got %d" % enabled_chars.size())
+	assert(enabled_chars.size() == 8, "Expected 8 enabled characters (Reaper disabled), got %d" % enabled_chars.size())
 	for c_id in canonical_expectations:
-		assert(EnabledCharsClass.is_character_enabled(c_id), "Character %s must be enabled" % c_id)
-		assert(CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report %s as enabled" % c_id)
+		if c_id == "reaper":
+			assert(not EnabledCharsClass.is_character_enabled(c_id), "Reaper in Disabled characters folder must not be enabled")
+			assert(not CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report reaper as disabled")
+		else:
+			assert(EnabledCharsClass.is_character_enabled(c_id), "Character %s must be enabled" % c_id)
+			assert(CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report %s as enabled" % c_id)
 	assert(EnabledCharsClass.is_character_enabled("cleo"), "Alias 'cleo' must report as enabled")
 	assert(CharacterRegistry.is_character_enabled("cleo"), "CharacterRegistry must report alias 'cleo' as enabled")
+	assert(EnabledCharsClass.is_character_enabled("asparsas"), "Alias 'asparsas' must report as enabled")
+	assert(CharacterRegistry.is_character_enabled("asparsas"), "CharacterRegistry must report alias 'asparsas' as enabled")
 	assert(not EnabledCharsClass.is_character_enabled("fake_character"), "Fake character must not be enabled")
-	print("  ✓ Enabled characters list verified (all %d characters selectable)." % enabled_chars.size())
+	print("  ✓ Enabled characters list verified (all %d non-disabled characters selectable, Reaper disabled)." % enabled_chars.size())
 
 	print("✓ Data-Driven Character Pipeline verified successfully.")
 
@@ -2414,14 +2423,14 @@ func test_artist_the_painted_sage_kit() -> void:
 
 	# 1. Character Registry & Metadata
 	assert(CharacterRegistry.has_character("artist") == true, "CharacterRegistry must have 'artist'")
-	assert(CharacterRegistry.get_display_name("artist") == "The Painted Sage", "Display name must be 'The Painted Sage'")
+	assert(CharacterRegistry.get_display_name("artist") == "Inky", "Display name must be 'Inky'")
 
 	var main_script = load("res://main.gd")
 	assert(main_script != null, "main.gd must load")
 	assert(main_script.CHARACTERS.has("artist"), "main.gd CHARACTERS must contain 'artist'")
 	assert(main_script.CHARACTER_DISPLAY_NAMES.has("artist"), "main.gd CHARACTER_DISPLAY_NAMES must contain 'artist'")
-	assert(main_script.CHARACTER_DISPLAY_NAMES["artist"] == "The Painted Sage", "main.gd artist display name must be 'The Painted Sage'")
-	assert(main_script.get_character_display_name("artist") == "The Painted Sage", "main.gd get_character_display_name('artist') must be 'The Painted Sage'")
+	assert(main_script.CHARACTER_DISPLAY_NAMES["artist"] == "Inky", "main.gd artist display name must be 'Inky'")
+	assert(main_script.get_character_display_name("artist") == "Inky", "main.gd get_character_display_name('artist') must be 'Inky'")
 
 	var artist = CharacterRegistry.create_player_instance("artist") as ArtistClass
 	assert(artist != null, "Must successfully instantiate Artist character")
@@ -2695,6 +2704,60 @@ func test_artist_the_painted_sage_kit() -> void:
 	assert(is_equal_approx(ult_ab.current_cooldown, 3.0), "Casting fire spell must apply 3.0s cooldown")
 	print("  ✓ Ammunition expenditure, elemental payload application, and 3.0s cast cooldown verified.")
 
+	# 9. Passive: Ink Application, 20% Slow, and Spell Damage Amplification
+	assert(artist.ink_slow_percent == 0.20, "Passive ink slow percent must be 20% (0.20)")
+	assert(artist.ink_damage_boost_percent == 0.15, "Passive ink damage boost must be 15% (0.15)")
+	assert(artist.ink_duration == 4.0, "Passive ink duration must be 4.0s")
+
+	var target = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	target.name = "2"
+	target.team_id = 2
+	root.add_child(target)
+	if not target.is_node_ready():
+		target._ready()
+	target.current_health = 200.0
+
+	assert(target.is_inked() == false, "Target initially not inked")
+
+	# Exclusion 1: LMB (Basic Attack) does NOT apply ink
+	artist.deal_damage(target, 20.0, BasePlayer.ActionType.ATTACK)
+	assert(target.is_inked() == false, "Basic attack (LMB) must NOT apply ink")
+
+	# Exclusion 2: Dash damage does NOT apply ink
+	artist._is_dash_damage = true
+	artist.deal_damage(target, 20.0, BasePlayer.ActionType.ABILITY)
+	artist._is_dash_damage = false
+	assert(target.is_inked() == false, "Dash damage must NOT apply ink")
+
+	# Exclusion 3: Talent upgrade proc damage does NOT apply ink
+	artist._is_proc_damage = true
+	artist.deal_damage(target, 20.0, BasePlayer.ActionType.ABILITY)
+	artist._is_proc_damage = false
+	assert(target.is_inked() == false, "Talent upgrade damage must NOT apply ink")
+
+	# Valid Spell Damage APPLIES ink and 20% slow
+	var hp_before_spell = target.current_health
+	artist.deal_damage(target, 50.0, BasePlayer.ActionType.ABILITY)
+	assert(target.is_inked() == true, "Spell damage MUST apply ink to enemies")
+	assert(target.slow_timer > 0.0, "Inked target must have slow timer active")
+	assert(is_equal_approx(target.slow_percent, 0.20), "Inked target must be slowed by 20%")
+	assert(is_equal_approx(target.current_health, hp_before_spell - 50.0), "Initial spell damage is unamplified base damage (50.0)")
+
+	# Subsequent Spell Damage against Inked target is amplified (+15%)
+	var hp_before_second_spell = target.current_health
+	artist.deal_damage(target, 50.0, BasePlayer.ActionType.ABILITY)
+	var spell_dmg_dealt = hp_before_second_spell - target.current_health
+	assert(is_equal_approx(spell_dmg_dealt, 57.5), "Subsequent spell damage against Inked target must be increased by 15% (50 -> 57.5)")
+
+	# LMB against Inked target is NOT amplified
+	var hp_before_lmb_on_inked = target.current_health
+	artist.deal_damage(target, 30.0, BasePlayer.ActionType.ATTACK)
+	var lmb_dmg_dealt = hp_before_lmb_on_inked - target.current_health
+	assert(is_equal_approx(lmb_dmg_dealt, 30.0), "LMB attack against Inked target must NOT be amplified (30.0)")
+
+	target.queue_free()
+	print("  ✓ Passive Ink: exclusion of LMB, dash, and talent upgrades, 20% slow application, and spell damage amplification verified.")
+
 	# Cleanup
 	artist.queue_free()
 	print("✓ The Painted Sage (Artist) Kit, Vancian Magic & Hanzi Recognizer verified successfully!")
@@ -2744,7 +2807,7 @@ func test_cleodolinda_maximum_suction() -> void:
 
 	# 2. Spawn enemy targets
 	# Target 1: In front inside cone at (0, 0, -6.0) (within 14m radius and 80 deg cone)
-	var enemy1 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy1 = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy1.name = "21"
 	enemy1.team_id = 2
 	root.add_child(enemy1)
@@ -2752,7 +2815,7 @@ func test_cleodolinda_maximum_suction() -> void:
 	enemy1.global_position = Vector3(0, 0, -6.0)
 
 	# Target 2: Outside cone angle at (10.0, 0, -6.0) (angle ~59 deg, beyond 40 deg half-angle)
-	var enemy2 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy2 = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy2.name = "22"
 	enemy2.team_id = 2
 	root.add_child(enemy2)
@@ -2760,7 +2823,7 @@ func test_cleodolinda_maximum_suction() -> void:
 	enemy2.global_position = Vector3(10.0, 0, -6.0)
 
 	# Target 3: Behind Cleo at (0, 0, 6.0)
-	var enemy3 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy3 = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy3.name = "23"
 	enemy3.team_id = 2
 	root.add_child(enemy3)
@@ -2768,7 +2831,7 @@ func test_cleodolinda_maximum_suction() -> void:
 	enemy3.global_position = Vector3(0, 0, 6.0)
 
 	# Target 4: Beyond range at (0, 0, -20.0)
-	var enemy4 = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy4 = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy4.name = "24"
 	enemy4.team_id = 2
 	root.add_child(enemy4)
@@ -2993,7 +3056,7 @@ func test_cleodolinda_relative_velocity_attack() -> void:
 	print("  ✓ Semicircle (180-degree cone) coverage verified.")
 
 	# 4. Test Relative Velocity Damage Calculation
-	var dummy = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var dummy = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	dummy.name = "31"
 	dummy.team_id = 2
 	root.add_child(dummy)
@@ -3127,7 +3190,7 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	cleo.velocity = Vector3(0, 0, -25.0) # Moving fast at 25 m/s!
 
 	# Target 1 in front (within 4.5m)
-	var enemy_front = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy_front = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy_front.name = "41"
 	enemy_front.team_id = 2
 	root.add_child(enemy_front)
@@ -3136,7 +3199,7 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	enemy_front.velocity = Vector3.ZERO
 
 	# Target 2 behind (within 4.5m)
-	var enemy_back = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy_back = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy_back.name = "42"
 	enemy_back.team_id = 2
 	root.add_child(enemy_back)
@@ -3145,7 +3208,7 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	enemy_back.velocity = Vector3.ZERO
 
 	# Target 3 outside circle (6.0m away)
-	var enemy_far = (load("res://characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	var enemy_far = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy_far.name = "43"
 	enemy_far.team_id = 2
 	root.add_child(enemy_far)

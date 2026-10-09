@@ -5,7 +5,7 @@ static func create() -> CharacterData:
 	var data = CharacterData.new()
 	data.id = "crush"
 	data.character_name = "Crush"
-	data.display_name = "Heracles"
+	data.display_name = "Gil"
 	data.archetype = "Juggernaut"
 	data.origins = [CharacterOrigin.ID_MORTAL, CharacterOrigin.ID_DIVINE]
 	data.max_health = 320.0

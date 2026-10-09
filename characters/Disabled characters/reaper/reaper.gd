@@ -1,6 +1,8 @@
 class_name Reaper
 extends BasePlayer
 
+const ReaperData = preload("res://characters/Disabled characters/reaper/reaper_data.gd")
+
 # Passive & Buff State
 var reaper_ms_steal_timer: float = 0.0
 var reaper_ms_steal_pct: float = 0.0

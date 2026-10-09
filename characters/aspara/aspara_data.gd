@@ -1,11 +1,13 @@
-class_name AsparsasData
+class_name AsparaData
 extends RefCounted
+
+const AsparsasData = AsparaData
 
 static func create() -> CharacterData:
 	var data = CharacterData.new()
-	data.id = "asparsas"
-	data.character_name = "Asparsas"
-	data.display_name = "Urvashi"
+	data.id = "aspara"
+	data.character_name = "Aspara"
+	data.display_name = "Uru"
 	data.archetype = "Skirmisher"
 	data.origins = [CharacterOrigin.ID_DIVINE]
 	data.max_health = 240.0

@@ -408,7 +408,7 @@ custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
 theme_override_font_sizes/font_size = 11
-text = "ARASH: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
+text = "ASLAN: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
 autowrap_mode = 2
 
 [node name="TeamSection" type="VBoxContainer" parent="UI/LobbyRoom/VBox" unique_id=1268054102]
@@ -622,17 +622,17 @@ horizontal_alignment = 1
 [node name="SwitchPoke" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=2079780901]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "🏹 Arash (Sniper - 160 HP)"
+text = "🏹 Aslan (Sniper - 160 HP)"
 
 [node name="SwitchCrush" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=249957685]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "🛡 Heracles (Juggernaut - 320 HP)"
+text = "🛡 Gil (Juggernaut - 320 HP)"
 
 [node name="SwitchAsparsas" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=391905427]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "💥 Urvashi (Skirmisher - 240 HP)"
+text = "💥 Uru (Skirmisher - 240 HP)"
 
 [node name="SwitchReaper" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=1464007808]
 custom_minimum_size = Vector2(0, 34)
@@ -642,7 +642,7 @@ text = "💀 Keres (Assassin - 200 HP)"
 [node name="SwitchMorrigan" type="Button" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=790133282]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
-text = "🔮 Morrigan (Mage - 180 HP)"
+text = "🔮 Saga (Mage - 180 HP)"
 
 [node name="SwitchInfo" type="Label" parent="UI/EscapeMenu/VBox/EscapeTabContainer/Switch Character" unique_id=232657744]
 layout_mode = 2

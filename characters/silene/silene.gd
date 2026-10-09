@@ -49,7 +49,7 @@ func _setup_character_kit() -> void:
 	if character_name.is_empty() or character_name == "Character":
 		character_name = "The Dragon of Silene"
 	if display_name.is_empty() or display_name == "Character":
-		display_name = "Saint Silene"
+		display_name = "Wynn Wyrmchilde"
 
 	var data = SileneData.create()
 	load_character_data(data)

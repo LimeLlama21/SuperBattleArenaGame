@@ -5,7 +5,7 @@ static func create() -> CharacterData:
 	var data = CharacterData.new()
 	data.id = "silene"
 	data.character_name = "The Dragon of Silene"
-	data.display_name = "Saint Silene"
+	data.display_name = "Wynn Wyrmchilde"
 	data.archetype = "Juggernaut"
 	data.origins = [CharacterOrigin.ID_MONSTROUS, CharacterOrigin.ID_DIVINE]
 	data.description = "Saint Silene, the Dragon of Silene. An immense draconic juggernaut who cleaves enemies with claw and fang, breaths terrain-occluded dragonfire, and grows permanently stronger with every takedown."

@@ -747,8 +747,13 @@ func modify_incoming_damage(amount: float, attacker_id: int, _action_type: int) 
 			attacker = get_tree().root.find_child(str(attacker_id), true, false)
 		if not attacker and get_parent():
 			attacker = get_parent().get_node_or_null(str(attacker_id))
-		if attacker and attacker.has_method("get_taunt_damage_multiplier"):
-			amount *= attacker.get_taunt_damage_multiplier()
+		if attacker:
+			if attacker.has_method("get_taunt_damage_multiplier"):
+				amount *= attacker.get_taunt_damage_multiplier()
+			# Ink passive: increase spell damage dealt by Artist to inked targets
+			if is_inked() and attacker.has_method("is_valid_spell_damage") and attacker.is_valid_spell_damage(_action_type):
+				var boost = attacker.get("ink_damage_boost_percent") if ("ink_damage_boost_percent" in attacker) else 0.20
+				amount *= (1.0 + boost)
 	var dmg_reduction = get_item_stat("damage_reduction") + get_item_stat("armor")
 	if dmg_reduction > 0.0:
 		amount *= clamp(1.0 - (dmg_reduction / 100.0), 0.0, 1.0)

@@ -82,3 +82,14 @@ func detonate_dive_marks(attacker: Node = null) -> int:
 	if is_instance_valid(target) and target.has_method("detonate_dive_marks"):
 		return target.detonate_dive_marks(attacker)
 	return 0
+
+func apply_ink(duration: float, slow_pct: float = 0.20, source_id: int = 0) -> void:
+	var target = get_character()
+	if is_instance_valid(target) and target.has_method("apply_ink"):
+		target.apply_ink(duration, slow_pct, source_id)
+
+func is_inked() -> bool:
+	var target = get_character()
+	if is_instance_valid(target) and target.has_method("is_inked"):
+		return target.is_inked()
+	return false

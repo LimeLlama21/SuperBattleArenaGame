@@ -1,5 +1,7 @@
-class_name Asparsas
+class_name Aspara
 extends BasePlayer
+
+const AsparaData = preload("res://characters/aspara/aspara_data.gd")
 
 # Deflecting Guard (Block Stance)
 var is_blocking: bool = false:
@@ -40,13 +42,13 @@ const CRASH_RADIUS: float = 6.0
 
 func _setup_character_kit() -> void:
 	if id.is_empty():
-		id = "asparsas"
-	var data = AsparsasData.create()
+		id = "aspara"
+	var data = AsparaData.create()
 	load_character_data(data)
 	if id.is_empty():
-		id = "asparsas"
-	if display_name.is_empty() or display_name == "Asparsas" or display_name == "Character":
-		display_name = "Urvashi"
+		id = "aspara"
+	if display_name.is_empty() or display_name == "Aspara" or display_name == "Asparsas" or display_name == "Character":
+		display_name = "Uru"
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
 	if sync and sync.replication_config:

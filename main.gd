@@ -10,8 +10,9 @@ const LevelBadgeClass = preload("res://characters/leveling/level_badge.gd")
 const CHARACTERS: Dictionary = {
 	"poke": preload("res://characters/poke/poke.tscn"),
 	"crush": preload("res://characters/crush/crush.tscn"),
-	"asparsas": preload("res://characters/asparsas/asparsas.tscn"),
-	"reaper": preload("res://characters/reaper/reaper.tscn"),
+	"aspara": preload("res://characters/aspara/aspara.tscn"),
+	"asparsas": preload("res://characters/aspara/aspara.tscn"),
+	"reaper": preload("res://characters/Disabled characters/reaper/reaper.tscn"),
 	"morrigan": preload("res://characters/morrigan/morrigan.tscn"),
 	"monkey": preload("res://characters/monkey/monkey.tscn"),
 	"silene": preload("res://characters/silene/silene.tscn"),
@@ -21,14 +22,15 @@ const CHARACTERS: Dictionary = {
 }
 
 const CHARACTER_DISPLAY_NAMES: Dictionary = {
-	"poke": "Arash",
-	"crush": "Heracles",
-	"asparsas": "Urvashi",
+	"poke": "Aslan",
+	"crush": "Gil",
+	"aspara": "Uru",
+	"asparsas": "Uru",
 	"reaper": "Keres",
-	"morrigan": "Morrigan",
-	"monkey": "The Great Sage",
-	"silene": "Saint Silene",
-	"artist": "The Painted Sage",
+	"morrigan": "Saga",
+	"monkey": "Sunny Kong",
+	"silene": "Wynn Wyrmchilde",
+	"artist": "Inky",
 	"cleodolinda": "Cleo",
 	"cleo": "Cleo",
 	"dummy": "Training Dummy"
@@ -290,7 +292,7 @@ var scoreboard_training_scroll: ScrollContainer = null
 var scoreboard_training_list: VBoxContainer = null
 var scoreboard_training_status_label: Label = null
 var scoreboard_training_count_label: Label = null
-var scoreboard_training_code_box: VBoxContainer = null
+var scoreboard_training_code_box: Control = null
 var scoreboard_training_code_label: Label = null
 var scoreboard_training_copy_btn: Button = null
 var scoreboard_training_toggle_btn: Button = null
@@ -391,7 +393,7 @@ func _ready() -> void:
 	
 	switch_poke_btn.pressed.connect(func(): _switch_training_character("poke"))
 	switch_crush_btn.pressed.connect(func(): _switch_training_character("crush"))
-	switch_asparsas_btn.pressed.connect(func(): _switch_training_character("asparsas"))
+	switch_asparsas_btn.pressed.connect(func(): _switch_training_character("aspara"))
 	if switch_reaper_btn:
 		switch_reaper_btn.pressed.connect(func(): _switch_training_character("reaper"))
 	if switch_morrigan_btn:
@@ -400,7 +402,7 @@ func _ready() -> void:
 	if switch_char_tab and not switch_monkey_btn:
 		switch_monkey_btn = Button.new()
 		switch_monkey_btn.name = "SwitchMonkey"
-		switch_monkey_btn.text = "🐒 The Great Sage (Trickster - 160 HP)"
+		switch_monkey_btn.text = "🐒 Sunny Kong (Trickster - 160 HP)"
 		switch_monkey_btn.custom_minimum_size = Vector2(0, 34)
 		switch_char_tab.add_child(switch_monkey_btn)
 	if switch_monkey_btn:
@@ -408,7 +410,7 @@ func _ready() -> void:
 	if switch_char_tab and not switch_silene_btn:
 		switch_silene_btn = Button.new()
 		switch_silene_btn.name = "SwitchSilene"
-		switch_silene_btn.text = "🐉 Saint Silene (Juggernaut - 320 HP)"
+		switch_silene_btn.text = "🐉 Wynn Wyrmchilde (Juggernaut - 320 HP)"
 		switch_silene_btn.custom_minimum_size = Vector2(0, 34)
 		switch_char_tab.add_child(switch_silene_btn)
 	if switch_silene_btn:
@@ -416,7 +418,7 @@ func _ready() -> void:
 	if switch_char_tab and not switch_artist_btn:
 		switch_artist_btn = Button.new()
 		switch_artist_btn.name = "SwitchArtist"
-		switch_artist_btn.text = "🖌️ The Painted Sage (Calligrapher - 200 HP)"
+		switch_artist_btn.text = "🖌️ Inky (Calligrapher - 200 HP)"
 		switch_artist_btn.custom_minimum_size = Vector2(0, 34)
 		switch_char_tab.add_child(switch_artist_btn)
 	if switch_artist_btn:
@@ -566,7 +568,7 @@ func _rebuild_character_grid() -> void:
 	# 1. Gather all canonical enabled character keys
 	var canonical_keys: Array[String] = []
 	for k in CharacterRegistry.get_all_character_keys():
-		if k == "cleo": # Skip duplicate alias
+		if k == "cleo" or k == "asparsas": # Skip duplicate aliases
 			continue
 		if EnabledCharacters.is_character_enabled(k) and not canonical_keys.has(k):
 			canonical_keys.append(k)
@@ -696,7 +698,7 @@ func _refresh_character_selection_ui() -> void:
 	_rebuild_character_grid()
 	if switch_poke_btn: switch_poke_btn.visible = EnabledCharacters.is_character_enabled("poke")
 	if switch_crush_btn: switch_crush_btn.visible = EnabledCharacters.is_character_enabled("crush")
-	if switch_asparsas_btn: switch_asparsas_btn.visible = EnabledCharacters.is_character_enabled("asparsas")
+	if switch_asparsas_btn: switch_asparsas_btn.visible = EnabledCharacters.is_character_enabled("aspara")
 	if switch_reaper_btn: switch_reaper_btn.visible = EnabledCharacters.is_character_enabled("reaper")
 	if switch_morrigan_btn: switch_morrigan_btn.visible = EnabledCharacters.is_character_enabled("morrigan")
 	if switch_monkey_btn: switch_monkey_btn.visible = EnabledCharacters.is_character_enabled("monkey")
@@ -715,21 +717,21 @@ func _select_character(char_key: String) -> void:
 	_update_character_grid_selection()
 
 	if char_key == "poke":
-		char_desc_label.text = "ARASH: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
+		char_desc_label.text = "ASLAN: Sharpshooter (160 HP). Passive [Takedown Rush]: Dash resets on takedown. [LMB]: Rapid Pulse Shot. [RMB]: Sniper Stance (2s Charge). [Q]: Overcharged Rounds. [E]: Ion Fence. [R]: Orbital Hyperbeam (2s Channel, Piercing)."
 	elif char_key == "crush":
-		char_desc_label.text = "HERACLES: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
-	elif char_key == "asparsas":
-		char_desc_label.text = "URVASHI: Skirmisher (240 HP). Passive [Rupture Marks]: Stacking burst marks detonated for damage and 11-15% missing HP heal. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
+		char_desc_label.text = "GIL: Juggernaut (160 HP). Passive [Titan's Surge]: Spells empower LMB (+25 dmg + heal). [LMB]: Slam. [RMB]: Fan stun. [Q]: Shockwave & Shield. [E]: Iron Blood (converts Gray Health to shield / regens)."
+	elif char_key == "aspara" or char_key == "asparsas":
+		char_desc_label.text = "URU: Skirmisher (240 HP). Passive [Rupture Marks]: Stacking burst marks detonated for damage and 11-15% missing HP heal. [LMB]: Slash. [RMB]: Cleave. [Q]: Earth Tremor. [E]: Deflecting Guard (75% frontal DR). [Shift]: Wall Bounce."
 	elif char_key == "reaper":
 		char_desc_label.text = "KERES: Assassin / Skirmisher (90 HP). Passive [Soul Harvest]: +15% MS steal on LMB. [RMB]: Spectral Tether (Charged throw: grounds + progressive slow -> roots & disables all movement). [Q]: Cull the Weak (sweet-spot donut sweep + cripple). [E]: Nightmare (Vlad pool invulnerability + slow). [R]: One with Death (+45% MS, +50% CDR, +30% DMG). [Shift]: Ethereal Dash."
 	elif char_key == "morrigan":
-		char_desc_label.text = "MORRIGAN: Mage (90 HP). Passive [Harbinger of Doom]: Ability hits spawn orbiting crows that seek nearby enemies (20 dmg + 35% slow). [LMB]: Black Plumage (Chargeable up to 5 rapid burst feathers). [RMB]: Omen of Death (Parabolic mortar shell). [Q]: Inescapable Ends (Dual-cast magnetic tether). [E]: Cry of the Banshee (Large cone shriek + 1.4s silence). [R]: Born of Blood (1s channel -> massive 45m piercing wave + stun). [Shift]: Crowstorm (Steered flight + 60% MS + 50% DR)."
+		char_desc_label.text = "SAGA: Mage (90 HP). Passive [Harbinger of Doom]: Ability hits spawn orbiting crows that seek nearby enemies (20 dmg + 35% slow). [LMB]: Black Plumage (Chargeable up to 5 rapid burst feathers). [RMB]: Omen of Death (Parabolic mortar shell). [Q]: Inescapable Ends (Dual-cast magnetic tether). [E]: Cry of the Banshee (Large cone shriek + 1.4s silence). [R]: Born of Blood (1s channel -> massive 45m piercing wave + stun). [Shift]: Crowstorm (Steered flight + 60% MS + 50% DR)."
 	elif char_key == "monkey":
-		char_desc_label.text = "THE GREAT SAGE: Trickster (160 HP). Passive [Stone Monkey]: Critical health (30%) triggers 3s stone invulnerability + displacement immunity + 30% missing HP heal. [LMB]: Heavenly Pillar (Fast staff bonk). [RMB]: Enlarge (Chargeable dash & slam with sweet spot stun). [Q]: 72 Forms (Disguise wheel with Tree, Rock, Cancel). [E]: Sage's Mockery (Circular taunt & damage reduction). [R]: Shadow Rush Flurry (Stealth dash -> flurry rush recast)."
+		char_desc_label.text = "SUNNY KONG: Trickster (160 HP). Passive [Stone Monkey]: Critical health (30%) triggers 3s stone invulnerability + displacement immunity + 30% missing HP heal. [LMB]: Heavenly Pillar (Fast staff bonk). [RMB]: Enlarge (Chargeable dash & slam with sweet spot stun). [Q]: 72 Forms (Disguise wheel with Tree, Rock, Cancel). [E]: Sage's Mockery (Circular taunt & damage reduction). [R]: Shadow Rush Flurry (Stealth dash -> flurry rush recast)."
 	elif char_key == "silene":
-		char_desc_label.text = "SAINT SILENE: The Dragon of Silene (320 HP). Passive [Draconic Ferocity]: Flat bonus damage on all abilities. [LMB]: Claw Swipe (Annulus Sector). [Shift]: Dragon Leap/Rush (Grab & Slam, Wall Stop, Unstoppable when Charged). [RMB]: Dragon Bite (Annulus Sector % Max HP DMG & Heal). [Q]: Tail Lash (Annulus Sector Stun & DMG). [E]: Dragonfire Breath (Height-scaling Cone DOT, Terrain raycast). [R]: Primal Roar (Annulus Sector Silence & Drag) + Persistent +10 Max HP per takedown."
+		char_desc_label.text = "WYNN WYRMCHILDE: The Dragon of Silene (320 HP). Passive [Draconic Ferocity]: Flat bonus damage on all abilities. [LMB]: Claw Swipe (Annulus Sector). [Shift]: Dragon Leap/Rush (Grab & Slam, Wall Stop, Unstoppable when Charged). [RMB]: Dragon Bite (Annulus Sector % Max HP DMG & Heal). [Q]: Tail Lash (Annulus Sector Stun & DMG). [E]: Dragonfire Breath (Height-scaling Cone DOT, Terrain raycast). [R]: Primal Roar (Annulus Sector Silence & Drag) + Persistent +10 Max HP per takedown."
 	elif char_key == "artist":
-		char_desc_label.text = "THE PAINTED SAGE: Calligrapher (200 HP). Passive [Ink Alchemy]: Elemental talisman ink alchemy. [Shift]: Brush Step (Swift evasive dash). [R]: Ink Alchemy (Vancian talisman wheel: Inscribe Hanzi [火 Fire, 水 Water, 风 Air, 土 Earth] to prepare spells, or recast to unleash prepared elements)."
+		char_desc_label.text = "INKY: Calligrapher (200 HP). Passive [Ink]: Spell damage coats enemies in Ink, slowing them by 20% and amplifying his spell damage against them. [Shift]: Brush Step (Swift evasive dash). [R]: Ink Alchemy (Vancian talisman wheel: Inscribe Hanzi [火 Fire, 水 Water, 风 Air, 土 Earth] to prepare spells, or recast to unleash prepared elements)."
 	elif char_key == "cleodolinda" or char_key == "cleo":
 		char_desc_label.text = "CLEO: Hoverboarder (180 HP). Passive: High agility hoverboard riding. [LMB]: Semicircle strike scaling with relative velocity. [RMB]: Delayed full-circle spinning sweep + slow. [Shift]: Hover Surge dash. [E]: Hover Boost (+50% accel and max speed). [R]: Maximum Suction (Vacuum pull + damage)."
 	

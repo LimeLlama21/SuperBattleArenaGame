@@ -15,16 +15,35 @@ static func _ensure_initialized() -> void:
 	# Pre-register built-in character factory functions / scenes
 	_register_builtin("poke", "res://characters/poke/poke_data.gd", "res://characters/poke/poke.tscn")
 	_register_builtin("crush", "res://characters/crush/crush_data.gd", "res://characters/crush/crush.tscn")
-	_register_builtin("asparsas", "res://characters/asparsas/asparsas_data.gd", "res://characters/asparsas/asparsas.tscn")
-	_register_builtin("reaper", "res://characters/reaper/reaper_data.gd", "res://characters/reaper/reaper.tscn")
+	_register_builtin("aspara", "res://characters/aspara/aspara_data.gd", "res://characters/aspara/aspara.tscn")
+	_register_builtin("reaper", "res://characters/Disabled characters/reaper/reaper_data.gd", "res://characters/Disabled characters/reaper/reaper.tscn")
 	_register_builtin("morrigan", "res://characters/morrigan/morrigan_data.gd", "res://characters/morrigan/morrigan.tscn")
 	_register_builtin("monkey", "res://characters/monkey/monkey_data.gd", "res://characters/monkey/monkey.tscn")
 	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
 	_register_builtin("artist", "res://characters/artist/artist_data.gd", "res://characters/artist/artist.tscn")
 	_register_builtin("cleodolinda", "res://characters/cleodolinda/cleodolinda_data.gd", "res://characters/cleodolinda/cleodolinda.tscn")
 	_registry["cleo"] = _registry["cleodolinda"]
+	_registry["asparsas"] = _registry["aspara"]
 
 static func _register_builtin(key: String, data_script_path: String, scene_path: String) -> void:
+	if not ResourceLoader.exists(data_script_path):
+		var alt = ""
+		if data_script_path.contains("Disabled characters"):
+			alt = data_script_path.replace("Disabled characters/", "")
+		else:
+			alt = data_script_path.replace("res://characters/", "res://characters/Disabled characters/")
+		if ResourceLoader.exists(alt):
+			data_script_path = alt
+
+	if not ResourceLoader.exists(scene_path):
+		var alt = ""
+		if scene_path.contains("Disabled characters"):
+			alt = scene_path.replace("Disabled characters/", "")
+		else:
+			alt = scene_path.replace("res://characters/", "res://characters/Disabled characters/")
+		if ResourceLoader.exists(alt):
+			scene_path = alt
+
 	var data: CharacterData = null
 	if ResourceLoader.exists(data_script_path):
 		var script = load(data_script_path)
@@ -97,7 +116,7 @@ static func get_character_scene(key: String) -> PackedScene:
 static func get_all_character_keys() -> Array[String]:
 	_ensure_initialized()
 	var unique_keys: Array[String] = []
-	var canonical = ["poke", "crush", "asparsas", "reaper", "morrigan", "monkey", "silene", "artist", "cleodolinda"]
+	var canonical = ["poke", "crush", "aspara", "reaper", "morrigan", "monkey", "silene", "artist", "cleodolinda"]
 	for k in canonical:
 		if _registry.has(k) and not unique_keys.has(k):
 			unique_keys.append(k)
@@ -113,16 +132,15 @@ static func get_display_name(key: String) -> String:
 		return data.display_name
 	
 	match k:
-		"poke": return "Arash"
-		"crush": return "Heracles"
-		"asparsas": return "Urvashi"
+		"poke": return "Aslan"
+		"crush": return "Gil"
+		"aspara", "asparsas": return "Uru"
 		"reaper": return "Keres"
-		"morrigan": return "Morrigan"
-		"monkey": return "The Great Sage"
-		"silene": return "Saint Silene"
-		"artist": return "The Painted Sage"
-		"cleodolinda": return "Cleo"
-		"cleo": return "Cleo"
+		"morrigan": return "Saga"
+		"monkey": return "Sunny Kong"
+		"silene": return "Wynn Wyrmchilde"
+		"artist": return "Inky"
+		"cleodolinda", "cleo": return "Cleo"
 		"dummy": return "Training Dummy"
 		_:
 			if data and not data.character_name.is_empty():

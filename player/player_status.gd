@@ -46,6 +46,11 @@ const DIVE_MARK_DURATION: float = 3.5
 const DIVE_MARK_MAX: int = 5
 const DIVE_MARK_BURST_PER_STACK: float = 18.0
 
+# --- Ink Status (Artist Passive) ---
+var ink_timer: float = 0.0
+var ink_source_id: int = 0
+var ink_slow_percent: float = 0.20
+
 # --- Universal Levitation / Float State ---
 var is_floating: bool = false
 var float_timer: float = 0.0
@@ -463,6 +468,8 @@ func sync_cleanse_cc() -> void:
 	taunt_timer = 0.0
 	taunter_node = null
 	external_velocity = Vector3.ZERO
+	ink_timer = 0.0
+	ink_source_id = 0
 
 # --- Extended Status Application: Invisibility, Taunt, Transformation, Invulnerability ---
 func _on_invisibility_changed(_is_invis: bool) -> void:
@@ -660,6 +667,30 @@ func detonate_dive_marks(attacker: Node = null) -> int:
 		
 	return count
 
+# --- Ink (Artist Passive) Methods ---
+func apply_ink(duration: float, slow_pct: float = 0.20, source_id: int = 0) -> void:
+	if is_cc_immune or is_ethereal_active():
+		return
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_ink.rpc(duration, slow_pct, source_id)
+	else:
+		sync_apply_ink(duration, slow_pct, source_id)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_ink(duration: float, slow_pct: float = 0.20, source_id: int = 0) -> void:
+	if not _is_sender_host():
+		return
+	ink_timer = max(ink_timer, duration)
+	ink_slow_percent = slow_pct
+	if source_id != 0:
+		ink_source_id = source_id
+	apply_slow(duration, slow_pct)
+
+func is_inked() -> bool:
+	return ink_timer > 0.0
+
 # --- Status & Timer Processing ---
 func _process_status_timers(delta: float) -> void:
 	# Channeling process
@@ -726,6 +757,13 @@ func _process_status_timers(delta: float) -> void:
 		dive_mark_timer -= delta
 		if dive_mark_timer <= 0.0:
 			dive_marks_count = 0
+
+	# Ink timer
+	if ink_timer > 0.0:
+		ink_timer -= delta
+		if ink_timer <= 0.0:
+			ink_timer = 0.0
+			ink_source_id = 0
 
 	# Linear decay slow
 	if slow_timer > 0.0:
