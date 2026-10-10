@@ -266,6 +266,16 @@ func _trigger_death_effects() -> void:
 	if spawn_terrain_on_death:
 		if main_node and main_node.has_method("spawn_temporary_terrain"):
 			main_node.spawn_temporary_terrain(global_position, 5.0, shooter_id)
+		else:
+			var terr_scene = load("res://maps/temporary_terrain.tscn") as PackedScene
+			if terr_scene:
+				var terr = terr_scene.instantiate()
+				terr.position = global_position
+				terr.lifetime = 5.0
+				terr.owner_id = shooter_id
+				var p = get_parent()
+				if p:
+					p.add_child(terr)
 
 func _on_area_entered(area: Area3D) -> void:
 	if not is_server_authority():

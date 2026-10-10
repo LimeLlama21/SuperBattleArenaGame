@@ -2439,9 +2439,19 @@ func test_artist_the_painted_sage_kit() -> void:
 
 	# 2. Ability Slots Check
 	assert(artist.abilities.get("LMB") == null, "Primary LMB must be null")
-	assert(artist.abilities.get("RMB") == null, "Secondary RMB must be null")
-	assert(artist.abilities.get("Q") == null, "Q spell must be null")
 	assert(artist.abilities.get("E") == null, "E spell must be null")
+
+	var q_ab = artist.abilities.get("Q")
+	assert(q_ab != null, "Q spell must be configured for Astral Projection")
+	assert(q_ab.ability_id == "artist_astral_projection", "Q ability_id must be artist_astral_projection")
+	assert(q_ab.cooldown == 12.0, "Q cooldown must be 12.0s")
+
+	var rmb_ab = artist.abilities.get("RMB")
+	assert(rmb_ab != null, "RMB must be configured for Artist Ink Wall")
+	assert(rmb_ab.ability_id == "artist_ink_wall", "RMB ability_id must be artist_ink_wall")
+	assert(rmb_ab.cast_on_press == false, "RMB must be two-part cast on release (cast_on_press == false)")
+	assert(rmb_ab.damage_amount == 0.0, "RMB Ink Wall must do no damage")
+	assert(rmb_ab.cooldown == 7.0, "RMB Ink Wall cooldown must be 7.0s")
 
 	var dash_ab = artist.abilities.get("SHIFT")
 	assert(dash_ab != null, "SHIFT must be configured for dash")
@@ -2757,6 +2767,154 @@ func test_artist_the_painted_sage_kit() -> void:
 
 	target.queue_free()
 	print("  ✓ Passive Ink: exclusion of LMB, dash, and talent upgrades, 20% slow application, and spell damage amplification verified.")
+
+	# 10. Secondary (RMB): Two-Part Cast Wall & Temporary Terrain Rapid Rise / Push
+	var wall_start = Vector3(15.0, 0.0, 15.0)
+	var wall_dir = Vector3(0.0, 0.0, 1.0)
+	var wall = artist.cast_rmb_wall(wall_start, wall_dir)
+	assert(wall != null, "Must successfully erect wall")
+	assert(wall is TemporaryTerrain, "Wall must be TemporaryTerrain")
+	assert(wall.is_wall == true, "Wall must have is_wall flag set")
+	assert(wall.terrain_size == Vector3(1.44, 2.4, 7.2), "Wall dimensions must be (1.44, 2.4, 7.2): height 2.4, length 7.2, thickness 1.44")
+	assert(is_equal_approx(wall.terrain_size.y, 2.4), "Wall height must be 2.4m (about the same height as a platform, jumpable with 3.02m jump peak)")
+	assert(is_equal_approx(wall.terrain_size.z, 7.2), "Wall length must be 7.2m (length of three 2.4m platforms side by side)")
+
+	assert(is_equal_approx(wall.terrain_size.x, 1.44), "Wall thickness must be 1.44m (60%% as thick as 2.4m)")
+	assert(wall.position.y < wall_start.y, "Wall must initially be submerged below ground")
+	assert(wall._is_rising == true, "Wall must be in rising state upon spawn")
+
+	# Step physics for wall to emerge
+	wall._physics_process(0.16)
+	assert(wall.position.y == wall_start.y, "Wall must finish rapid rise at ground level")
+
+	# Verify rapid rise pushes characters up if they're under/on it
+	var push_target = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	push_target.name = "PushTarget"
+	root.add_child(push_target)
+	push_target.global_position = Vector3(30.0, 0.0, 30.0)
+	var push_hp_before = push_target.current_health
+
+	# Spawn temporary terrain right under the target
+	var terr_scene = load("res://maps/temporary_terrain.tscn") as PackedScene
+	var rising_terr = terr_scene.instantiate() as TemporaryTerrain
+	rising_terr.position = Vector3(30.0, 0.0, 30.0)
+	root.add_child(rising_terr)
+	if not rising_terr.is_node_ready():
+		rising_terr._ready()
+
+	# Initially submerged: position.y is target_y - terrain_size.y
+	assert(rising_terr.position.y < 0.0, "Temporary terrain must initially be submerged below ground")
+	assert(rising_terr._is_rising == true, "Temporary terrain must be in rising state")
+
+	# Step physics to let terrain rise rapidly out of the ground
+	rising_terr._physics_process(0.16)
+	assert(rising_terr.position.y == 0.0, "Temporary terrain must finish rapid rise at target_y = 0.0")
+	# Target must have been pushed up onto the top of the terrain!
+	assert(push_target.global_position.y >= rising_terr.terrain_size.y, "Target under temporary terrain must be pushed up to the top surface (y >= %f, got %f)" % [rising_terr.terrain_size.y, push_target.global_position.y])
+	assert(push_target.current_health == push_hp_before, "Temporary terrain must do no damage when pushing people up")
+
+	# Test elevated terrain (e.g. on elevated platform y = 2.4)
+	var elevated_target = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	elevated_target.name = "ElevatedTarget"
+	root.add_child(elevated_target)
+	elevated_target.global_position = Vector3(50.0, 2.4, 50.0)
+
+	var elevated_terr = terr_scene.instantiate() as TemporaryTerrain
+	elevated_terr.position = Vector3(50.0, 2.4, 50.0)
+	root.add_child(elevated_terr)
+	if not elevated_terr.is_node_ready():
+		elevated_terr._ready()
+
+	assert(elevated_terr.position.y < 2.4, "Elevated terrain must start submerged below platform level")
+	assert(elevated_terr._is_rising == true, "Elevated terrain must be in rising state")
+	elevated_terr._physics_process(0.16)
+	assert(is_equal_approx(elevated_terr.position.y, 2.4), "Elevated terrain must finish rapid rise at platform level (2.4)")
+	assert(elevated_target.global_position.y >= 2.4 + elevated_terr.terrain_size.y, "Character on elevated platform must be pushed up to top surface")
+
+	wall.queue_free()
+	rising_terr.queue_free()
+	push_target.queue_free()
+	elevated_terr.queue_free()
+	elevated_target.queue_free()
+	print("  ✓ RMB Two-part cast wall dimensions (2.4m height, 7.2m length, 1.44m thickness), no damage, and rapid rise pushing characters up on ground & elevated terrain verified.")
+
+	# 11. Astral Projection (Strange Q Ability)
+	artist.global_position = Vector3(10.0, 0.0, 10.0)
+	var enemy_dummy = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_dummy.name = "AstralEnemyTarget"
+	root.add_child(enemy_dummy)
+	enemy_dummy.peer_id = 99
+	enemy_dummy.team_id = 2
+	enemy_dummy.global_position = Vector3(10.0, 0.0, 25.0)
+
+	# Cast Q: marks body location, leaves physical body behind, soul enters flight
+	var cast_q_success = artist.try_cast_ability("Q")
+	assert(cast_q_success == true, "Must successfully cast Q Astral Projection")
+	assert(artist.is_soul_form == true, "Artist must enter soul form")
+	assert(artist.soul_marked_body_pos == Vector3(10.0, 0.0, 10.0), "Soul must mark current body location")
+	assert(is_instance_valid(artist.soul_body_puppet), "Physical body puppet must be spawned at marked location")
+	assert(artist.soul_body_puppet.position == Vector3(10.0, 0.0, 10.0), "Dormant body must stay at marked location")
+
+	# Defenses & Status Immunities: Targetable, 50% reduced enemy damage, immune to ground hazards & grounded
+	assert(artist.ground_hazard_immune == true, "Soul must be immune to ground hazards")
+	assert(artist.is_ground_hazard_immune() == true, "is_ground_hazard_immune() must be true")
+	assert(artist.is_ground_hazard_immune_active() == true, "is_ground_hazard_immune_active must be true")
+	artist.apply_grounded(2.0)
+	assert(artist.is_grounded() == false, "Soul must be immune to grounded status effect")
+
+	# Immune to environmental/ground hazard damage
+	var hp_before_hazard = artist.current_health
+	artist.take_damage(25.0, 0, BasePlayer.ActionType.ENVIRONMENT)
+	assert(artist.current_health == hp_before_hazard, "Soul must take zero damage from environmental ground hazards")
+
+	# Targetable, but receives 50% reduced damage from enemies
+	var hp_before_enemy = artist.current_health
+	artist.take_damage(40.0, 99, BasePlayer.ActionType.ATTACK)
+	assert(artist.current_health == hp_before_enemy - 20.0, "Soul must take 50% reduced damage from enemies (40.0 * 0.50 = 20.0 damage taken)")
+
+	# Lockout: Cannot influence movement or act while in soul form
+	assert(artist.has_custom_movement_control() == true, "Player cannot influence movement during soul flight")
+	assert(artist.try_cast_ability("RMB") == false, "Player cannot act or cast abilities during soul flight")
+
+	# Phasing through walls while staying grounded (not falling through ground)
+	assert(artist.can_pass_through_walls == true, "Soul must have can_pass_through_walls enabled")
+	assert(artist.is_phasing_walls() == true, "is_phasing_walls must be true")
+	artist._process_phasing_movement_physics(0.1)
+	assert(artist.global_position.y >= 0.0, "Phasing movement must keep soul on ground level and not fall through")
+
+	# Persistent tracking towards nearest visible target (not a snapshot on cast)
+	artist._process_soul_form(0.05)
+	assert(artist.soul_target == enemy_dummy, "Soul must persistently target nearest visible enemy")
+	assert(artist.velocity.z > 0.0, "Soul velocity must steer towards enemy on Z axis")
+
+	# Moving target: soul updates trajectory towards new location
+	enemy_dummy.global_position = Vector3(25.0, 0.0, 10.0)
+	artist._process_soul_form(0.05)
+	assert(artist.velocity.x > 0.0, "Soul must update persistent tracking towards moving enemy on X axis")
+
+	# Contact with enemy: grabs, stuns for pull duration + 1.0s, pulls back to body
+	artist.global_position = Vector3(24.0, 0.0, 10.0) # Within grab radius
+	artist._process_soul_form(0.01)
+	assert(artist.soul_state == Artist.SoulState.PULLING_BACK, "Soul must enter PULLING_BACK state on contact")
+	assert(artist.soul_grabbed_enemy == enemy_dummy, "Enemy must be grabbed on contact")
+	assert(enemy_dummy.is_stunned() == true, "Grabbed enemy must be stunned immediately")
+	var pull_time = artist.soul_pull_total_time
+	assert(pull_time > 0.0, "Pull duration must be positive")
+
+	# Process entire pull back to body
+	artist._process_soul_form(pull_time + 0.05)
+	assert(artist.is_soul_form == false, "Soul form must end upon arrival back at body")
+	assert(artist.global_position.distance_to(Vector3(10.0, 0.0, 10.0)) < 0.1, "Artist must arrive back at marked body location")
+	assert(not is_instance_valid(artist.soul_body_puppet), "Dormant body puppet must be cleaned up")
+	assert(enemy_dummy.global_position.distance_to(Vector3(10.0, 0.0, 10.0)) < 2.0, "Grabbed enemy must be pulled back to body location")
+	assert(enemy_dummy.is_stunned() == true, "Enemy must remain stunned for extra 1.0s after pull completes")
+
+	# Extra 1 second stun expires naturally
+	enemy_dummy._process_status_effects(1.1)
+	assert(enemy_dummy.is_stunned() == false, "Enemy stun must expire after extra second")
+
+	enemy_dummy.queue_free()
+	print("  ✓ Q Astral Projection: soul leaving body, ground hazard immunity, 50% damage reduction, phasing through walls without ground clipping, persistent tracking, grab & pull-back stun verified.")
 
 	# Cleanup
 	artist.queue_free()

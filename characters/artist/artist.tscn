@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://player/player_hud.tscn" id="3_player_hud"]
 [ext_resource type="PackedScene" path="res://ability/effects/projectile_effect.tscn" id="ext_eff_proj"]
 [ext_resource type="PackedScene" path="res://ability/effects/dash_effect.tscn" id="ext_eff_dash"]
+[ext_resource type="PackedScene" uid="uid://bf35kwpa7fslo" path="res://ability/ability.tscn" id="ext_ab_base"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.35
@@ -105,6 +106,26 @@ no_depth_test = true
 [node name="PlayerHUD" parent="." instance=ExtResource("3_player_hud")]
 
 [node name="Abilities" type="Node" parent="."]
+
+[node name="Q" parent="Abilities" instance=ExtResource("ext_ab_base")]
+slot_key = "Q"
+ability_id = "artist_astral_projection"
+ability_name = "Astral Projection"
+icon_symbol = "👻"
+description = "Leaves physical body behind as soul surges forward, pursuing the nearest visible enemy through walls. On contact, drags enemy back to body, stunning them during pull + 1.0s after. Soul receives 50% reduced damage and is immune to ground hazards."
+cooldown = 12.0
+cast_on_press = true
+damage_amount = 0.0
+
+[node name="RMB" parent="Abilities" instance=ExtResource("ext_ab_base")]
+slot_key = "RMB"
+ability_id = "artist_ink_wall"
+ability_name = "Ink Wall"
+icon_symbol = "🖌️"
+description = "Two-part cast: click to set start point, release to set direction. Erects a temporary wall that pushes up anything above it."
+cooldown = 7.0
+cast_on_press = false
+damage_amount = 0.0
 
 [node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
 slot_key = "SHIFT"

@@ -37,6 +37,10 @@ var transformation_properties: Dictionary = {}
 
 var invulnerable_timer: float = 0.0
 var displacement_immune_timer: float = 0.0
+var ground_hazard_immune: bool = false
+var ground_hazard_immunity_timer: float = 0.0
+var can_pass_through_walls: bool = false
+var phasing_walls_timer: float = 0.0
 
 # --- Rupture Marks (Dive / Asparsas Passive) ---
 var dive_marks_count: int = 0
@@ -313,7 +317,7 @@ func sync_apply_root(duration: float) -> void:
 	root_timer = max(root_timer, duration)
 
 func apply_grounded(duration: float) -> void:
-	if is_cc_immune or is_ethereal_active():
+	if is_cc_immune or is_ethereal_active() or is_ground_hazard_immune():
 		return
 	if is_multiplayer_match():
 		if not is_server_authoritative():
@@ -623,6 +627,43 @@ func sync_apply_displacement_immunity(duration: float) -> void:
 		return
 	displacement_immune_timer = max(displacement_immune_timer, duration)
 
+func is_ground_hazard_immune_active() -> bool:
+	return ground_hazard_immune or ground_hazard_immunity_timer > 0.0
+
+func is_ground_hazard_immune() -> bool:
+	return ground_hazard_immune or ground_hazard_immunity_timer > 0.0
+
+func apply_ground_hazard_immunity(duration: float) -> void:
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_ground_hazard_immunity.rpc(duration)
+	else:
+		sync_apply_ground_hazard_immunity(duration)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_ground_hazard_immunity(duration: float) -> void:
+	if not _is_sender_host():
+		return
+	ground_hazard_immunity_timer = max(ground_hazard_immunity_timer, duration)
+
+func is_phasing_walls() -> bool:
+	return can_pass_through_walls or phasing_walls_timer > 0.0
+
+func apply_phasing(duration: float) -> void:
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_phasing.rpc(duration)
+	else:
+		sync_apply_phasing(duration)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_phasing(duration: float) -> void:
+	if not _is_sender_host():
+		return
+	phasing_walls_timer = max(phasing_walls_timer, duration)
+
 # --- Rupture Marks (Dive / Asparsas Passive) Methods ---
 func apply_rupture_mark(attacker_id: int) -> void:
 	dive_marks_count = min(DIVE_MARK_MAX, dive_marks_count + 1)
@@ -751,6 +792,10 @@ func _process_status_timers(delta: float) -> void:
 		invulnerable_timer = max(0.0, invulnerable_timer - delta)
 	if displacement_immune_timer > 0.0:
 		displacement_immune_timer = max(0.0, displacement_immune_timer - delta)
+	if ground_hazard_immunity_timer > 0.0:
+		ground_hazard_immunity_timer = max(0.0, ground_hazard_immunity_timer - delta)
+	if phasing_walls_timer > 0.0:
+		phasing_walls_timer = max(0.0, phasing_walls_timer - delta)
 
 	# Rupture mark timer
 	if dive_marks_count > 0:

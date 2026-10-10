@@ -86,6 +86,8 @@ func _apply_corridor_effects() -> void:
 func _apply_to_body(body: Node, damage_amount: float) -> void:
 	if not body or body.get("is_dead"):
 		return
+	if body.has_method("is_ground_hazard_immune") and body.is_ground_hazard_immune():
+		return
 	if body.name == str(shooter_id):
 		return
 	if shooter_team > 0 and body.get("team_id") != null and body.team_id == shooter_team:

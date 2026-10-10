@@ -2342,27 +2342,42 @@ func spawn_sticky_grenade(pos: Vector3, dir: Vector3, shooter_id: int = 0, shoot
 		return
 	projectile_spawner.spawn(spawn_data)
 
-func spawn_temporary_terrain(pos: Vector3, lifetime: float = 5.0, owner_id: int = 0) -> void:
+func spawn_temporary_terrain(pos: Vector3, lifetime: float = 5.0, owner_id: int = 0, size: Vector3 = Vector3.ZERO, rot_y: float = 0.0, is_wall: bool = false) -> Node:
 	if is_multiplayer_match() and not multiplayer.is_server():
-		return
+		return null
 	var terr_pos = pos
-	terr_pos.y = 0.0
 	var data = {
 		"pos": terr_pos,
 		"lifetime": lifetime,
 		"owner_id": owner_id
 	}
+	if size != Vector3.ZERO:
+		data["size"] = size
+	if rot_y != 0.0:
+		data["rot_y"] = rot_y
+	if is_wall:
+		data["is_wall"] = true
 	if not is_multiplayer_match():
 		var terr = _custom_spawn_terrain(data)
 		terrain_container.add_child(terr, true)
-		return
-	terrain_spawner.spawn(data)
+		if not terr.is_node_ready():
+			terr._ready()
+		return terr
+	return terrain_spawner.spawn(data)
 
 func _custom_spawn_terrain(data: Variant) -> Node:
 	var terrain = terrain_scene.instantiate()
 	terrain.position = data["pos"]
 	terrain.lifetime = data.get("lifetime", 5.0)
 	terrain.owner_id = data.get("owner_id", 0)
+	if data.has("rot_y"):
+		terrain.rotation.y = data["rot_y"]
+	if data.has("size") and data["size"] != Vector3.ZERO:
+		if terrain.has_method("set_terrain_size"):
+			terrain.set_terrain_size(data["size"])
+	if data.get("is_wall", false):
+		if terrain.has_method("set_as_wall"):
+			terrain.set_as_wall(true)
 	return terrain
 
 func spawn_vision_flare(pos: Vector3, dir: Vector3, target_dist: float, shooter_id: int = 0, shooter_team: int = 0) -> void:

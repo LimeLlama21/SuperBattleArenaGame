@@ -64,6 +64,8 @@ static func extract_map_obstacles_2d(main_node: Node) -> Array[Dictionary]:
 		bodies.append_array(_get_all_static_bodies_recursive(arena))
 	
 	var temp_terrain = main_node.get_node_or_null("TemporaryTerrain")
+	if not temp_terrain:
+		temp_terrain = main_node.get_node_or_null("TerrainObjects")
 	if temp_terrain:
 		for child in temp_terrain.get_children():
 			if child is StaticBody3D:

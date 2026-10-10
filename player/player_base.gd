@@ -767,6 +767,8 @@ func take_damage(amount: float, attacker_id: int = 0, action_type: int = ActionT
 
 	if is_ethereal_active() or is_invulnerable():
 		return
+	if action_type == ActionType.ENVIRONMENT and is_ground_hazard_immune():
+		return
 
 	var is_true_damage: bool = (damage_type == DamageType.TRUE_DAMAGE)
 

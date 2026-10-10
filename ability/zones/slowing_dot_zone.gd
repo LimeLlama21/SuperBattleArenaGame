@@ -67,6 +67,8 @@ func _apply_zone_effects() -> void:
 func _apply_effect_to_body(body: Node) -> void:
 	if not is_instance_valid(body) or body.get("is_dead"):
 		return
+	if body.has_method("is_ground_hazard_immune") and body.is_ground_hazard_immune():
+		return
 		
 	var is_ally = (body.name == str(shooter_id)) or (shooter_team > 0 and body.get("team_id") != null and body.team_id == shooter_team)
 	

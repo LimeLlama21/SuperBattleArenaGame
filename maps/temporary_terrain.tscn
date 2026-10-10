@@ -17,7 +17,7 @@ emission_energy_multiplier = 1.5
 material = SubResource("StandardMaterial3D_rock")
 size = Vector3(2.4, 3.2, 2.4)
 
-[node name="TemporaryTerrain" type="StaticBody3D"]
+[node name="TemporaryTerrain" type="AnimatableBody3D"]
 collision_layer = 1
 collision_mask = 0
 script = ExtResource("1_terrain")

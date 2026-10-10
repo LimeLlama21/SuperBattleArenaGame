@@ -23,6 +23,7 @@ const AbilityHitboxClass = preload("res://ability/hitboxes/ability_hitbox.gd")
 @export var mana_cost: float = -1.0 # -1.0 uses default slot rules (LMB/SHIFT=0, R=30, others=10), >= 0 overrides
 @export var cooldown_on_cast: bool = true
 @export var show_indicator: bool = true
+@export var damage_amount: float = 0.0
 
 @export_group("Delay / Windup Settings")
 @export var delay: float = 0.0

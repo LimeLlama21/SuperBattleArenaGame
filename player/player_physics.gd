@@ -262,6 +262,9 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	if is_bound():
 		_process_bound_physics(delta)
 		return
+	if is_phasing_walls():
+		_process_phasing_movement_physics(delta)
+		return
 	if has_custom_movement_control():
 		var pre_move_vel = velocity
 		move_and_slide()
@@ -427,3 +430,45 @@ func request_wall_impact_damage(amount: float) -> void:
 	if str(sender_id) == name:
 		if has_method("take_damage"):
 			call("take_damage", amount, 0, 2) # ActionType.ENVIRONMENT
+
+func _process_phasing_movement_physics(delta: float) -> void:
+	if external_velocity.length_squared() > 0.001:
+		external_velocity = external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+
+	# Horizontal movement travels through walls directly without wall collisions
+	global_position.x += (velocity.x + external_velocity.x) * delta
+	global_position.z += (velocity.z + external_velocity.z) * delta
+
+	# Downward raycast ensures the character stays firmly supported on ground/platforms and never falls through!
+	var space = get_world_3d().direct_space_state if get_world_3d() else null
+	var floor_y = 0.0
+	var found_floor = false
+	if space:
+		var ray_from = Vector3(global_position.x, global_position.y + 1.5, global_position.z)
+		var ray_to = Vector3(global_position.x, global_position.y - 15.0, global_position.z)
+		var query = PhysicsRayQueryParameters3D.create(ray_from, ray_to, 1) # Layer 1 = ground/world
+		query.exclude = [get_rid()]
+		var hit = space.intersect_ray(query)
+		if hit:
+			floor_y = hit.position.y
+			found_floor = true
+
+	# Base world ground fallback ensures character never falls into the void below y = 0.0
+	if not found_floor and global_position.y >= -0.5:
+		floor_y = 0.0
+		found_floor = true
+
+	if found_floor:
+		if global_position.y <= floor_y + 0.1:
+			global_position.y = floor_y
+			if velocity.y < 0.0:
+				velocity.y = 0.0
+		else:
+			velocity.y -= gravity * delta
+			global_position.y += velocity.y * delta
+			if global_position.y <= floor_y:
+				global_position.y = floor_y
+				velocity.y = 0.0
+	else:
+		velocity.y -= gravity * delta
+		global_position.y += velocity.y * delta
