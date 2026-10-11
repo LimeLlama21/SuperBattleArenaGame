@@ -65,7 +65,7 @@ func _spawn_melee_attack_visual(caster: Node, origin: Vector3, direction: Vector
 	facing = facing.normalized()
 
 	match ab_id:
-		"crush_slam":
+		"crush_slam", "crush_clap":
 			_play_slam_wave_visual(caster, radius, angle_deg, facing, Color(1.0, 0.35, 0.1, 0.95), Color(1.0, 0.45, 0.1, 1.0) * 4.5)
 		"crush_fan_stun":
 			_play_slam_wave_visual(caster, radius, angle_deg, facing, Color(1.0, 0.85, 0.2, 0.95), Color(1.0, 0.8, 0.1, 1.0) * 5.0)

@@ -1783,6 +1783,8 @@ func _apply_character_ability_slots(data: CharacterData) -> void:
 				continue
 			if ab_source is String and existing.scene_file_path == ab_source:
 				continue
+			if ab_source is Dictionary:
+				continue
 			abilities.erase(slot_key)
 			if existing.get_parent():
 				existing.get_parent().remove_child(existing)
@@ -3062,13 +3064,14 @@ func sync_apply_upgrade(upgrade_id: String) -> void:
 
 func _activate_upgrade_effects(upgrade_id: String) -> void:
 	match upgrade_id:
-		"atalantas_stride", "quick_feet", "mortal_cunning_1":
-			_apply_atalantas_stride_upgrade()
-		"ascetic_touch", "spellthief", "mortal_cunning_2":
+		"ascetic_touch", "spellthief", "mortal_cunning_1":
 			_apply_ascetic_touch_upgrade()
+		"atalantas_stride", "quick_feet", "mortal_cunning_2":
+			_apply_atalantas_stride_upgrade()
 		"hymn_of_the_underworld", "mortal_cunning_3":
 			_apply_hymn_of_the_underworld_upgrade()
 
+# --- Atalanta's Stride (Tier 2 Mortal Cunning) Upgrade Mechanics ---
 func _apply_atalantas_stride_upgrade() -> void:
 	var dash_ab = get_ability_for_slot("SHIFT")
 	if not (dash_ab is AbilityClass):
@@ -3095,10 +3098,10 @@ func on_dash_performed() -> void:
 		return
 	_last_dash_performed_frame = cur_frame
 	
-	if has_upgrade("atalantas_stride") or has_upgrade("quick_feet") or has_upgrade("mortal_cunning_1"):
+	if has_upgrade("atalantas_stride") or has_upgrade("quick_feet") or has_upgrade("mortal_cunning_2"):
 		apply_speed_boost(2.0, 0.30, true)
 
-# --- Ascetic Touch (Tier 2 Mortal Cunning) Upgrade Mechanics ---
+# --- Ascetic Touch (Tier 1 Mortal Cunning) Upgrade Mechanics ---
 var _is_proc_damage: bool = false
 var ascetic_touch_target_cooldowns: Dictionary = {}
 var spellthief_target_cooldowns: Dictionary:
@@ -3122,7 +3125,7 @@ func _apply_spellthief_upgrade() -> void:
 func _check_ascetic_touch_proc(target: Node, amount: float, _action_type: int, _damage_type: int) -> void:
 	if _is_proc_damage:
 		return
-	if not (has_upgrade("ascetic_touch") or has_upgrade("spellthief") or has_upgrade("mortal_cunning_2")):
+	if not (has_upgrade("ascetic_touch") or has_upgrade("spellthief") or has_upgrade("mortal_cunning_1")):
 		return
 	if not is_instance_valid(target) or amount <= 0.0:
 		return

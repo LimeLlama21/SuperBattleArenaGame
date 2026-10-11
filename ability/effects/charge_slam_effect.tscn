@@ -5,5 +5,6 @@
 [node name="ChargeSlamEffect" type="Node"]
 script = ExtResource("1_script")
 effect_name = "ChargeSlam"
+min_charge_speed = 8.0
 charge_speed = 28.0
-charge_duration = 1.0
+charge_duration = 2.5

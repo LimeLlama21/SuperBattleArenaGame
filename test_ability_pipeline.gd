@@ -62,7 +62,9 @@ func _run_all() -> void:
 	test_cleodolinda_maximum_suction()
 	test_cleodolinda_animations()
 	test_cleodolinda_relative_velocity_attack()
-	test_cleodolinda_rmb_delayed_circle_slow()
+	test_cleodolinda_rmb_strike()
+	test_cleodolinda_q_trail()
+	test_crush_chargeable_clap()
 	test_offline_presentation_and_indicator_hygiene()
 
 	print("--- ALL ABILITY PIPELINE TESTS PASSED SUCCESSFULLY! ---")
@@ -458,9 +460,78 @@ func test_character_kits_and_special_mechanics() -> void:
 	crush.on_buff_activated("IronBarrier", 5.0)
 	assert(crush.gray_health == 0.0, "Iron Barrier should consume gray health")
 	assert(crush.current_shield == 70.0, "Iron Barrier should grant consumed gray health (20) + 50 shield = 70, got %f" % crush.current_shield)
-	
+
+	# Verify that damage absorbed by shield DOES NOT generate gray health (preventing infinite gray health)
+	crush.take_damage(30.0, 0, 0)
+	assert(crush.current_shield == 40.0, "Shield should absorb 30 damage, leaving 40 shield")
+	assert(crush.gray_health == 0.0, "Damage absorbed by shield must NOT generate gray health")
+
+	# Clear remaining shield to test health damage & out-of-combat decay
+	crush.current_shield = 0.0
+	var hp_before_dmg = crush.current_health
+	crush.take_damage(40.0, 0, 0)
+	assert(crush.current_health == hp_before_dmg - 40.0, "Health should drop by 40")
+	assert(crush.gray_health == 20.0, "40 health damage should grant 20 gray health")
+
+	# While in combat (time < 5.0s), gray health must NOT decay
+	crush._process_character_kit(2.0)
+	assert(crush.gray_health == 20.0, "Gray health must not decay within 5.0s of combat")
+
+	# Dealing damage must reset in-combat timer
+	crush._on_damage_dealt(null, 10.0)
+	assert(crush.time_since_last_damage == 0.0, "Dealing damage must reset in-combat timer")
+	crush._process_character_kit(3.0)
+	assert(crush.gray_health == 20.0, "Gray health must not decay before 5.0s elapses after dealing damage")
+
+	# Once 5.0s has passed, gray health decays and converts to healing (10% max HP = 32 HP/s)
+	crush._process_character_kit(2.0) # total 5.0s
+	var hp_before_decay = crush.current_health
+	crush._process_character_kit(0.5) # 0.5s of decay = 16 HP consumed
+	assert(crush.gray_health == 4.0, "Gray health should decay by 16.0, leaving 4.0 (got %f)" % crush.gray_health)
+	assert(is_equal_approx(crush.current_health, hp_before_decay + 4.8), "Decayed gray health must convert at 30%% ratio to healing (16 * 0.3 = 4.8, got %f vs %f)" % [crush.current_health, hp_before_decay + 4.8])
+
+	# Further decay finishes remaining gray health and stops
+	crush._process_character_kit(0.5)
+	assert(crush.gray_health == 0.0, "Gray health should fully decay to 0.0")
+
+	# Test casting E via custom_execute_ability_server consumes gray health to 0
+	crush.take_damage(30.0, 0, 0)
+	assert(crush.gray_health == 15.0, "30 health damage gives 15 gray health")
+	var cast_e_res = crush.custom_execute_ability_server("E", Vector3.ZERO, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(cast_e_res == true, "E ability server execution should succeed")
+	assert(crush.gray_health == 0.0, "Casting E must consume all gray health to 0")
+	assert(crush.current_shield == 65.0, "Iron Barrier shield should be 50 base + 15 converted = 65, got %f" % crush.current_shield)
+
 	crush.custom_execute_ability_server("RMB", Vector3.ZERO, Vector3.FORWARD, Vector3.ZERO, 0.0)
 	assert(crush.is_crush_empowered == true, "Fan Stun RMB must set is_crush_empowered")
+
+	# Test Ultimate (Juggernaut Charge): Starts slow, accelerates slowly, and scales with max HP (30%) + attack ratio (50%) at max speed
+	crush.start_juggernaut_charge(Vector3.FORWARD, 2.5, 28.0, 8.0)
+	assert(crush.is_crush_charging == true, "Crush should be charging")
+	assert(crush.crush_charge_current_speed == 8.0, "Charge must start slow at 8.0 m/s")
+	assert(crush.get_current_charge_speed_ratio() == 0.0, "Charge initial speed ratio must be 0.0")
+	assert(is_equal_approx(crush.get_charge_damage(0.0), 120.0), "Initial charge damage at min speed should be base 120.0")
+
+	# Accelerate over 1.0s (halfway to max speed of 2.0s acceleration time)
+	crush._process_character_kit(1.0)
+	assert(is_equal_approx(crush.crush_charge_current_speed, 18.0), "After 1.0s, charge should accelerate to 18.0 m/s (got %f)" % crush.crush_charge_current_speed)
+	assert(is_equal_approx(crush.get_current_charge_speed_ratio(), 0.5), "Speed ratio after 1.0s should be 0.5")
+	# At speed_ratio 0.5: 120 base + (20 * 0.25) + (320 * 0.15) = 120 + 5 + 48 = 173.0
+	assert(is_equal_approx(crush.get_charge_damage(0.5), 173.0), "Damage at half speed should be 173.0 (got %f)" % crush.get_charge_damage(0.5))
+
+	# Accelerate further to reach max speed (2.0s elapsed total)
+	crush._process_character_kit(1.0)
+	assert(is_equal_approx(crush.crush_charge_current_speed, 28.0), "After 2.0s, charge should reach max speed 28.0 m/s (got %f)" % crush.crush_charge_current_speed)
+	assert(is_equal_approx(crush.get_current_charge_speed_ratio(), 1.0), "Speed ratio at max speed should be 1.0")
+	# At max speed: 120 base + 50% attack ratio (20 * 0.5 = 10) + 30% max HP ratio (320 * 0.3 = 96) = 226.0
+	var max_speed_dmg = crush.get_charge_damage(1.0)
+	assert(is_equal_approx(max_speed_dmg, 226.0), "Damage at max speed must include 50%% attack ratio and 30%% max HP ratio (expected 226.0, got %f)" % max_speed_dmg)
+
+	# Verify early cancel/recast triggers slam
+	var early_cancel_res = crush.custom_execute_ability_server("R", Vector3.ZERO, Vector3.FORWARD, Vector3.ZERO, 0.0)
+	assert(early_cancel_res == true, "Recasting R while charging should trigger early slam")
+	assert(crush.is_crush_charging == false, "Early slam should stop charging")
+
 	crush.free()
 	
 	# --- 2. Dive: Deflecting Guard mitigation & Rupture Marks ---
@@ -3034,13 +3105,30 @@ func test_cleodolinda_maximum_suction() -> void:
 	assert(cleo.suction_acceleration > 6.0, "Cleo suction_acceleration must be greater than base move speed 6.0")
 	print("  ✓ Acceleration directly towards Cleo (%.2f m/s^2) strictly exceeds base movement speed (%.2f m/s)." % [accel_applied, base_spd])
 
-	# 6. Verify Player Walking Away Is Still Pulled In
+	# 6. Verify Damage Ticking: 10 damage + 5% ratio every 0.5 seconds
+	assert(cleo.suction_base_tick_damage == 10.0, "Cleo suction_base_tick_damage must be 10.0")
+	assert(is_equal_approx(cleo.suction_damage_ratio, 0.05), "Cleo suction_damage_ratio must be 0.05 (5%)")
+	assert(is_equal_approx(cleo.suction_tick_interval, 0.5), "Cleo suction_tick_interval must be 0.5s")
+	var expected_suction_tick = 10.0 + (cleo.damage * 0.05) # 11.2
+	assert(is_equal_approx(cleo.compute_suction_tick_damage(), expected_suction_tick), "compute_suction_tick_damage must equal 11.2")
+
+	enemy1.current_health = enemy1.max_health
+	enemy2.current_health = enemy2.max_health
 	enemy1.external_velocity = Vector3.ZERO
-	# Simulate 1.0s of suction against enemy trying to run away
-	for _i in range(10):
+	# Simulate 0.5s of suction -> triggers exactly 1 damage tick on enemy1 in cone
+	for _i in range(5):
 		cleo._process_character_kit(0.1)
+	var lost_hp1 = enemy1.max_health - enemy1.current_health
+	assert(is_equal_approx(lost_hp1, expected_suction_tick), "Enemy in suction cone must take 11.2 damage (10 + 5 percent atk) after 0.5s (got %s)" % lost_hp1)
+	assert(enemy2.current_health == enemy2.max_health, "Enemy outside suction cone must take 0 damage")
+
+	# Simulate another 0.5s (total 1.0s) -> triggers second tick (22.4 total damage)
+	for _i in range(5):
+		cleo._process_character_kit(0.1)
+	var lost_hp2 = enemy1.max_health - enemy1.current_health
+	assert(is_equal_approx(lost_hp2, expected_suction_tick * 2.0), "Enemy in suction cone must take another 11.2 damage (22.4 total) after 1.0s (got %s)" % lost_hp2)
 	assert(enemy1.external_velocity.length() > base_spd, "After sustained suction, pull velocity must overcome base movement speed")
-	print("  ✓ Suction velocity overcomes walking speed, successfully dragging retreating enemies.")
+	print("  ✓ Suction tick damage (11.2 dmg every 0.5s) and drag velocity verified.")
 
 	# 7. CC Interruption
 	cleo.apply_stun(1.0)
@@ -3184,10 +3272,11 @@ func test_cleodolinda_relative_velocity_attack() -> void:
 	assert(lmb.hitbox_type == 1, "Hitbox type must be SECTOR (1)")
 	assert(lmb.hitbox_angle_deg == 180.0, "Hitbox angle must be 180.0 degrees (semicircle cone)")
 	assert(lmb.hitbox_radius == 4.0, "Hitbox radius must be 4.0m")
-	assert(lmb.damage_amount == 12.0, "Base attack damage must be low (12.0)")
-	assert(cleo.attack_base_damage == 12.0, "Cleo attack_base_damage should be 12.0")
+	assert(lmb.damage_amount == 0.0, "Base attack damage must be 0.0 (no base damage)")
+	assert(cleo.attack_base_damage == 0.0, "Cleo attack_base_damage should be 0.0")
+	assert(cleo.attack_damage_ratio == 0.30, "Cleo attack_damage_ratio should be 0.30 (30% damage ratio)")
 	assert(cleo.attack_velocity_scaling == 1.5, "Cleo attack_velocity_scaling should be 1.5")
-	print("  ✓ Cleo LMB attack configuration and 180-degree semicircle parameters verified.")
+	print("  ✓ Cleo LMB attack configuration (0 base damage, 30% ratio) and 180-degree semicircle parameters verified.")
 
 	# 3. Test Hitbox Semicircle (180-degree cone) geometry
 	lmb.setup()
@@ -3220,35 +3309,37 @@ func test_cleodolinda_relative_velocity_attack() -> void:
 	root.add_child(dummy)
 	if not dummy.is_node_ready(): dummy._ready()
 
-	# Case A: Both stationary -> base damage only
+	var base_stat_dmg = cleo.damage * cleo.attack_damage_ratio # 24.0 * 0.30 = 7.2
+
+	# Case A: Both stationary -> ratio damage only (no base damage)
 	cleo.velocity = Vector3.ZERO
 	dummy.velocity = Vector3.ZERO
 	assert(cleo.get_attack_relative_velocity(dummy) == 0.0, "Relative velocity when both stationary should be 0.0")
-	assert(cleo.compute_attack_damage(dummy) == 12.0, "Damage when stationary should equal base damage (12.0)")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), base_stat_dmg), "Damage when stationary should equal 30% damage ratio (7.2)")
 
 	# Case B: Cleo moving towards target at 10 m/s
 	cleo.velocity = Vector3(0, 0, -10.0)
 	dummy.velocity = Vector3.ZERO
 	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 10.0), "Relative speed should be 10.0")
-	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0 + 10.0 * 1.5), "Damage should scale with relative speed (27.0)")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), base_stat_dmg + 10.0 * 1.5), "Damage should scale with relative speed (22.2)")
 
 	# Case C: High speed / Dash velocity (26 m/s)
 	cleo.velocity = Vector3(0, 0, -26.0)
 	dummy.velocity = Vector3.ZERO
 	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 26.0), "Relative speed should be 26.0")
-	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0 + 26.0 * 1.5), "Damage at dash speed should be 51.0")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), base_stat_dmg + 26.0 * 1.5), "Damage at dash speed should be 46.2")
 
 	# Case D: Both approaching each other (head-on collision: Cleo 15 m/s, Dummy 10 m/s opposite)
 	cleo.velocity = Vector3(0, 0, -15.0)
 	dummy.velocity = Vector3(0, 0, 10.0)
 	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 25.0), "Relative speed for head-on approach should be 25.0")
-	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0 + 25.0 * 1.5), "Damage for head-on approach should be 49.5")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), base_stat_dmg + 25.0 * 1.5), "Damage for head-on approach should be 44.7")
 
 	# Case E: Moving together in same direction at same speed
 	cleo.velocity = Vector3(0, 0, -12.0)
 	dummy.velocity = Vector3(0, 0, -12.0)
 	assert(is_equal_approx(cleo.get_attack_relative_velocity(dummy), 0.0), "Relative speed should be 0 when velocities match")
-	assert(is_equal_approx(cleo.compute_attack_damage(dummy), 12.0), "Damage should be base damage (12.0) when velocities match")
+	assert(is_equal_approx(cleo.compute_attack_damage(dummy), base_stat_dmg), "Damage should be 30% damage ratio (7.2) when velocities match")
 	print("  ✓ Relative velocity damage scaling formulas verified across multiple speed states.")
 
 	# 5. Live Pipeline Combat Hit Test
@@ -3260,9 +3351,9 @@ func test_cleodolinda_relative_velocity_attack() -> void:
 
 	# Execute LMB attack
 	lmb.execute_server(cleo, cleo.global_position, Vector3(0, 0, -1), dummy.global_position)
-	var expected_dmg = 12.0 + (20.0 * 1.5) # 42.0 damage
+	var expected_dmg = base_stat_dmg + (20.0 * 1.5) # 7.2 + 30.0 = 37.2 damage
 	var hp_lost = dummy.max_health - dummy.current_health
-	assert(is_equal_approx(hp_lost, expected_dmg), "Target should take base damage + relative velocity bonus damage (expected %s, got %s)" % [expected_dmg, hp_lost])
+	assert(is_equal_approx(hp_lost, expected_dmg), "Target should take 30% damage ratio + relative velocity bonus damage (expected " + str(expected_dmg) + ", got " + str(hp_lost) + ")")
 
 	# Test semicircle exclusion: target placed behind Cleo
 	dummy.current_health = dummy.max_health
@@ -3275,8 +3366,8 @@ func test_cleodolinda_relative_velocity_attack() -> void:
 	dummy.queue_free()
 	print("✓ Cleo Semicircle Relative Velocity Attack on LMB verified successfully!")
 
-func test_cleodolinda_rmb_delayed_circle_slow() -> void:
-	print("Testing Cleo RMB Delayed Full-Circle Slowing Sweep...")
+func test_cleodolinda_rmb_strike() -> void:
+	print("Testing Cleo RMB Full-Circle Strike (30 flat + 50% ratio)...")
 	var root = get_root()
 
 	# 1. Instantiate Cleo
@@ -3293,18 +3384,84 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	assert(cleo.abilities.has("RMB"), "Cleo must possess ability slot RMB")
 	var rmb = cleo.abilities.get("RMB")
 	assert(rmb != null, "RMB ability must be non-null")
+	assert(rmb.windup_time == 0.0, "RMB windup_time must be 0.0 (instant cast)")
 	assert(rmb is MeleeStrikeEffect, "RMB must be MeleeStrikeEffect")
 	assert(rmb.hitbox_type == 6, "Hitbox type must be CIRCLE (6)")
-	assert(rmb.hitbox_angle_deg == 360.0, "Hitbox angle must be 360.0 degrees (full circle)")
-	assert(rmb.hitbox_radius == 4.5, "Hitbox radius must be 4.5m (around her)")
-	assert(rmb.damage_amount == 35.0, "Base damage must be moderate (35.0)")
-	assert(rmb.slow_duration > 0.0, "Slow duration must be configured")
-	assert(rmb.slow_intensity > 0.0, "Slow intensity must be configured")
-	assert(cleo.rmb_damage == 35.0, "Cleo rmb_damage must be 35.0")
-	assert(cleo.rmb_slow_intensity == 0.35, "Cleo rmb_slow_intensity must be 0.35 (35% slow)")
-	print("  ✓ RMB full circle, moderate damage, and slow parameters verified.")
+	assert(rmb.hitbox_radius == 4.5, "Hitbox radius must be 4.5m")
+	assert(rmb.hitbox_angle_deg == 360.0, "Hitbox angle must be 360 degrees (full circle)")
+	assert(rmb.damage_amount == 30.0, "RMB base damage must be 30.0 flat")
+	assert(is_equal_approx(rmb.damage_ratio, 0.50), "RMB damage ratio must be 0.50 (50%)")
+	assert(cleo.rmb_base_damage == 30.0, "Cleo rmb_base_damage must be 30.0")
+	assert(is_equal_approx(cleo.rmb_damage_ratio, 0.50), "Cleo rmb_damage_ratio must be 0.50")
+	print("  ✓ RMB configuration (30 damage flat + 50% ratio, 360-degree circle) verified.")
 
-	# 3. Test Delay timing: "hitbox trigger only several frames before animation ends"
+	# 3. Damage Calculation: 30 flat + 50% ratio
+	# Cleo base damage stat is 24.0. Expected damage = 30.0 + (24.0 * 0.50) = 42.0
+	var expected_rmb_dmg = 30.0 + (cleo.damage * 0.50)
+	assert(is_equal_approx(expected_rmb_dmg, 42.0), "Expected damage must be 42.0 (30.0 + 12.0)")
+
+	# 4. Live Combat Hit Test: Target inside 4.5m radius vs outside
+	cleo.global_position = Vector3(500, 0, 500)
+
+	var enemy_in = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_in.name = "61"
+	enemy_in.team_id = 2
+	root.add_child(enemy_in)
+	if not enemy_in.is_node_ready(): enemy_in._ready()
+	enemy_in.global_position = Vector3(500, 0, 497.0) # 3.0m away (inside 4.5m)
+
+	var enemy_out = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_out.name = "62"
+	enemy_out.team_id = 2
+	root.add_child(enemy_out)
+	if not enemy_out.is_node_ready(): enemy_out._ready()
+	enemy_out.global_position = Vector3(500, 0, 506.0) # 6.0m away (outside 4.5m)
+
+	rmb.execute_server(cleo, cleo.global_position, Vector3(0, 0, -1), enemy_in.global_position)
+
+	var lost_in = enemy_in.max_health - enemy_in.current_health
+	assert(is_equal_approx(lost_in, expected_rmb_dmg), "Target inside radius must take 42.0 damage (30 flat + 50% ratio) (got " + str(lost_in) + ")")
+	assert(enemy_out.current_health == enemy_out.max_health, "Target outside radius must take 0 damage")
+	print("  ✓ RMB live combat execution (42.0 damage dealt to target in circle) verified.")
+
+	cleo.queue_free()
+	enemy_in.queue_free()
+	enemy_out.queue_free()
+	print("✓ Cleo RMB Full-Circle Strike verified successfully!")
+
+func test_cleodolinda_q_trail() -> void:
+	print("Testing Cleo Q Damaging Trail (5 dmg + 10% atk every 0.25s)...")
+	var root = get_root()
+
+	# 1. Instantiate Cleo
+	var cleo_scene = load("res://characters/cleodolinda/cleodolinda.tscn") as PackedScene
+	assert(cleo_scene != null, "Cleodolinda scene must exist")
+	var cleo = cleo_scene.instantiate() as Cleodolinda
+	cleo.name = "1"
+	cleo.team_id = 1
+	root.add_child(cleo)
+	if not cleo.is_node_ready():
+		cleo._ready()
+
+	# 2. Check Q configuration
+	assert(cleo.abilities.has("Q"), "Cleo must possess ability slot Q")
+	var q_ab = cleo.abilities.get("Q")
+	assert(q_ab != null, "Q ability must be non-null")
+	assert(q_ab.windup_time == 0.0, "Q windup_time must be 0.0 (emits continuously)")
+	if cleo.character_data and cleo.character_data.abilities.has("Q"):
+		assert(cleo.character_data.abilities["Q"]["damage_amount"] == 5.0, "Q base tick damage must be 5.0")
+		assert(is_equal_approx(cleo.character_data.abilities["Q"]["damage_ratio"], 0.10), "Q attack damage ratio must be 0.10 (10%)")
+	if "damage_amount" in q_ab:
+		assert(q_ab.damage_amount == 5.0)
+	if "damage_ratio" in q_ab:
+		assert(is_equal_approx(q_ab.damage_ratio, 0.10))
+	assert(cleo.q_trail_base_tick_damage == 5.0, "Cleo q_trail_base_tick_damage must be 5.0")
+	assert(is_equal_approx(cleo.q_trail_attack_ratio, 0.10), "Cleo q_trail_attack_ratio must be 0.10")
+	assert(is_equal_approx(cleo.q_trail_tick_interval, 0.25), "Cleo q_trail_tick_interval must be 0.25s")
+	assert(q_ab.description.contains("5 damage + 10% attack every 0.25 seconds"), "Q description must document damage formula")
+	print("  ✓ Q ability configuration (instant cast, 5 base + 10% atk every 0.25s) verified.")
+
+	# 3. Check Animation Player & Duration
 	var model = cleo.get_node_or_null("CharacterModel")
 	assert(model != null, "Cleo must have CharacterModel")
 	var anim_player = model.get_node_or_null("AnimationPlayer") as AnimationPlayer
@@ -3313,91 +3470,233 @@ func test_cleodolinda_rmb_delayed_circle_slow() -> void:
 	assert(anim != null, "Must contain 'spell 2' animation")
 	var anim_len = anim.length
 	assert(anim_len > 2.0, "spell 2 animation length should be ~2.5s")
-	var calculated_delay = cleo.get_rmb_delay()
-	assert(calculated_delay < anim_len, "RMB delay must trigger before the animation ends")
-	assert(calculated_delay >= anim_len - 0.3, "RMB delay must trigger only several frames (~5 frames) before the animation ends")
-	assert(rmb.windup_time == calculated_delay, "RMB ability windup_time must match calculated delay")
-	print("  ✓ RMB delay timing (triggers %.3fs into %.3fs animation, exactly several frames before end) verified." % [calculated_delay, anim_len])
+	assert(is_equal_approx(cleo.get_q_anim_duration(), anim_len), "Q trail duration must match animation length")
+	print("  ✓ Q trail emission duration matches animation duration (%.3fs)." % anim_len)
 
-	# 4. Test Hitbox Full Circle (360 degrees) coverage
-	rmb.setup()
-	var hitbox = rmb.get_hitbox()
-	assert(hitbox != null, "RMB hitbox instance must be created")
-	assert(hitbox.angle_deg == 360.0, "Hitbox angle should be 360 degrees")
-	var origin = Vector3.ZERO
-	var facing = Vector3(0, 0, -1) # Facing -Z
+	# 4. Check Damage Formula Computation: 5 damage + 10% attack
+	# Cleo base damage stat is 24.0. Expected tick = 5.0 + (24.0 * 0.10) = 7.4
+	var expected_tick_dmg = 5.0 + (cleo.damage * 0.10)
+	assert(is_equal_approx(expected_tick_dmg, 7.4), "Expected tick damage must be 7.4 (5.0 + 2.4)")
 
-	# Test all 360 directions: front, back, left, right
-	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -3.5)) == true, "Point in front must be inside full circle")
-	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, 3.5)) == true, "Point directly behind must be inside full circle")
-	assert(hitbox.is_point_inside(origin, facing, Vector3(-3.5, 0, 0)) == true, "Point to the left must be inside full circle")
-	assert(hitbox.is_point_inside(origin, facing, Vector3(3.5, 0, 0)) == true, "Point to the right must be inside full circle")
-	assert(hitbox.is_point_inside(origin, facing, Vector3(2.5, 0, 2.5)) == true, "Diagonal rear point must be inside full circle")
-	assert(hitbox.is_point_inside(origin, facing, Vector3(0, 0, -5.5)) == false, "Point beyond radius must be outside full circle")
-	print("  ✓ Full circle (360-degree) geometry verified in all directions.")
+	# 5. Live Execution & Continuous Trail Path Coverage (Varied Distance)
+	cleo.global_position = Vector3(400, 0, 400)
+	var cast_res = cleo.custom_execute_ability_server("Q", cleo.global_position, Vector3(0, 0, -1), Vector3.ZERO, 0.0)
+	assert(cast_res == true, "custom_execute_ability_server('Q') must return true")
+	assert(cleo.is_q_trail_active == true, "Q trail must be active after cast")
+	assert(anim_player.current_animation == "spell 2", "Casting Q must play 'spell 2' animation")
+	assert(is_instance_valid(cleo._active_trail_zone), "Active trail zone node must be spawned")
+	var trail_zone = cleo._active_trail_zone
+	assert(is_equal_approx(trail_zone.compute_tick_damage(), expected_tick_dmg), "Trail zone compute_tick_damage must equal 7.4")
 
-	# 5. Test Windup Animation Trigger & Cancel
-	cleo.active_windup_id = "RMB"
-	assert(anim_player.current_animation == "spell 2", "Entering RMB windup must play 'spell 2' animation")
-	cleo.cancel_active_windup()
-	assert(anim_player.current_animation == "Idle", "Canceling RMB windup must return to 'Idle'")
-	print("  ✓ RMB windup animation playback and cancel return verified.")
+	# Move Cleo along a 30m distance vector while trail is active
+	cleo.global_position = Vector3(400, 0, 390)
+	cleo._process_character_kit(0.5)
+	cleo.global_position = Vector3(400, 0, 380)
+	cleo._process_character_kit(0.5)
+	cleo.global_position = Vector3(400, 0, 370)
+	cleo._process_character_kit(0.5)
+	assert(trail_zone.points.size() >= 3, "Trail must have recorded points along Cleo's movement path")
+	print("  ✓ Trail continuous sampling over varied distance (30m traveled) verified.")
 
-	# 6. Live Combat Execution: Damage & Slow in Full Circle + No Velocity Scaling on RMB
-	cleo.global_position = Vector3(300, 0, 300)
-	cleo.velocity = Vector3(0, 0, -25.0) # Moving fast at 25 m/s!
+	# 6. Combat Hit Testing: Targets along path vs outside path
+	var enemy_on_trail = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_on_trail.name = "51"
+	enemy_on_trail.team_id = 2
+	root.add_child(enemy_on_trail)
+	if not enemy_on_trail.is_node_ready(): enemy_on_trail._ready()
+	enemy_on_trail.global_position = Vector3(400, 0, 385)
 
-	# Target 1 in front (within 4.5m)
-	var enemy_front = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
-	enemy_front.name = "41"
-	enemy_front.team_id = 2
-	root.add_child(enemy_front)
-	if not enemy_front.is_node_ready(): enemy_front._ready()
-	enemy_front.global_position = Vector3(300, 0, 296.5) # 3.5m in front
-	enemy_front.velocity = Vector3.ZERO
+	var enemy_off_trail = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_off_trail.name = "52"
+	enemy_off_trail.team_id = 2
+	root.add_child(enemy_off_trail)
+	if not enemy_off_trail.is_node_ready(): enemy_off_trail._ready()
+	enemy_off_trail.global_position = Vector3(410, 0, 385)
 
-	# Target 2 behind (within 4.5m)
-	var enemy_back = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
-	enemy_back.name = "42"
-	enemy_back.team_id = 2
-	root.add_child(enemy_back)
-	if not enemy_back.is_node_ready(): enemy_back._ready()
-	enemy_back.global_position = Vector3(300, 0, 303.5) # 3.5m behind
-	enemy_back.velocity = Vector3.ZERO
+	var half_w = trail_zone.trail_width * 0.5
+	assert(trail_zone.is_point_in_trail(enemy_on_trail.global_position, half_w) == true, "Enemy along movement path must be inside trail")
+	assert(trail_zone.is_point_in_trail(enemy_off_trail.global_position, half_w) == false, "Enemy 10m away must be outside trail")
 
-	# Target 3 outside circle (6.0m away)
+	# First tick test
+	trail_zone.force_tick_damage()
+	var lost1 = enemy_on_trail.max_health - enemy_on_trail.current_health
+	assert(is_equal_approx(lost1, expected_tick_dmg), "Enemy on trail must take 7.4 damage (5 + 10 percent atk) on first tick (got %s)" % lost1)
+	assert(enemy_off_trail.current_health == enemy_off_trail.max_health, "Enemy off trail must take 0 damage")
+
+	# Second tick test (every 0.25 seconds)
+	trail_zone.force_tick_damage()
+	var lost2 = enemy_on_trail.max_health - enemy_on_trail.current_health
+	assert(is_equal_approx(lost2, expected_tick_dmg * 2.0), "Enemy on trail must take another 7.4 damage (14.8 total) on second tick (got %s)" % lost2)
+	assert(enemy_off_trail.current_health == enemy_off_trail.max_health, "Enemy off trail remains undamaged")
+	print("  ✓ Tick damage application (7.4 dmg per tick every 0.25s) and spatial trail masking verified.")
+
+	# 7. Animation Completion & Trail Lifecycle End
+	cleo._on_animation_finished("spell 2")
+	assert(cleo.is_q_trail_active == false, "Q trail emission must be inactive after animation completes")
+	assert(trail_zone.is_emitting == false, "Trail zone must stop emitting when animation ends")
+	assert(anim_player.current_animation == "Idle", "Animation must return to Idle")
+	assert(is_instance_valid(trail_zone), "Trail zone must continue lingering on the ground for configured linger duration")
+	print("  ✓ Q trail emission terminates with animation; trail zone lingers independently on ground.")
+
+	cleo.queue_free()
+	enemy_on_trail.queue_free()
+	enemy_off_trail.queue_free()
+	trail_zone.queue_free()
+	print("✓ Cleo Q Damaging Trail verified successfully!")
+
+func test_crush_chargeable_clap() -> void:
+	print("Testing Crush Chargeable Clap (50% uncharged, full damage at 0.5s charge, 0.5s hitbox delay)...")
+	var root = get_root()
+
+	# 1. Instantiate Crush
+	var crush_scene = load("res://characters/crush/crush.tscn") as PackedScene
+	assert(crush_scene != null, "Crush scene must exist")
+	var crush = crush_scene.instantiate() as BasePlayer
+	crush.name = "150"
+	crush.team_id = 1
+	root.add_child(crush)
+	if not crush.is_node_ready():
+		crush._ready()
+
+	# 2. Check LMB configuration
+	assert(crush.abilities.has("LMB"), "Crush must possess ability slot LMB")
+	var lmb = crush.abilities.get("LMB")
+	assert(lmb != null, "LMB ability must be non-null")
+	assert(lmb is MeleeStrikeEffect, "LMB must be MeleeStrikeEffect")
+	assert(lmb.is_charge_ability() == true, "LMB must evaluate as a charge ability")
+	assert(lmb.hold_to_charge == true, "LMB must have hold_to_charge enabled")
+	assert(is_equal_approx(lmb.charge_time, 0.5), "LMB full charge time must be 0.5s")
+	assert(is_equal_approx(lmb.windup_time, 0.5), "LMB attack delay before hitbox emerges must be 0.5s")
+	assert(lmb.cast_on_press == false, "LMB cast_on_press must be false for hold-to-charge clap")
+	assert(lmb.hitbox_type == 1, "Hitbox type must be SECTOR (cone)")
+	assert(lmb.hitbox_radius == 4.8, "Hitbox radius must be 4.8m")
+	assert(lmb.hitbox_angle_deg == 100.0, "Hitbox angle must be 100 degrees (cone in front of him)")
+	assert(lmb.damage_amount == 50.0, "LMB base damage must be 50.0")
+	assert(is_equal_approx(lmb.damage_ratio, 0.75), "LMB damage ratio must be 0.75 (75%)")
+	print("  ✓ LMB configuration (0.5s charge_time, 0.5s windup_time, 100° cone, 50 base, 75% ratio) verified.")
+
+	# 3. Damage calculations:
+	# Crush base damage is 20.0
+	# Inside full damage: 50.0 + (20.0 * 0.75) = 65.0
+	# Sweet spot full damage: 65.0 * 1.5 = 97.5
+	# Uncharged (0.0s charge): 50% damage
+	# Inside uncharged: 65.0 * 0.5 = 32.5
+	# Sweet spot uncharged: 97.5 * 0.5 = 48.75
+	var full_inside = 50.0 + (crush.damage * 0.75)
+	var full_sweet = full_inside * 1.5
+	var uncharged_inside = full_inside * 0.5
+	var uncharged_sweet = full_sweet * 0.5
+	assert(is_equal_approx(full_inside, 65.0), "Full inside damage must equal 65.0")
+	assert(is_equal_approx(full_sweet, 97.5), "Full sweet spot damage must equal 97.5")
+	assert(is_equal_approx(uncharged_inside, 32.5), "Uncharged inside damage must equal 32.5 (50% of 65.0)")
+	assert(is_equal_approx(uncharged_sweet, 48.75), "Uncharged sweet spot damage must equal 48.75 (50% of 97.5)")
+	if crush.has_method("get_clap_damage"):
+		assert(is_equal_approx(crush.get_clap_damage(2.0, 0.0), 32.5), "Helper: uncharged inside must be 32.5")
+		assert(is_equal_approx(crush.get_clap_damage(4.0, 0.0), 48.75), "Helper: uncharged sweet spot must be 48.75")
+		assert(is_equal_approx(crush.get_clap_damage(2.0, 1.0), 65.0), "Helper: full charge inside must be 65.0")
+		assert(is_equal_approx(crush.get_clap_damage(4.0, 1.0), 97.5), "Helper: full charge sweet spot must be 97.5")
+	print("  ✓ Damage formulas verified (Uncharged: 32.5 inside / 48.75 sweet; Full charge: 65.0 inside / 97.5 sweet).")
+
+	# 4. Live combat execution:
+	crush.global_position = Vector3(1000, 0, 1000)
+
+	# Target inside: placed 2.0m ahead (-Z is forward)
+	var enemy_inside = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_inside.name = "151"
+	enemy_inside.team_id = 2
+	root.add_child(enemy_inside)
+	if not enemy_inside.is_node_ready(): enemy_inside._ready()
+	enemy_inside.global_position = Vector3(1000, 0, 998.0) # 2.0m ahead
+
+	# Target in sweet spot: placed 4.0m ahead (-Z is forward)
+	var enemy_sweet = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_sweet.name = "152"
+	enemy_sweet.team_id = 2
+	root.add_child(enemy_sweet)
+	if not enemy_sweet.is_node_ready(): enemy_sweet._ready()
+	enemy_sweet.global_position = Vector3(1000, 0, 996.0) # 4.0m ahead
+
+	# Target behind: placed 2.5m behind (+Z is backward)
+	var enemy_behind = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
+	enemy_behind.name = "153"
+	enemy_behind.team_id = 2
+	root.add_child(enemy_behind)
+	if not enemy_behind.is_node_ready(): enemy_behind._ready()
+	enemy_behind.global_position = Vector3(1000, 0, 1002.5) # 2.5m behind
+
+	# Target outside range: placed 7.0m ahead
 	var enemy_far = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
-	enemy_far.name = "43"
+	enemy_far.name = "154"
 	enemy_far.team_id = 2
 	root.add_child(enemy_far)
 	if not enemy_far.is_node_ready(): enemy_far._ready()
-	enemy_far.global_position = Vector3(300, 0, 306.0) # 6.0m away
+	enemy_far.global_position = Vector3(1000, 0, 993.0) # 7.0m ahead
 
-	# Execute RMB
-	rmb.execute_server(cleo, cleo.global_position, Vector3(0, 0, -1), enemy_front.global_position)
+	# 4A. Execute UNCHARGED clap (charge_ratio = 0.0)
+	lmb.execute_server(crush, crush.global_position, Vector3(0, 0, -1), enemy_sweet.global_position, 0.0)
+	var uncharged_lost_inside = enemy_inside.max_health - enemy_inside.current_health
+	var uncharged_lost_sweet = enemy_sweet.max_health - enemy_sweet.current_health
+	assert(is_equal_approx(uncharged_lost_inside, 32.5), "Uncharged inside target must take 32.5 damage (50% of 65.0) (got " + str(uncharged_lost_inside) + ")")
+	assert(is_equal_approx(uncharged_lost_sweet, 48.75), "Uncharged sweet spot target must take 48.75 damage (50% of 97.5) (got " + str(uncharged_lost_sweet) + ")")
+	assert(enemy_behind.current_health == enemy_behind.max_health, "Enemy behind must take 0 damage")
+	assert(enemy_far.current_health == enemy_far.max_health, "Enemy beyond radius must take 0 damage")
+	print("  ✓ Uncharged clap execution verified (32.5 dmg inside, 48.75 dmg sweet spot).")
 
-	# Verify Target 1 (Front): took EXACTLY moderate damage (35.0) - NO velocity bonus on RMB!
-	var lost1 = enemy_front.max_health - enemy_front.current_health
-	assert(is_equal_approx(lost1, 35.0), "RMB slow must deal flat moderate damage 35.0 with NO relative velocity scaling (got %s)" % lost1)
-	assert(enemy_front.is_slowed() == true, "Front target must be slowed")
-	assert(is_equal_approx(enemy_front.slow_percent, 0.35), "Front target must have 35%% slow applied")
+	# Reset health for 4B. FULLY CHARGED clap (charge_ratio = 1.0)
+	enemy_inside.current_health = enemy_inside.max_health
+	enemy_sweet.current_health = enemy_sweet.max_health
+	enemy_behind.current_health = enemy_behind.max_health
+	enemy_far.current_health = enemy_far.max_health
 
-	# Verify Target 2 (Behind): took moderate damage & is slowed (full circle hit, no velocity scaling)
-	var lost2 = enemy_back.max_health - enemy_back.current_health
-	assert(is_equal_approx(lost2, 35.0), "Rear target should take 35.0 moderate damage (got %s)" % lost2)
-	assert(enemy_back.is_slowed() == true, "Rear target must be slowed by full circle attack")
-	assert(is_equal_approx(enemy_back.slow_percent, 0.35), "Rear target must have 35%% slow applied")
+	lmb.execute_server(crush, crush.global_position, Vector3(0, 0, -1), enemy_sweet.global_position, 1.0)
+	var full_lost_inside = enemy_inside.max_health - enemy_inside.current_health
+	var full_lost_sweet = enemy_sweet.max_health - enemy_sweet.current_health
+	var full_lost_behind = enemy_behind.max_health - enemy_behind.current_health
+	var full_lost_far = enemy_far.max_health - enemy_far.current_health
 
-	# Verify Target 3 (Far): unaffected
-	assert(enemy_far.current_health == enemy_far.max_health, "Target outside radius must not be hit")
-	assert(enemy_far.is_slowed() == false, "Target outside radius must not be slowed")
-	print("  ✓ Live combat execution: both front & rear targets took moderate damage (35.0) and received 35% slow with NO velocity scaling on RMB.")
+	assert(is_equal_approx(full_lost_inside, 65.0), "Full charge inside target must take 65.0 damage (got " + str(full_lost_inside) + ")")
+	assert(is_equal_approx(full_lost_sweet, 97.5), "Full charge sweet spot target must take 97.5 damage (got " + str(full_lost_sweet) + ")")
+	assert(full_lost_behind == 0.0, "Enemy behind Crush must take 0 damage from frontal cone")
+	assert(full_lost_far == 0.0, "Enemy beyond hitbox radius must take 0 damage")
+	print("  ✓ Fully charged clap execution verified (65.0 dmg inside, 97.5 dmg sweet spot).")
 
-	cleo.queue_free()
-	enemy_front.queue_free()
-	enemy_back.queue_free()
+	# 5. Check RMB configuration and live damage (50 base + 30% ratio)
+	assert(crush.abilities.has("RMB"), "Crush must possess ability slot RMB")
+	var rmb = crush.abilities.get("RMB")
+	assert(rmb != null, "RMB must be non-null")
+	assert(rmb.damage_amount == 50.0, "RMB base damage must be 50.0")
+	assert(is_equal_approx(rmb.damage_ratio, 0.30), "RMB damage ratio must be 0.30")
+	var expected_rmb_dmg = 50.0 + (crush.damage * 0.30)
+	assert(is_equal_approx(expected_rmb_dmg, 56.0), "Expected RMB damage must be 56.0 (50.0 + 6.0)")
+
+	enemy_inside.current_health = enemy_inside.max_health
+	rmb.execute_server(crush, crush.global_position, Vector3(0, 0, -1), enemy_inside.global_position)
+	var lost_rmb = enemy_inside.max_health - enemy_inside.current_health
+	assert(is_equal_approx(lost_rmb, 56.0), "RMB hit must deal 56.0 damage (50 base + 30% ratio) (got " + str(lost_rmb) + ")")
+	assert(crush.is_crush_empowered == true, "Hitting RMB must empower next slam with Titan's Surge")
+	print("  ✓ RMB Seismic Arc (50 base + 30% ratio = 56.0 dmg, Titan's Surge empower) verified.")
+
+	# 6. Check Q configuration and live damage (25 base + 30% ratio)
+	assert(crush.abilities.has("Q"), "Crush must possess ability slot Q")
+	var q_ab = crush.abilities.get("Q")
+	assert(q_ab != null, "Q must be non-null")
+	assert(q_ab.damage_amount == 25.0, "Q base damage must be 25.0")
+	assert(is_equal_approx(q_ab.damage_ratio, 0.30), "Q damage ratio must be 0.30")
+	var expected_q_dmg = 25.0 + (crush.damage * 0.30)
+	assert(is_equal_approx(expected_q_dmg, 31.0), "Expected Q damage must be 31.0 (25.0 + 6.0)")
+
+	enemy_inside.current_health = enemy_inside.max_health
+	q_ab.execute_server(crush, crush.global_position, Vector3(0, 0, -1), enemy_inside.global_position)
+	var lost_q = enemy_inside.max_health - enemy_inside.current_health
+	assert(is_equal_approx(lost_q, 31.0), "Q hit must deal 31.0 damage (25 base + 30% ratio) (got " + str(lost_q) + ")")
+	print("  ✓ Q Ground Stomp (25 base + 30% ratio = 31.0 dmg) verified.")
+
+	crush.queue_free()
+	enemy_inside.queue_free()
+	enemy_sweet.queue_free()
+	enemy_behind.queue_free()
 	enemy_far.queue_free()
-	print("✓ Cleo RMB Delayed Full-Circle Slowing Sweep verified successfully!")
+	print("✓ Crush Chargeable Cone Clap & RMB Seismic Arc verified successfully!")
 
 func test_offline_presentation_and_indicator_hygiene() -> void:
 	print("Testing Offline Presentation and Indicator Hygiene...")

@@ -54,6 +54,12 @@ enum HitboxType {
 @export var hitbox_annul: Variant = false
 
 @export_group("Rider Settings")
+<<<<<<< Updated upstream
+=======
+@export var damage_amount: float = 0.0
+@export var damage_ratio: float = 0.0
+@export var max_hp_ratio: float = 0.0
+>>>>>>> Stashed changes
 @export var action_type: int = 0
 @export var stun_duration: float = 0.0
 @export var bound_duration: float = 0.0
@@ -188,9 +194,10 @@ func setup() -> void:
 				_apply_rider_overrides(r_inst)
 				rider_instances.append(r_inst)
 	if rider_instances.is_empty():
-		if damage_amount > 0.0:
+		if damage_amount > 0.0 or damage_ratio > 0.0 or effect_name == "MeleeStrike":
 			var dmg = DamageRiderClass.new()
 			dmg.amount = damage_amount
+			dmg.damage_ratio = damage_ratio
 			dmg.action_type = action_type
 			rider_instances.append(dmg)
 		if stun_duration > 0.0:
@@ -280,6 +287,8 @@ func _apply_rider_overrides(r_inst: Variant) -> void:
 	if r_inst is DamageRiderClass:
 		if damage_amount > 0.0:
 			r_inst.amount = damage_amount
+		if damage_ratio > 0.0:
+			r_inst.damage_ratio = damage_ratio
 		if action_type > 0:
 			r_inst.action_type = action_type
 	elif r_inst is StunRiderClass:
@@ -353,6 +362,8 @@ func fire_trigger(type_name: String, caster: Node, target: Node = null, hit_data
 		hit_data["min_damage"] = min_damage
 	if not hit_data.has("max_damage") and max_damage > 0.0:
 		hit_data["max_damage"] = max_damage
+	if not hit_data.has("damage_ratio") and damage_ratio > 0.0:
+		hit_data["damage_ratio"] = damage_ratio
 	for trig in trigger_instances:
 		if trig and trig.trigger_name.to_upper() == type_name.to_upper():
 			trig.fire(caster, target, hit_data)

@@ -2,6 +2,7 @@ class_name DamageRider
 extends "res://ability/riders/ability_rider.gd"
 
 @export var amount: float = 0.0
+@export var damage_ratio: float = 0.0
 @export var min_damage: float = -1.0
 @export var max_damage: float = -1.0
 @export var can_crit: bool = true
@@ -12,12 +13,16 @@ func apply(caster: Node, target: Node, hit_data: Dictionary = {}) -> void:
 	if not is_instance_valid(target):
 		return
 	
-	var final_damage = amount
+	var final_damage = hit_data.get("damage_amount", hit_data.get("amount", amount))
 	var charge_ratio = hit_data.get("charge_ratio", 0.0)
 	var min_dmg = hit_data.get("min_damage", min_damage)
 	var max_dmg = hit_data.get("max_damage", max_damage)
 	if min_dmg >= 0.0 and max_dmg >= 0.0:
 		final_damage = lerp(min_dmg, max_dmg, charge_ratio)
+	
+	var ratio = hit_data.get("damage_ratio", damage_ratio)
+	if ratio > 0.0 and is_instance_valid(caster) and "damage" in caster:
+		final_damage += float(caster.damage) * ratio
 	
 	var bonus_dmg = hit_data.get("bonus_damage", 0.0)
 	final_damage += bonus_dmg

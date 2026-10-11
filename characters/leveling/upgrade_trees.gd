@@ -51,16 +51,16 @@ const TREES: Dictionary = {
 		],
 		"cunning": [
 			{
-				"id": "atalantas_stride",
-				"tier": 1,
-				"name": "Atalanta's Stride",
-				"description": "Increases dash charges by 1 (grants 1 immediately). Dashing grants +30% decaying movement speed over 2 seconds."
-			},
-			{
 				"id": "ascetic_touch",
-				"tier": 2,
+				"tier": 1,
 				"name": "Ascetic Touch",
 				"description": "Dealing damage to an enemy deals 5% max HP True Damage and steals mana. 10s cooldown per target."
+			},
+			{
+				"id": "atalantas_stride",
+				"tier": 2,
+				"name": "Atalanta's Stride",
+				"description": "Increases dash charges by 1 (grants 1 immediately). Dashing grants +30% decaying movement speed over 2 seconds."
 			},
 			{
 				"id": "hymn_of_the_underworld",

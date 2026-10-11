@@ -120,6 +120,8 @@ func update_health(current: float, max_val: float, shield: float = 0.0, gray_hea
 		var text = "%d / %d HP" % [int(ceil(current)), int(ceil(max_val))]
 		if shield > 0.0:
 			text += " (+%d)" % int(ceil(shield))
+		if gray_health > 0.0:
+			text += " [%d Gray]" % int(ceil(gray_health))
 		if armor_charges > 0:
 			text += " [Armor: %d]" % armor_charges
 		health_label.text = text

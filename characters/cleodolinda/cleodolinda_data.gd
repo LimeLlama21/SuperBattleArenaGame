@@ -29,7 +29,7 @@ static func create() -> CharacterData:
 		"slot": "LMB",
 		"slot_key": "LMB",
 		"icon": "✨",
-		"description": "Semicircle strike with low base damage that scales with relative velocity.",
+		"description": "Semicircle strike with no base damage and a 30% damage ratio that scales with relative velocity.",
 		"cooldown": 0.4,
 		"cast_on_press": true,
 		"windup_time": 0.0,
@@ -37,7 +37,8 @@ static func create() -> CharacterData:
 		"hitbox_radius": 4.0,
 		"hitbox_angle_deg": 180.0,
 		"hitbox_height": 2.4,
-		"damage_amount": 12.0
+		"damage_amount": 0.0,
+		"damage_ratio": 0.30
 	}
 	data.abilities["RMB"] = {
 		"id": "cleo_rmb",
@@ -45,17 +46,16 @@ static func create() -> CharacterData:
 		"slot": "RMB",
 		"slot_key": "RMB",
 		"icon": "💫",
-		"description": "A delayed full-circle spinning sweep that deals moderate damage and slows enemies.",
+		"description": "A spinning sweep that deals 30 damage flat with a 50% attack ratio.",
 		"cooldown": 4.0,
 		"cast_on_press": true,
-		"windup_time": 2.29,
+		"windup_time": 0.0,
 		"hitbox_type": 6,
 		"hitbox_radius": 4.5,
 		"hitbox_angle_deg": 360.0,
 		"hitbox_height": 2.5,
-		"damage_amount": 35.0,
-		"slow_duration": 2.5,
-		"slow_intensity": 0.35
+		"damage_amount": 30.0,
+		"damage_ratio": 0.50
 	}
 	data.abilities["SHIFT"] = {
 		"id": "cleo_dash",
@@ -73,9 +73,13 @@ static func create() -> CharacterData:
 		"slot": "Q",
 		"slot_key": "Q",
 		"icon": "💫",
-		"description": "Cleo's second spell.",
-		"cooldown": 2.0,
-		"cast_on_press": true
+		"description": "Leaves a damaging trail behind Cleo for the full duration of the animation, dealing 5 damage + 10% attack every 0.25 seconds.",
+		"cooldown": 4.0,
+		"cast_on_press": true,
+		"windup_time": 0.0,
+		"damage_amount": 5.0,
+		"damage_ratio": 0.10,
+		"tick_interval": 0.25
 	}
 	data.abilities["E"] = {
 		"id": "cleo_spell_3",
@@ -93,12 +97,15 @@ static func create() -> CharacterData:
 		"slot": "R",
 		"slot_key": "R",
 		"icon": "🌪️",
-		"description": "Cleo wields her vacuum cleaner and pulls enemies in in a large area in front of her with acceleration greater than base movement speed.",
+		"description": "Cleo wields her vacuum cleaner and pulls enemies in in a large area in front of her, dealing 10 damage + 5% attack every 0.5 seconds.",
 		"cooldown": 30.0,
 		"duration": 3.5,
 		"hitbox_type": 1,
 		"hitbox_radius": 14.0,
 		"hitbox_angle_deg": 80.0,
-		"action_type": 2
+		"action_type": 2,
+		"damage_amount": 10.0,
+		"damage_ratio": 0.05,
+		"tick_interval": 0.5
 	}
 	return data

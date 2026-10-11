@@ -100,6 +100,7 @@ character_name = "Crush"
 display_name = "Gil"
 max_health = 320.0
 current_health = 320.0
+max_shield = 320.0
 max_move_speed = 6.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=968471939]
@@ -153,8 +154,8 @@ offset_right = 240.0
 offset_bottom = 30.0
 theme_override_styles/background = SubResource("StyleBoxFlat_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_gray_fg")
-max_value = 160.0
-value = 100.0
+max_value = 320.0
+value = 320.0
 show_percentage = false
 
 [node name="ProgressBar" type="ProgressBar" parent="HealthBarViewport" unique_id=515215799]
@@ -163,8 +164,8 @@ offset_right = 240.0
 offset_bottom = 30.0
 theme_override_styles/background = SubResource("StyleBoxEmpty_1")
 theme_override_styles/fill = SubResource("StyleBoxFlat_fg")
-max_value = 160.0
-value = 100.0
+max_value = 320.0
+value = 320.0
 show_percentage = false
 
 [node name="HealthBarSprite" type="Sprite3D" parent="." unique_id=950786465]
@@ -179,24 +180,28 @@ no_depth_test = true
 
 [node name="LMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
 slot_key = "LMB"
-ability_id = "crush_slam"
-ability_name = "Slam"
-icon_symbol = "🔨"
-description = "Heavy hammer slam dealing 55.0 melee damage in a 120-degree frontal arc."
+ability_id = "crush_clap"
+ability_name = "Thunderclap"
+icon_symbol = "👏"
+description = "Chargeable clap dealing damage in a frontal cone. Deals 50% damage if uncharged, scaling to full damage at 0.5s charge, with 0.5s delay before the hitbox emerges. Sweet spot deals 50% bonus damage."
 cooldown = 0.65
-windup_time = 0.28
+windup_time = 0.5
+cast_on_press = false
+hold_to_charge = true
+charge_time = 0.5
 hitbox_type = 1
-hitbox_radius = 4.2
-hitbox_angle_deg = 120.0
+hitbox_radius = 4.8
+hitbox_angle_deg = 100.0
 hitbox_height = 2.4
-damage_amount = 55.0
+damage_amount = 50.0
+damage_ratio = 0.75
 
 [node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
 slot_key = "RMB"
 ability_id = "crush_fan_stun"
 ability_name = "Seismic Arc"
 icon_symbol = "⚡"
-description = "Conical shockwave dealing 25.0 damage and stunning for 0.8s."
+description = "Conical shockwave dealing 50.0 base damage + 30% attack ratio and stunning for 0.8s."
 cooldown = 6.0
 cast_on_press = false
 windup_time = 0.20
@@ -204,7 +209,8 @@ hitbox_type = 1
 hitbox_radius = 5.2
 hitbox_angle_deg = 100.0
 hitbox_height = 2.4
-damage_amount = 25.0
+damage_amount = 50.0
+damage_ratio = 0.30
 stun_duration = 0.8
 
 [node name="SHIFT" parent="Abilities" instance=ExtResource("ext_eff_dash")]
@@ -221,14 +227,15 @@ slot_key = "Q"
 ability_id = "crush_ground_stomp"
 ability_name = "Ground Stomp"
 icon_symbol = "💥"
-description = "Stomps ground dealing 20.0 damage and granting 40.0 shield."
+description = "Stomps ground dealing 25.0 base damage + 30% attack ratio and granting 40.0 shield."
 cooldown = 7.0
 cast_on_press = false
 windup_time = 0.25
 hitbox_type = 6
 hitbox_radius = 6.5
 hitbox_height = 2.0
-damage_amount = 20.0
+damage_amount = 25.0
+damage_ratio = 0.30
 shield_amount = 40.0
 shield_duration = 4.0
 
@@ -237,11 +244,11 @@ slot_key = "E"
 ability_id = "crush_iron_barrier"
 ability_name = "Iron Barrier"
 icon_symbol = "🛡️"
-description = "Fortifies defense gaining 50.0 temporary shield."
+description = "Fortifies defense gaining 50.0 temporary shield and consuming all gray health to bolster the barrier."
 cooldown = 10.0
 buff_name = "IronBarrier"
 buff_duration = 4.0
-shield_amount = 50.0
+shield_amount = 0.0
 shield_duration = 4.0
 
 [node name="R" parent="Abilities" instance=ExtResource("ext_eff_charge")]
@@ -249,15 +256,18 @@ slot_key = "R"
 ability_id = "crush_juggernaut_charge"
 ability_name = "Juggernaut Charge"
 icon_symbol = "🐗"
-description = "Unstoppable charge dealing 120.0 damage and stunning for 1.25s."
+description = "Unstoppable charge that starts slow and accelerates to high speed, dealing 120.0 base damage plus up to 50% attack ratio and 30% max HP ratio at max speed, and stunning for 1.25s."
 cooldown = 45.0
 cast_on_press = false
+min_charge_speed = 8.0
 charge_speed = 28.0
-charge_duration = 1.0
+charge_duration = 2.5
 hitbox_type = 3
 hitbox_width = 3.0
 hitbox_length = 4.0
 hitbox_height = 2.5
 damage_amount = 120.0
+damage_ratio = 0.50
+max_hp_ratio = 0.30
 action_type = 2
 stun_duration = 1.25

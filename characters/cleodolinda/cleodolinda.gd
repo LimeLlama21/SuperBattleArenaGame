@@ -2,24 +2,35 @@ class_name Cleodolinda
 extends BasePlayer
 
 const CleodolindaData = preload("res://characters/cleodolinda/cleodolinda_data.gd")
+const CleoTrailZoneClass = preload("res://characters/cleodolinda/cleo_trail_zone.gd")
 
 # --- Attack (LMB / Spell 1): Semicircle Velocity Strike ---
 @export_group("Attack Settings")
-@export var attack_base_damage: float = 12.0
+@export var attack_base_damage: float = 0.0 # No base damage; damage primarily comes from relative velocity calculation
+@export var attack_damage_ratio: float = 0.30 # 30% damage ratio based on character damage stat
 @export var attack_velocity_scaling: float = 1.5 # Extra damage per m/s of relative velocity
 @export var attack_hitbox_radius: float = 4.0
 @export var attack_hitbox_angle_deg: float = 180.0
 @export var attack_hitbox_height: float = 2.4
 
-# --- RMB (Spell 2): Delayed Full-Circle Sweep ---
+# --- RMB (Spell 2): Full-Circle Strike (30 Damage Flat with 50% Ratio) ---
 @export_group("RMB Settings")
-@export var rmb_delay_frames_before_end: int = 5 # Triggers ~5 frames before animation ends
-@export var rmb_windup_time: float = 2.29 # ~5 frames before the 2.5s animation ends
-@export var rmb_damage: float = 35.0 # Moderate damage
-@export var rmb_slow_duration: float = 2.5
-@export var rmb_slow_intensity: float = 0.35 # 35% slow
-@export var rmb_radius: float = 4.5 # Full circle radius
+@export var rmb_base_damage: float = 30.0 # 30 damage flat
+@export var rmb_damage_ratio: float = 0.50 # 50% attack ratio
+@export var rmb_radius: float = 4.5
 @export var rmb_height: float = 2.5
+
+# --- Q (Spell 2): Damaging Trail Settings ---
+@export_group("Q Trail Settings")
+@export var q_trail_base_tick_damage: float = 5.0 # 5 base damage
+@export var q_trail_attack_ratio: float = 0.10 # 10% attack
+@export var q_trail_tick_interval: float = 0.25 # every 0.25 seconds
+@export var q_trail_width: float = 3.2 # Trail width
+@export var q_trail_linger_duration: float = 4.0 # Time trail lingers after being left behind
+
+var is_q_trail_active: bool = false
+var q_trail_timer: float = 0.0
+var _active_trail_zone = null
 
 # --- Ultimate (R): Maximum Suction ---
 @export_group("Maximum Suction Settings")
@@ -29,10 +40,13 @@ const CleodolindaData = preload("res://characters/cleodolinda/cleodolinda_data.g
 @export var suction_height: float = 3.5
 @export var suction_acceleration: float = 7.5 # Strictly greater than standard base move speed 6.0
 @export var suction_accel_factor: float = 1.25 # 25% greater than target's base speed
-@export var suction_dps: float = 15.0
+@export var suction_base_tick_damage: float = 10.0 # 10 damage per tick
+@export var suction_damage_ratio: float = 0.05 # 5% attack ratio
+@export var suction_tick_interval: float = 0.5 # every 0.5 seconds
 
 var is_suction_active: bool = false
 var suction_timer: float = 0.0
+var suction_tick_timer: float = 0.0
 var suction_facing: Vector3 = Vector3.FORWARD
 var _suction_mesh_instance: MeshInstance3D = null
 var _suction_anim_phase: float = 0.0
@@ -49,7 +63,10 @@ func _ready() -> void:
 	super._ready()
 	_setup_animations()
 	_play_model_animation("Idle")
-	_sync_rmb_windup_delay()
+	_sync_rmb_damage()
+	_sync_q_settings()
+	_sync_r_settings()
+	_sync_attack_damage()
 
 func _setup_character_kit() -> void:
 	if id.is_empty():
@@ -67,12 +84,16 @@ func _setup_character_kit() -> void:
 	if display_name.is_empty() or display_name == "Character":
 		display_name = "Cleo"
 
-	_sync_rmb_windup_delay()
+	_sync_rmb_damage()
+	_sync_q_settings()
+	_sync_r_settings()
+	_sync_attack_damage()
 
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
 	if sync and sync.replication_config:
 		_add_sync_property(sync.replication_config, NodePath(".:is_suction_active"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 		_add_sync_property(sync.replication_config, NodePath(".:is_spell_3_active"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:is_q_trail_active"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 
 func character_handles_slot(slot_key: String) -> bool:
 	if slot_key == "E":
@@ -82,47 +103,135 @@ func character_handles_slot(slot_key: String) -> bool:
 func _process_character_kit(delta: float) -> void:
 	_process_suction(delta)
 	_process_spell_3_input()
+	_process_q_trail(delta)
 
-# --- RMB Delay & Windup Lifecycle ---
-func get_rmb_delay() -> float:
+# --- RMB & Q Ability Setup & Lifecycles ---
+func _sync_rmb_damage() -> void:
+	var rmb_ab = abilities.get("RMB")
+	if rmb_ab:
+		rmb_ab.windup_time = 0.0
+		rmb_ab.delay = 0.0
+		if "damage_amount" in rmb_ab:
+			rmb_ab.damage_amount = rmb_base_damage
+		if "damage_ratio" in rmb_ab:
+			rmb_ab.damage_ratio = rmb_damage_ratio
+
+func _sync_q_settings() -> void:
+	var q_ab = abilities.get("Q")
+	if q_ab:
+		q_ab.windup_time = 0.0
+		q_ab.delay = 0.0
+		if "damage_amount" in q_ab:
+			q_ab.damage_amount = q_trail_base_tick_damage
+		if "damage_ratio" in q_ab:
+			q_ab.damage_ratio = q_trail_attack_ratio
+
+func _sync_r_settings() -> void:
+	var r_ab = abilities.get("R")
+	if r_ab:
+		if "damage_amount" in r_ab:
+			r_ab.damage_amount = suction_base_tick_damage
+		if "damage_ratio" in r_ab:
+			r_ab.damage_ratio = suction_damage_ratio
+
+func compute_suction_tick_damage() -> float:
+	return suction_base_tick_damage + (damage * suction_damage_ratio)
+
+func get_q_anim_duration() -> float:
 	var ap = _get_anim_player()
 	if ap and ap.has_animation("spell 2"):
 		var anim = ap.get_animation("spell 2")
 		if anim and anim.length > 0.0:
-			var fps = 24.0
-			if anim.step > 0.0:
-				fps = 1.0 / anim.step
-			var lead_time = float(rmb_delay_frames_before_end) / fps
-			return max(0.1, anim.length - lead_time)
-	return rmb_windup_time
+			return anim.length
+	return 2.5
 
-func _sync_rmb_windup_delay() -> void:
-	var delay_val = get_rmb_delay()
-	var rmb_ab = abilities.get("RMB")
-	if rmb_ab:
-		rmb_ab.windup_time = delay_val
-		rmb_ab.delay = delay_val
-		if "damage_amount" in rmb_ab and rmb_ab.damage_amount <= 0.0:
-			rmb_ab.damage_amount = rmb_damage
+func _server_execute_q_trail() -> void:
+	start_q_trail()
+	if is_multiplayer_match() and multiplayer.is_server():
+		sync_q_trail_start.rpc()
+
+func _client_execute_q_trail() -> void:
+	if is_local_player() and not is_server_authoritative():
+		start_q_trail()
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_q_trail_start() -> void:
+	if not _is_sender_host():
+		return
+	if not is_server_authoritative():
+		start_q_trail()
+
+func start_q_trail() -> void:
+	is_q_trail_active = true
+	q_trail_timer = get_q_anim_duration()
+
+	if is_instance_valid(_active_trail_zone):
+		_active_trail_zone.finish_emission()
+
+	var zone = CleoTrailZoneClass.new()
+	zone.caster = self
+	zone.shooter_id = int(str(name)) if str(name).is_valid_int() else 1
+	zone.shooter_team = team_id
+	zone.base_tick_damage = q_trail_base_tick_damage
+	zone.attack_ratio = q_trail_attack_ratio
+	zone.tick_interval = q_trail_tick_interval
+	zone.trail_width = q_trail_width
+	zone.point_lifetime = q_trail_linger_duration
+
+	var parent_node = get_parent()
+	if parent_node:
+		parent_node.add_child(zone)
+	else:
+		add_child(zone)
+
+	zone.global_transform = Transform3D.IDENTITY
+	zone.add_trail_point(global_position)
+	_active_trail_zone = zone
+
+	_play_model_animation("spell 2")
+
+func end_q_trail() -> void:
+	is_q_trail_active = false
+	q_trail_timer = 0.0
+	if is_instance_valid(_active_trail_zone):
+		_active_trail_zone.finish_emission()
+		_active_trail_zone = null
+	if _get_current_animation() == "spell 2" and not is_suction_active and not is_spell_3_active:
+		_play_model_animation("Idle")
+
+func _process_q_trail(delta: float) -> void:
+	if not is_q_trail_active:
+		return
+
+	if is_dead or is_stunned() or is_silenced():
+		end_q_trail()
+		return
+
+	q_trail_timer -= delta
+	if is_instance_valid(_active_trail_zone):
+		_active_trail_zone.add_trail_point(global_position)
+
+	if q_trail_timer <= 0.0:
+		end_q_trail()
 
 func _on_windup_id_changed(ability_id_str: String) -> void:
 	super._on_windup_id_changed(ability_id_str)
-	if ability_id_str == "RMB" or ability_id_str == "cleo_rmb" or ability_id_str == "cleo_spell_2":
+	if ability_id_str == "RMB" or ability_id_str == "cleo_rmb" or ability_id_str == "Q" or ability_id_str == "cleo_spell_2":
 		_play_model_animation("spell 2")
 		if is_multiplayer_match() and multiplayer.is_server():
 			sync_play_animation.rpc("spell 2")
 
 func cancel_active_windup() -> void:
-	var was_rmb = (active_windup_id == "RMB" or active_windup_id == "cleo_rmb" or active_windup_id == "cleo_spell_2")
+	var was_q = (active_windup_id == "Q" or active_windup_id == "cleo_spell_2")
 	super.cancel_active_windup()
-	if was_rmb and _get_current_animation() == "spell 2":
-		_play_model_animation("Idle")
+	if was_q:
+		end_q_trail()
 
 func sync_cancel_windup() -> void:
-	var was_rmb = (active_windup_id == "RMB" or active_windup_id == "cleo_rmb" or active_windup_id == "cleo_spell_2")
+	var was_q = (active_windup_id == "Q" or active_windup_id == "cleo_spell_2")
 	super.sync_cancel_windup()
-	if was_rmb and _get_current_animation() == "spell 2":
-		_play_model_animation("Idle")
+	if was_q:
+		end_q_trail()
 
 func _is_playing_animation(anim_name: String) -> bool:
 	var ap = _get_anim_player()
@@ -137,15 +246,12 @@ func custom_execute_ability_server(slot_key: String, origin: Vector3, dir: Vecto
 				sync_play_animation.rpc("spell 1")
 			return false
 		"RMB":
-			if not _is_playing_animation("spell 2"):
-				_play_model_animation("spell 2")
-				if is_multiplayer_match() and multiplayer.is_server():
-					sync_play_animation.rpc("spell 2")
-			return false
-		"Q":
 			_play_model_animation("spell 2")
 			if is_multiplayer_match() and multiplayer.is_server():
 				sync_play_animation.rpc("spell 2")
+			return false
+		"Q":
+			_server_execute_q_trail()
 			return true
 		"E":
 			press_spell_3()
@@ -166,11 +272,10 @@ func custom_execute_ability_client(slot_key: String, origin: Vector3, dir: Vecto
 			_play_model_animation("spell 1")
 			return false
 		"RMB":
-			if not _is_playing_animation("spell 2"):
-				_play_model_animation("spell 2")
+			_play_model_animation("spell 2")
 			return false
 		"Q":
-			_play_model_animation("spell 2")
+			_client_execute_q_trail()
 			return true
 		"E":
 			press_spell_3()
@@ -195,8 +300,8 @@ func get_attack_relative_velocity(target: Node) -> float:
 	return rel_vel.length()
 
 func compute_attack_damage(target: Node) -> float:
-	var rel_speed = get_attack_relative_velocity(target)
-	return attack_base_damage + (rel_speed * attack_velocity_scaling)
+	var rel_speed = get_attack_relative_velocity(target) if is_instance_valid(target) else 0.0
+	return attack_base_damage + (damage * attack_damage_ratio) + (rel_speed * attack_velocity_scaling)
 
 func on_melee_strike_hit(target: Node, hit_data: Dictionary) -> void:
 	var ability_key = hit_data.get("slot_key", "")
@@ -207,6 +312,15 @@ func on_melee_strike_hit(target: Node, hit_data: Dictionary) -> void:
 		var rel_speed = get_attack_relative_velocity(target)
 		var bonus = rel_speed * attack_velocity_scaling
 		hit_data["bonus_damage"] = bonus
+		hit_data["damage_ratio"] = attack_damage_ratio
+
+func _sync_attack_damage() -> void:
+	var lmb_ab = abilities.get("LMB")
+	if lmb_ab:
+		if "damage_amount" in lmb_ab:
+			lmb_ab.damage_amount = attack_base_damage
+		if "damage_ratio" in lmb_ab:
+			lmb_ab.damage_ratio = attack_damage_ratio
 
 # --- Movement Modifiers (Spell 3 / E: Hover Boost) ---
 func get_effective_max_speed(current_speed: float) -> float:
@@ -248,6 +362,7 @@ func start_maximum_suction(_origin: Vector3, dir: Vector3) -> void:
 
 	is_suction_active = true
 	suction_timer = suction_duration
+	suction_tick_timer = 0.0
 	is_channeling = true
 	channel_timer = suction_duration
 
@@ -262,6 +377,7 @@ func start_maximum_suction(_origin: Vector3, dir: Vector3) -> void:
 func end_maximum_suction() -> void:
 	is_suction_active = false
 	suction_timer = 0.0
+	suction_tick_timer = 0.0
 	is_channeling = false
 
 	var vac = get_node_or_null("VacuumCleaner") as Node3D
@@ -308,8 +424,13 @@ func _process_suction(delta: float) -> void:
 	if is_server_authoritative():
 		for enemy in affected_enemies:
 			_apply_suction_to_enemy(enemy, delta)
-			if suction_dps > 0.0:
-				deal_damage(enemy, suction_dps * delta, ActionType.ABILITY)
+		
+		suction_tick_timer += delta
+		if suction_tick_timer >= suction_tick_interval:
+			suction_tick_timer = fmod(suction_tick_timer, suction_tick_interval)
+			var tick_dmg = compute_suction_tick_damage()
+			for enemy in affected_enemies:
+				deal_damage(enemy, tick_dmg, ActionType.ABILITY)
 
 	# Update visual streamlines & suction vortex mesh
 	_update_suction_visual(delta)
@@ -371,6 +492,9 @@ func _get_all_enemy_targets() -> Array[Node]:
 			for c in pc.get_children():
 				if not candidate_pool.has(c):
 					candidate_pool.append(c)
+		for c in tree.root.get_children():
+			if c is BasePlayer and not candidate_pool.has(c):
+				candidate_pool.append(c)
 	for p in candidate_pool:
 		if is_instance_valid(p) and not p.is_queued_for_deletion() and p != self and is_enemy(p) and not p.get("is_dead"):
 			enemies.append(p)
@@ -588,8 +712,13 @@ func _on_animation_finished(anim_name: StringName) -> void:
 			is_spell_3_active = false
 			_spell_3_holding = false
 			_play_model_animation("Idle")
-		"dash", "spell 1", "spell 2":
+		"dash", "spell 1":
 			if not is_suction_active and not is_spell_3_active:
+				_play_model_animation("Idle")
+		"spell 2":
+			if is_q_trail_active:
+				end_q_trail()
+			elif not is_suction_active and not is_spell_3_active:
 				_play_model_animation("Idle")
 
 func _get_anim_player() -> AnimationPlayer:
