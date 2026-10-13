@@ -8,13 +8,13 @@ const EnabledCharacters = preload("res://characters/enabled_characters.gd")
 const LevelBadgeClass = preload("res://characters/leveling/level_badge.gd")
 
 const CHARACTERS: Dictionary = {
-	"poke": preload("res://characters/poke/poke.tscn"),
+	"poke": preload("res://characters/Disabled characters/poke/poke.tscn"),
 	"crush": preload("res://characters/crush/crush.tscn"),
 	"aspara": preload("res://characters/aspara/aspara.tscn"),
 	"reaper": preload("res://characters/Disabled characters/reaper/reaper.tscn"),
 	"morrigan": preload("res://characters/morrigan/morrigan.tscn"),
 	"monkey": preload("res://characters/monkey/monkey.tscn"),
-	"silene": preload("res://characters/silene/silene.tscn"),
+	"silene": preload("res://characters/Disabled characters/silene/silene.tscn"),
 	"artist": preload("res://characters/artist/artist.tscn"),
 	"cleodolinda": preload("res://characters/cleodolinda/cleodolinda.tscn")
 }

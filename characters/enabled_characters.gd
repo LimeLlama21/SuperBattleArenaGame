@@ -31,10 +31,11 @@ static func get_disabled_characters() -> Array[String]:
 	
 	# Fallback check if dir scanning returns empty (e.g. export or virtual FS)
 	if disabled_list.is_empty():
-		if ResourceLoader.exists(CHARACTERS_BASE_PATH + "/" + DISABLED_FOLDER_NAME + "/reaper/reaper_data.gd") \
-				or ResourceLoader.exists(CHARACTERS_BASE_PATH + "/" + DISABLED_FOLDER_NAME + "/reaper/reaper.tscn") \
-				or ResourceLoader.exists(CHARACTERS_BASE_PATH + "/" + DISABLED_FOLDER_NAME + "/reaper/reaper.gd"):
-			disabled_list.append("reaper")
+		for d_id in ["reaper", "poke", "silene"]:
+			if ResourceLoader.exists(CHARACTERS_BASE_PATH + "/" + DISABLED_FOLDER_NAME + "/" + d_id + "/" + d_id + "_data.gd") \
+					or ResourceLoader.exists(CHARACTERS_BASE_PATH + "/" + DISABLED_FOLDER_NAME + "/" + d_id + "/" + d_id + ".tscn") \
+					or ResourceLoader.exists(CHARACTERS_BASE_PATH + "/" + DISABLED_FOLDER_NAME + "/" + d_id + "/" + d_id + ".gd"):
+				disabled_list.append(d_id)
 	return disabled_list
 
 ## Returns true if the character ID is in the Disabled characters folder

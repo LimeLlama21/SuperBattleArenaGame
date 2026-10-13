@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dhqp0hfpijgwi"]
 
-[ext_resource type="Script" uid="uid://dxh7ridlhnf77" path="res://characters/poke/poke.gd" id="1_poke"]
+[ext_resource type="Script" path="res://characters/Disabled characters/poke/poke.gd" id="1_poke"]
 [ext_resource type="Script" uid="uid://n2hedsnx0wvt" path="res://ability/ability_slot.gd" id="2_ability_slot"]
 [ext_resource type="PackedScene" uid="uid://dmv7q8playerhud" path="res://player/player_hud.tscn" id="3_player_hud"]
 [ext_resource type="PackedScene" path="res://ability/effects/projectile_effect.tscn" id="ext_eff_proj"]

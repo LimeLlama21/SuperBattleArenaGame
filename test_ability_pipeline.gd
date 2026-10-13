@@ -20,8 +20,8 @@ const CharacterData = preload("res://characters/character_data.gd")
 const AsparsasData = preload("res://characters/aspara/aspara_data.gd")
 const AsparaData = preload("res://characters/aspara/aspara_data.gd")
 const BasePlayer = preload("res://player/player_base.gd")
-const SileneClass = preload("res://characters/silene/silene.gd")
-const SileneDataClass = preload("res://characters/silene/silene_data.gd")
+const SileneClass = preload("res://characters/Disabled characters/silene/silene.gd")
+const SileneDataClass = preload("res://characters/Disabled characters/silene/silene_data.gd")
 const ArtistClass = preload("res://characters/artist/artist.gd")
 const HanziPointCloudRecognizer = preload("res://characters/artist/hanzi_point_cloud_recognizer.gd")
 const CleodolindaClass = preload("res://characters/cleodolinda/cleodolinda.gd")
@@ -319,7 +319,7 @@ func test_rider_applications() -> void:
 func test_character_ability_registration() -> void:
 	print("Testing Character Ability Registration on all 6 characters...")
 	var chars = [
-		"res://characters/poke/poke.tscn",
+		"res://characters/Disabled characters/poke/poke.tscn",
 		"res://characters/crush/crush.tscn",
 		"res://characters/Disabled characters/reaper/reaper.tscn",
 		"res://characters/aspara/aspara.tscn",
@@ -598,7 +598,7 @@ func test_character_kits_and_special_mechanics() -> void:
 	enemy_target.free()
 
 	# --- 3. Poke: Sniper Stance, Overcharge & Takedown Reset ---
-	var poke = (load("res://characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
+	var poke = (load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
 	poke.name = "12"
 	poke.team_id = 1
 	root.add_child(poke)
@@ -740,7 +740,7 @@ func test_gravity_and_jump_metrics() -> void:
 func test_natural_movement_conditions() -> void:
 	print("Testing Natural Movement Under All Circumstances...")
 	var root = get_root()
-	var player = (load("res://characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
+	var player = (load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
 	player.name = "99"
 	player.team_id = 1
 	root.add_child(player)
@@ -839,7 +839,7 @@ func test_charge_time_pipeline() -> void:
 	dummy_target.free()
 	
 	# 4. Poke RMB and Morrigan LMB charge settings
-	var poke_scene = (load("res://characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
+	var poke_scene = (load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
 	poke_scene.name = "101"
 	poke_scene.team_id = 1
 	get_root().add_child(poke_scene)
@@ -971,7 +971,7 @@ func test_delayed_abilities_and_telegraph_indicators() -> void:
 	assert(crush_lmb.active_telegraph == null, "Telegraph indicator must be cleared on stun")
 
 	# 5. Verify Poke Ult and Morrigan Ult delayed telegraphs
-	var poke_player = (load("res://characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
+	var poke_player = (load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
 	poke_player.name = "104"
 	poke_player.team_id = 1
 	root.add_child(poke_player)
@@ -1195,7 +1195,7 @@ func test_mana_system() -> void:
 	assert(player.abilities["R"].get_mana_cost(player) == 30.0, "Ultimate (R) must cost 30 mana")
 
 	# 2. Poke RMB outlier (20 normally, 30 with Q overcharge buff active)
-	var poke_scene = load("res://characters/poke/poke.tscn") as PackedScene
+	var poke_scene = load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene
 	var poke_player = poke_scene.instantiate() as BasePlayer
 	poke_player.name = "112"
 	poke_player.team_id = 1
@@ -1742,7 +1742,7 @@ func test_combat_hitbox_cylinder_and_no_autoaim() -> void:
 	var char_scenes = {
 		"Crush": "res://characters/crush/crush.tscn",
 		"Aspara": "res://characters/aspara/aspara.tscn",
-		"Poke": "res://characters/poke/poke.tscn",
+		"Poke": "res://characters/Disabled characters/poke/poke.tscn",
 		"Reaper": "res://characters/Disabled characters/reaper/reaper.tscn",
 		"Morrigan": "res://characters/morrigan/morrigan.tscn",
 		"Monkey": "res://characters/monkey/monkey.tscn",
@@ -1777,7 +1777,7 @@ func test_combat_hitbox_cylinder_and_no_autoaim() -> void:
 	print("  ✓ Every character has a dedicated CylinderShape3D combat hitbox extending infinitely vertically while physical collision mesh is untouched.")
 
 	# 2. Verify Leading Shots & No Vertical Auto Aim
-	var shooter = (load("res://characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
+	var shooter = (load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene).instantiate() as BasePlayer
 	root.add_child(shooter)
 	shooter.global_position = Vector3(0, 0, 0)
 	shooter.look_at(Vector3(0, 0, -10), Vector3.UP)
@@ -1850,7 +1850,7 @@ func test_aim_guide_and_projectile_indicator_filtering() -> void:
 	var root = get_root()
 
 	var morrigan_scene = load("res://characters/morrigan/morrigan.tscn") as PackedScene
-	var poke_scene = load("res://characters/poke/poke.tscn") as PackedScene
+	var poke_scene = load("res://characters/Disabled characters/poke/poke.tscn") as PackedScene
 	var reaper_scene = load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene
 
 	var morrigan = morrigan_scene.instantiate()
@@ -2030,15 +2030,15 @@ func test_data_driven_character_pipeline() -> void:
 		c_inst.queue_free()
 	print("  ✓ All 9 canonical characters verified with matching id (folder name) and player-facing display_name.")
 
-	# 9. Verify EnabledCharacters list and integration (Reaper disabled in Disabled characters folder)
+	# 9. Verify EnabledCharacters list and integration (Reaper, Poke, Silene disabled in Disabled characters folder)
 	var EnabledCharsClass = load("res://characters/enabled_characters.gd")
 	assert(EnabledCharsClass != null, "EnabledCharacters must load successfully")
 	var enabled_chars = EnabledCharsClass.get_enabled_characters()
-	assert(enabled_chars.size() == 8, "Expected 8 enabled characters (Reaper disabled), got %d" % enabled_chars.size())
+	assert(enabled_chars.size() == 6, "Expected 6 enabled characters (Reaper, Poke, Silene disabled), got %d" % enabled_chars.size())
 	for c_id in canonical_expectations:
-		if c_id == "reaper":
-			assert(not EnabledCharsClass.is_character_enabled(c_id), "Reaper in Disabled characters folder must not be enabled")
-			assert(not CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report reaper as disabled")
+		if c_id in ["reaper", "poke", "silene"]:
+			assert(not EnabledCharsClass.is_character_enabled(c_id), "%s in Disabled characters folder must not be enabled" % c_id)
+			assert(not CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report %s as disabled" % c_id)
 		else:
 			assert(EnabledCharsClass.is_character_enabled(c_id), "Character %s must be enabled" % c_id)
 			assert(CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report %s as enabled" % c_id)
@@ -2047,7 +2047,7 @@ func test_data_driven_character_pipeline() -> void:
 	assert(not EnabledCharsClass.is_character_enabled("asparsas"), "Alias 'asparsas' must not be registered as an enabled character")
 	assert(not CharacterRegistry.is_character_enabled("asparsas"), "CharacterRegistry must not register alias 'asparsas'")
 	assert(not EnabledCharsClass.is_character_enabled("fake_character"), "Fake character must not be enabled")
-	print("  ✓ Enabled characters list verified (all %d non-disabled characters selectable, Reaper disabled)." % enabled_chars.size())
+	print("  ✓ Enabled characters list verified (all %d non-disabled characters selectable, Reaper, Poke, Silene disabled)." % enabled_chars.size())
 
 	print("✓ Data-Driven Character Pipeline verified successfully.")
 
@@ -2203,7 +2203,7 @@ func test_silene_character_kit_and_mechanics() -> void:
 	var root = get_root()
 
 	# 1. Instantiate Silene and dummy target
-	var silene_scene = load("res://characters/silene/silene.tscn") as PackedScene
+	var silene_scene = load("res://characters/Disabled characters/silene/silene.tscn") as PackedScene
 	assert(silene_scene != null, "Silene scene must load")
 	var silene = silene_scene.instantiate() as BasePlayer
 	silene.name = "901"

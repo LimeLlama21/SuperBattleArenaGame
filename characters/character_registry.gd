@@ -13,13 +13,13 @@ static func _ensure_initialized() -> void:
 	_initialized = true
 	
 	# Pre-register built-in character factory functions / scenes
-	_register_builtin("poke", "res://characters/poke/poke_data.gd", "res://characters/poke/poke.tscn")
+	_register_builtin("poke", "res://characters/Disabled characters/poke/poke_data.gd", "res://characters/Disabled characters/poke/poke.tscn")
 	_register_builtin("crush", "res://characters/crush/crush_data.gd", "res://characters/crush/crush.tscn")
 	_register_builtin("aspara", "res://characters/aspara/aspara_data.gd", "res://characters/aspara/aspara.tscn")
 	_register_builtin("reaper", "res://characters/Disabled characters/reaper/reaper_data.gd", "res://characters/Disabled characters/reaper/reaper.tscn")
 	_register_builtin("morrigan", "res://characters/morrigan/morrigan_data.gd", "res://characters/morrigan/morrigan.tscn")
 	_register_builtin("monkey", "res://characters/monkey/monkey_data.gd", "res://characters/monkey/monkey.tscn")
-	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
+	_register_builtin("silene", "res://characters/Disabled characters/silene/silene_data.gd", "res://characters/Disabled characters/silene/silene.tscn")
 	_register_builtin("artist", "res://characters/artist/artist_data.gd", "res://characters/artist/artist.tscn")
 	_register_builtin("cleodolinda", "res://characters/cleodolinda/cleodolinda_data.gd", "res://characters/cleodolinda/cleodolinda.tscn")
 
