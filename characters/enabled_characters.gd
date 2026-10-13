@@ -40,10 +40,6 @@ static func get_disabled_characters() -> Array[String]:
 ## Returns true if the character ID is in the Disabled characters folder
 static func is_character_disabled(char_id: String) -> bool:
 	var clean = char_id.to_lower().strip_edges()
-	if clean == "cleo":
-		clean = "cleodolinda"
-	if clean == "asparsas":
-		clean = "aspara"
 	return get_disabled_characters().has(clean)
 
 ## Returns a list of enabled character IDs (all characters in characters/ not in Disabled characters)
@@ -71,13 +67,9 @@ static func get_enabled_characters() -> Array[String]:
 		if not disabled.has(k) and not enabled_list.has(k):
 			enabled_list.append(k)
 
-	# 3. Filter out any disabled characters or aliases
+	# 3. Filter out any disabled characters
 	var final_list: Array[String] = []
 	for k in enabled_list:
-		if k == "asparsas":
-			k = "aspara"
-		if k == "cleo":
-			k = "cleodolinda"
 		if not disabled.has(k) and not final_list.has(k):
 			final_list.append(k)
 	return final_list
@@ -85,11 +77,6 @@ static func get_enabled_characters() -> Array[String]:
 ## Returns true if the character ID is enabled and selectable
 static func is_character_enabled(char_id: String) -> bool:
 	var clean = char_id.to_lower().strip_edges()
-	if clean == "cleo":
-		clean = "cleodolinda"
-	if clean == "asparsas":
-		clean = "aspara"
-	
 	if is_character_disabled(clean):
 		return false
 	

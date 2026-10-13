@@ -126,14 +126,15 @@ slot_key = "LMB"
 ability_id = "monkey_pillar"
 ability_name = "Heavenly Pillar"
 icon_symbol = "🥢"
-description = "Fast forward staff bonk dealing 36.0 damage with a golden flash."
+description = "3-hit combo: 2 swipes (cone) dealing 30 base damage + 50% attack ratio, followed by a slam (long line) dealing 50 base damage + 75% attack ratio."
 cooldown = 0.45
 windup_time = 0.12
-hitbox_type = 5
-hitbox_length = 5.5
-hitbox_width = 1.2
-hitbox_height = 2.0
-damage_amount = 36.0
+hitbox_type = 1
+hitbox_radius = 4.5
+hitbox_angle_deg = 100.0
+hitbox_height = 2.5
+damage_amount = 30.0
+damage_ratio = 0.50
 mana_cost = 0.0
 
 [node name="RMB" parent="Abilities" instance=ExtResource("ext_eff_melee")]
@@ -167,36 +168,29 @@ mana_cost = 0.0
 
 [node name="Q" parent="Abilities" instance=ExtResource("ext_eff_transf")]
 slot_key = "Q"
-ability_id = "monkey_72_forms"
-ability_name = "72 Forms"
-icon_symbol = "🎭"
-description = "Transforms into an object. Broken by taking damage, attacking, or recasting."
-cooldown = 22.0
-default_prop_type = "tree"
-can_move = true
-can_dash = true
-break_on_attack = true
-break_on_damage = true
+ability_id = "monkey_clone"
+ability_name = "Doppelganger Clone"
+icon_symbol = "👥"
+description = "Spawns a clone with identical stats that provides player vision, attacks and dashes towards visible enemies within range, or follows you. Lasts 10s."
+cooldown = 16.0
 mana_cost = 10.0
 
 [node name="E" parent="Abilities" instance=ExtResource("ext_eff_area")]
 slot_key = "E"
-ability_id = "monkey_sages_mockery"
-ability_name = "Sage's Mockery"
-icon_symbol = "🐒"
-description = "Taunts nearby enemies in a circle, forcing them towards you with reduced damage."
-cooldown = 12.0
-hitbox_type = 6
-hitbox_radius = 6.5
+ability_id = "monkey_camouflage"
+ability_name = "Camouflage"
+icon_symbol = "💨"
+description = "Grants camouflage, making you invisible to enemies unless an enemy is within 6m. Lasts 10s or until any action other than move/jump/dash."
+cooldown = 14.0
 mana_cost = 10.0
 
 [node name="R" parent="Abilities" instance=ExtResource("ext_eff_buff")]
 slot_key = "R"
 ability_id = "monkey_ultimate"
-ability_name = "Shadow Rush Flurry"
-icon_symbol = "🌪️"
-description = "Stealths and dashes forward. Recast to rush and strike along path in a golden flurry."
-cooldown = 28.0
-buff_name = "MonkeyInvis"
-buff_duration = 3.0
+ability_name = "Smoke Duel & Mimic"
+icon_symbol = "🌫️"
+description = "Dashes forward and strikes an enemy (no damage). Traps both in a smoke cloud with intangibility. Recast to dash and send target opposite, copying their identity and abilities for 5s."
+cooldown = 30.0
+buff_name = "SmokeDuel"
+buff_duration = 3.5
 mana_cost = 30.0

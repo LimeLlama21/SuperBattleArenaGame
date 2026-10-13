@@ -573,7 +573,7 @@ func _physics_process(delta: float) -> void:
 			try_cast_ability("LMB")
 
 	# Delegate Character-specific inputs (LMB, RMB, Q, E, R, SHIFT)
-	if (not is_stunned() and not is_bound()) or can_cast_ability_slot("R"):
+	if (not is_stunned() and not is_bound() and not is_feared()) or can_cast_ability_slot("R"):
 		_handle_character_input(delta)
 
 	# Execute Physics Move & Slide via PlayerPhysics
@@ -855,7 +855,11 @@ func deal_damage(target: Node, amount: float, action_type: int = ActionType.ATTA
 		else:
 			target.take_damage(amount)
 	
-	if my_id <= 0 or not is_inside_tree() or not get_tree() or not get_tree().root or not get_tree().root.get_node_or_null("Main/Players/" + str(my_id)):
+	var attacker_resolved_by_target = false
+	if target is BasePlayer and my_id > 0 and is_inside_tree() and get_tree() and get_tree().root:
+		if get_tree().root.get_node_or_null("Main/Players/" + str(my_id)) or (get_parent() and get_parent().get_node_or_null(str(my_id))) or get_tree().root.get_node_or_null(str(my_id)):
+			attacker_resolved_by_target = true
+	if not attacker_resolved_by_target:
 		var post_hp = target.current_health if "current_health" in target else (target.health if "health" in target else 0.0)
 		var actual_dealt = max(0.0, initial_hp - post_hp) if initial_hp > 0.0 else amount
 		if actual_dealt > 0.0:
@@ -1345,6 +1349,8 @@ func _update_hud() -> void:
 		status_text = "✦ STUNNED (%.1fs) ✦" % stun_timer
 	elif is_silenced():
 		status_text = "✦ SILENCED (%.1fs) ✦" % silence_timer
+	elif is_feared():
+		status_text = "✦ FEARED (%.1fs) ✦" % fear_timer
 	elif is_rooted():
 		status_text = "✦ ROOTED (%.1fs) ✦" % root_timer
 	elif is_grounded():
@@ -2136,7 +2142,7 @@ func _try_resolve_buffered_ability() -> void:
 	execute_ability_slot(slot_to_execute)
 
 func can_cast_ability_slot(slot_key: String, char_abilities: Dictionary = {}) -> bool:
-	if is_dead:
+	if is_dead or is_feared():
 		return false
 	var source_abilities = char_abilities if not char_abilities.is_empty() else abilities
 	var eff_slot = get_effective_slot(slot_key)
@@ -2288,7 +2294,7 @@ func start_windup_cast(slot_key: String, origin: Vector3, direction: Vector3, ta
 		if not is_instance_valid(self) or is_dead:
 			is_channeling = false
 			return
-		if is_stunned() or is_bound() or is_silenced():
+		if is_stunned() or is_bound() or is_silenced() or is_feared():
 			is_channeling = false
 			cancel_active_windup()
 			return
@@ -2545,7 +2551,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _process_abilities_input(delta: float) -> void:
-	if is_dead or is_stunned() or is_bound() or is_silenced():
+	if is_dead or is_stunned() or is_bound() or is_silenced() or is_feared():
 		cancel_active_windup()
 		if not active_modal_slot.is_empty():
 			cancel_active_modal()

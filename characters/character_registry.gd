@@ -22,8 +22,6 @@ static func _ensure_initialized() -> void:
 	_register_builtin("silene", "res://characters/silene/silene_data.gd", "res://characters/silene/silene.tscn")
 	_register_builtin("artist", "res://characters/artist/artist_data.gd", "res://characters/artist/artist.tscn")
 	_register_builtin("cleodolinda", "res://characters/cleodolinda/cleodolinda_data.gd", "res://characters/cleodolinda/cleodolinda.tscn")
-	_registry["cleo"] = _registry["cleodolinda"]
-	_registry["asparsas"] = _registry["aspara"]
 
 static func _register_builtin(key: String, data_script_path: String, scene_path: String) -> void:
 	if not ResourceLoader.exists(data_script_path):
@@ -134,13 +132,13 @@ static func get_display_name(key: String) -> String:
 	match k:
 		"poke": return "Aslan"
 		"crush": return "Gil"
-		"aspara", "asparsas": return "Uru"
+		"aspara": return "Uru"
 		"reaper": return "Keres"
 		"morrigan": return "Saga"
 		"monkey": return "Sunny Kong"
 		"silene": return "Wynn Wyrmchilde"
 		"artist": return "Inky"
-		"cleodolinda", "cleo": return "Cleo"
+		"cleodolinda": return "Cleo"
 		"dummy": return "Training Dummy"
 		_:
 			if data and not data.character_name.is_empty():

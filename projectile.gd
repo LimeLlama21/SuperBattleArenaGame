@@ -102,7 +102,7 @@ func _ready() -> void:
 			cap_shape.height = 6.0
 			col_shape.shape = cap_shape
 			col_shape.rotation.x = deg_to_rad(90.0)
-	elif effect_type == "morrigan_feather":
+	elif effect_type == "morrigan_feather" or effect_type == "morrigan_feather_empowered":
 		var mesh_inst = get_node_or_null("MeshInstance3D") as MeshInstance3D
 		var col_shape = get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if mesh_inst:
@@ -112,10 +112,16 @@ func _ready() -> void:
 			mesh_inst.mesh = cap
 			mesh_inst.rotation.x = deg_to_rad(90.0)
 			var mat = StandardMaterial3D.new()
-			mat.albedo_color = Color(0.2, 0.02, 0.35, 1.0)
-			mat.emission_enabled = true
-			mat.emission = Color(0.75, 0.15, 0.95, 1.0)
-			mat.emission_energy_multiplier = 5.0
+			if effect_type == "morrigan_feather_empowered":
+				mat.albedo_color = Color(0.4, 0.02, 0.2, 1.0)
+				mat.emission_enabled = true
+				mat.emission = Color(0.95, 0.1, 0.35, 1.0)
+				mat.emission_energy_multiplier = 7.0
+			else:
+				mat.albedo_color = Color(0.2, 0.02, 0.35, 1.0)
+				mat.emission_enabled = true
+				mat.emission = Color(0.75, 0.15, 0.95, 1.0)
+				mat.emission_energy_multiplier = 5.0
 			mesh_inst.material_override = mat
 		if col_shape:
 			var cap_shape = CapsuleShape3D.new()
@@ -245,9 +251,18 @@ func _trigger_death_effects() -> void:
 		var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
 		if shooter and shooter.has_method("on_empowered_sniper_miss"):
 			shooter.on_empowered_sniper_miss("dissipated")
-	elif effect_type == "mortar_shell":
+	elif effect_type == "mortar_shell" or effect_type == "morrigan_mortar_empowered":
 		if main_node and main_node.has_method("spawn_slowing_dot_zone"):
 			main_node.spawn_slowing_dot_zone(global_position, 3.2, 4.5, 15.0, 0.40, shooter_id, shooter_team)
+		if effect_type == "morrigan_mortar_empowered":
+			var players = get_tree().get_nodes_in_group("players")
+			for p in players:
+				if is_instance_valid(p) and not p.get("is_dead") and p.name != str(shooter_id):
+					if shooter_team > 0 and p.get("team_id") != null and p.team_id == shooter_team:
+						continue
+					if (p.global_position - global_position).length() <= 3.2:
+						if p.has_method("apply_bleed"):
+							p.apply_bleed(damage * 0.20, 5.0, shooter_id)
 	elif effect_type == "vision_flare":
 		if main_node and main_node.has_method("spawn_vision_reveal_zone"):
 			main_node.spawn_vision_reveal_zone(global_position, 12.0, 5.5, shooter_id, shooter_team)
@@ -324,8 +339,17 @@ func _process_target_hit(body: Node) -> void:
 			body.take_projectile_damage(final_damage, shooter_id, action_type)
 		else:
 			body.take_damage(final_damage, shooter_id, action_type)
-		if effect_type == "blood_wave" and body.has_method("apply_stun"):
-			body.apply_stun(1.0)
+		if effect_type == "blood_wave":
+			if body.has_method("apply_fear"):
+				body.apply_fear(1.5, shooter if is_instance_valid(shooter) else global_position)
+			elif body.has_method("apply_stun"):
+				body.apply_stun(1.0)
+		if effect_type == "morrigan_feather_empowered":
+			if body.has_method("apply_embedded_feather"):
+				body.apply_embedded_feather(5.0)
+		elif effect_type == "morrigan_mortar_empowered":
+			if body.has_method("apply_bleed"):
+				body.apply_bleed(final_damage * 0.20, 5.0, shooter_id)
 		if (effect_type == "slow" or effect_type == "dive_earth_tremor") and body.has_method("apply_slow"):
 			body.apply_slow(effect_duration if effect_duration > 0.0 else 2.0, effect_intensity if effect_intensity > 0.0 else 0.40)
 		elif effect_type == "knockback_stun" or effect_type == "poke_repulsor":
@@ -333,6 +357,8 @@ func _process_target_hit(body: Node) -> void:
 				var kb_dir = Vector3(direction.x, 0.0, direction.z).normalized()
 				body.apply_knockback(kb_dir * effect_intensity, true, effect_duration)
 		var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
+		if shooter and shooter.has_method("on_ability_projectile_hit_enemy"):
+			shooter.on_ability_projectile_hit_enemy(effect_type, body)
 		if effect_type == "poke_sniper_empowered":
 			has_hit_any_enemy = true
 			if shooter and shooter.has_method("on_empowered_sniper_hit"):

@@ -98,6 +98,13 @@ func apply_external_acceleration(accel_vec: Vector3, delta: float = 0.0) -> void
 	if external_velocity.length() > max_ext_speed:
 		external_velocity = external_velocity.normalized() * max_ext_speed
 
+func get_facing_direction_3d() -> Vector3:
+	var fwd = -global_transform.basis.z.normalized()
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.0001:
+		fwd = Vector3.FORWARD
+	return fwd.normalized()
+
 # --- Aiming & Targeting Helpers ---
 func aim_at_mouse() -> void:
 	if is_mouse_hijacked:
@@ -110,6 +117,22 @@ func aim_at_mouse() -> void:
 				look_at(target, Vector3.UP)
 				rotation.x = 0.0
 				rotation.z = 0.0
+		return
+	if has_method("is_feared") and is_feared():
+		var fear_source = get_fear_source_node() if has_method("get_fear_source_node") else null
+		var away_dir := Vector3.ZERO
+		if is_instance_valid(fear_source):
+			away_dir = global_position - fear_source.global_position
+		elif "fear_source_pos" in self and fear_source_pos != Vector3.ZERO:
+			away_dir = global_position - fear_source_pos
+		else:
+			away_dir = -get_facing_direction_3d()
+		away_dir.y = 0.0
+		if away_dir.length_squared() > 0.01:
+			var target := global_position + away_dir.normalized() * 5.0
+			look_at(target, Vector3.UP)
+			rotation.x = 0.0
+			rotation.z = 0.0
 		return
 	var hit_pos = get_mouse_ground_intersection()
 	if hit_pos != null:
@@ -322,6 +345,19 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 				if to_taunter.length_squared() > 0.01:
 					var norm = to_taunter.normalized()
 					input_dir = Vector2(norm.x, norm.z)
+		elif has_method("is_feared") and is_feared():
+			var fear_source = get_fear_source_node() if has_method("get_fear_source_node") else null
+			var away := Vector3.ZERO
+			if is_instance_valid(fear_source):
+				away = global_position - fear_source.global_position
+			elif "fear_source_pos" in self and fear_source_pos != Vector3.ZERO:
+				away = global_position - fear_source_pos
+			else:
+				away = -get_facing_direction_3d()
+			away.y = 0.0
+			if away.length_squared() > 0.01:
+				var norm = away.normalized()
+				input_dir = Vector2(norm.x, norm.z)
 		else:
 			input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var target_dir := Vector3(input_dir.x, 0, input_dir.y).normalized()

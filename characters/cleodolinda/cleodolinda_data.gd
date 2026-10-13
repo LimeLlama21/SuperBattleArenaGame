@@ -6,7 +6,6 @@ static func create() -> CharacterData:
 	data.id = "cleodolinda"
 	data.character_name = "Cleodolinda"
 	data.display_name = "Cleo"
-	data.archetype = "Hoverboarder"
 	data.origins = [CharacterOrigin.ID_MORTAL]
 	data.description = "Cleo, agile hoverboard rider with high mobility."
 	data.max_health = 180.0

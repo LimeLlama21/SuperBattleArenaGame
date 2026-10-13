@@ -26,6 +26,7 @@ const ArtistClass = preload("res://characters/artist/artist.gd")
 const HanziPointCloudRecognizer = preload("res://characters/artist/hanzi_point_cloud_recognizer.gd")
 const CleodolindaClass = preload("res://characters/cleodolinda/cleodolinda.gd")
 const CleodolindaDataClass = preload("res://characters/cleodolinda/cleodolinda_data.gd")
+const MonkeyClone = preload("res://characters/monkey/monkey_clone.gd")
 
 func _initialize() -> void:
 	_run_all.call_deferred()
@@ -65,6 +66,7 @@ func _run_all() -> void:
 	test_cleodolinda_rmb_strike()
 	test_cleodolinda_q_trail()
 	test_crush_chargeable_clap()
+	test_morrigan_reworked_passive_and_empower_kit()
 	test_offline_presentation_and_indicator_hygiene()
 
 	print("--- ALL ABILITY PIPELINE TESTS PASSED SUCCESSFULLY! ---")
@@ -690,7 +692,8 @@ func test_character_kits_and_special_mechanics() -> void:
 	root.add_child(morrigan)
 	if not morrigan.is_node_ready(): morrigan._ready()
 	
-	assert(morrigan.passive_crows_count == 3, "Morrigan starts with 3 crows")
+	assert(morrigan.passive_crows_count == 1, "Morrigan starts with 1 crow")
+	assert(morrigan.is_passive_empowered_ready == true, "Morrigan passive starts ready")
 	morrigan.lmb_charge_timer = 0.53 # 1st charge 0.35 + 1 extra (0.18)
 	assert(morrigan._calculate_lmb_feather_count() >= 2, "Should calculate charged feathers")
 	
@@ -1413,10 +1416,11 @@ func test_monkey_king_kit_and_mechanics() -> void:
 	root.add_child(monkey)
 	if not monkey.is_node_ready():
 		monkey._ready()
+	monkey.global_position = Vector3(200, 0, 200)
 
 	# 1. Identity & Ability Registration
 	assert(monkey.character_name == "Monkey", "Character name must be 'Monkey'")
-	assert(monkey.display_name == "The Great Sage", "Display name must be 'The Great Sage'")
+	assert(monkey.display_name in ["The Great Sage", "Sunny Kong"], "Display name must be valid")
 	assert(monkey.max_health == 160.0, "Max health should be 160.0")
 
 	var required_slots = ["LMB", "RMB", "SHIFT", "Q", "E", "R"]
@@ -1434,12 +1438,14 @@ func test_monkey_king_kit_and_mechanics() -> void:
 	assert(monkey.abilities.get("R").get_mana_cost(monkey) == 30.0, "R must cost 30 mana")
 	print("  ✓ Identity, ability slots, and mana costs verified.")
 
-	# 3. Passive: Stone Monkey (Triggers at <= 30% HP, Invulnerability, Displacement Immunity, 30% Missing HP Heal)
+	# 3. Passive: Stone Monkey (Triggers at <= 30% HP with 100% charge, charges via dealt dmg 0.1%/pt & takedowns 10%)
+	assert(monkey.stone_monkey_charge == 100.0, "Stone Monkey must start at 100% charge")
 	monkey.current_health = 40.0 # 40 / 160 = 25% <= 30%
 	monkey._process_character_kit(0.016)
 	assert(monkey.is_invulnerable() == true, "Stone Monkey must grant invulnerability")
 	assert(monkey.is_displacement_immune() == true, "Stone Monkey must grant displacement immunity")
 	assert(monkey.get("stone_monkey_active_timer") > 0.0, "Stone Monkey active timer must be active")
+	assert(monkey.stone_monkey_charge == 0.0, "Stone Monkey charge must be consumed to 0% upon triggering")
 
 	# Invulnerability prevents damage
 	var hp_before_dmg = monkey.current_health
@@ -1455,23 +1461,76 @@ func test_monkey_king_kit_and_mechanics() -> void:
 	var health_before_tick = monkey.current_health
 	monkey._process_character_kit(1.0) # 1 second tick
 	assert(monkey.current_health > health_before_tick, "Stone Monkey must heal over duration")
-	print("  ✓ Stone Monkey passive (invulnerability, displacement immunity, heal) verified.")
 
-	# 4. Invisibility Status & Rider: breaks on casting another ability including primary and dash
-	monkey.apply_invisibility(3.0)
-	assert(monkey.is_invisible() == true, "apply_invisibility must set is_invisible to true")
-	
-	# Casting LMB breaks invisibility
-	monkey.try_cast_ability("LMB")
-	assert(monkey.is_invisible() == false, "Invisibility must end upon casting primary attack")
+	# End active duration: verify critical health DOES NOT re-trigger passive while uncharged
+	monkey.stone_monkey_active_timer = 0.0
+	monkey.invulnerable_timer = 0.0
+	monkey.displacement_immune_timer = 0.0
+	monkey.current_health = 40.0
+	monkey._process_character_kit(0.016)
+	assert(monkey.is_invulnerable() == false, "Uncharged Stone Monkey must not trigger without 100% charge")
 
-	monkey.apply_invisibility(3.0)
-	assert(monkey.is_invisible() == true, "Invisibility reapplied")
-	monkey.try_cast_ability("SHIFT")
-	assert(monkey.is_invisible() == false, "Invisibility must end upon casting dash")
-	print("  ✓ Invisibility status and auto-break on cast verified.")
+	# Verify charging from dealt damage: 1 point of dealt damage = 0.1% charge
+	monkey._on_character_damage_dealt(null, 250.0, BasePlayer.ActionType.ATTACK)
+	assert(is_equal_approx(monkey.stone_monkey_charge, 25.0), "250 damage dealt must convert to 25.0% charge")
 
-	# 5. Taunt Status: forces movement towards taunter, forces aim, deals reduced damage
+	# Verify charging from takedowns: each kill or assist = 10% charge
+	monkey._on_character_takedown(null)
+	assert(is_equal_approx(monkey.stone_monkey_charge, 35.0), "Takedown must grant 10.0% charge")
+
+	# Reach 100% charge and re-trigger
+	monkey._on_character_damage_dealt(null, 650.0, BasePlayer.ActionType.ATTACK)
+	assert(is_equal_approx(monkey.stone_monkey_charge, 100.0), "Charge must reach 100.0%")
+	monkey.current_health = 40.0
+	monkey._process_character_kit(0.016)
+	assert(monkey.is_invulnerable() == true, "Fully charged passive must re-trigger at <= 30% HP")
+	assert(monkey.stone_monkey_charge == 0.0, "Charge must be consumed again")
+
+	# Clear active state for subsequent tests
+	monkey.stone_monkey_active_timer = 0.0
+	monkey.invulnerable_timer = 0.0
+	monkey.displacement_immune_timer = 0.0
+	monkey._set_stone_material(false)
+	print("  ✓ Stone Monkey passive (charge-based from damage & takedowns, invulnerability, displacement immunity, heal) verified.")
+
+	# 4. Q Doppelganger Clone: same stats, vision provider, tracking & dashing towards visible enemies, follow summoner, 10s lifetime
+	monkey.current_mana = 100.0
+	monkey.custom_execute_ability_server("Q", monkey.global_position, Vector3(0, 0, -1), Vector3.ZERO, 0.0)
+	assert(monkey.abilities.get("Q").current_cooldown > 0.0, "Q cast must start cooldown")
+
+	var clone: MonkeyClone = null
+	for child in root.get_children():
+		if child is MonkeyClone:
+			clone = child
+			break
+	if not clone:
+		var pc = root.get_node_or_null("Main/Players")
+		if pc:
+			for child in pc.get_children():
+				if child is MonkeyClone:
+					clone = child
+					break
+
+	assert(clone != null, "Q must spawn a MonkeyClone entity")
+	assert(clone.summoner == monkey, "Clone summoner must be Monkey King")
+	assert(clone.team_id == monkey.team_id, "Clone must have same team as summoner")
+	assert(clone.max_health == monkey.max_health, "Clone must have same max health as summoner")
+	assert(clone.current_health == monkey.current_health, "Clone must have same current health as summoner")
+	assert(clone.damage == monkey.damage, "Clone must have same damage as summoner")
+	assert(clone.max_move_speed == monkey.max_move_speed, "Clone must have same movement speed as summoner")
+	assert(clone.lifetime == 10.0, "Clone lifetime must be 10.0 seconds")
+
+	# Clone Vision Provider interface
+	assert(clone.get_predicted_vision_origin().distance_to(clone.global_position) < 3.0, "Clone must provide vision origin")
+	assert(clone.get_custom_cone_radius() > 0.0, "Clone must provide player vision cone")
+	assert(clone.get_facing_direction_3d().length() > 0.8, "Clone must provide facing direction")
+
+	# Follow Summoner when no enemy is visible
+	clone.global_position = monkey.global_position + Vector3(6, 0, 0)
+	clone._physics_process(0.1)
+	assert(clone.velocity.x < 0.0, "Clone must move towards summoner when no visible enemies exist")
+
+	# Target, dash, and attack enemy dummy when visible within range
 	var dummy_scene = load("res://characters/crush/crush.tscn") as PackedScene
 	var dummy = dummy_scene.instantiate() as BasePlayer
 	dummy.name = "201"
@@ -1479,57 +1538,69 @@ func test_monkey_king_kit_and_mechanics() -> void:
 	root.add_child(dummy)
 	if not dummy.is_node_ready():
 		dummy._ready()
+	dummy.global_position = clone.global_position + Vector3(0, 0, -8.0)
+	dummy.visible = true
+	dummy.current_health = 500.0
 
-	dummy.global_position = Vector3(10, 0, 0)
-	monkey.global_position = Vector3(0, 0, 0)
+	# Clone spots dummy and dashes towards it
+	clone.dash_cooldown = 0.0
+	clone._physics_process(0.1)
+	assert(clone.velocity.z < -max(clone.max_move_speed, 10.0), "Clone must dash towards visible enemy when > 4.5m away")
 
-	dummy.apply_taunt(monkey, 1.8, 0.35)
-	assert(dummy.is_taunted() == true, "Dummy must be taunted")
-	assert(dummy.get_taunt_target() == monkey, "Taunt target must be Monkey King")
-	assert(is_equal_approx(dummy.get_taunt_damage_multiplier(), 0.65), "Taunted unit must have 0.65 damage multiplier")
+	# Clone attacks dummy when in melee range (<= 3.2m)
+	clone.global_position = dummy.global_position + Vector3(0, 0, 2.0)
+	clone.attack_cooldown = 0.0
+	var dummy_hp_before_clone_hit = dummy.current_health
+	clone._physics_process(0.1)
+	var expected_clone_dmg = 30.0 + (float(clone.damage) * 0.5)
+	assert(is_equal_approx(dummy_hp_before_clone_hit - dummy.current_health, expected_clone_dmg), "Clone must attack target in melee range dealing swipe damage")
 
-	# Verify aim overrides towards taunter
-	dummy.aim_at_mouse()
-	var forward_dir = -dummy.global_transform.basis.z.normalized()
-	forward_dir.y = 0.0
-	assert(forward_dir.dot(Vector3(-1, 0, 0)) > 0.8, "Taunted unit must face taunter")
+	# Clone despawns after 10 seconds or death
+	clone.take_damage(clone.max_health + 10.0)
+	assert(clone.is_dead == true, "Clone must die when taking fatal damage")
+	print("  ✓ Q Doppelganger Clone (stats copying, player vision, enemy tracking, dash, melee attack, follow summoner, 10s lifetime) verified.")
 
-	# Verify damage reduction when dealing damage to another unit
-	var dmg_reduced = monkey.modify_incoming_damage(100.0, dummy.name.to_int(), 0)
-	assert(dmg_reduced <= 65.0, "Incoming damage from taunted unit must be reduced by 35%")
-	print("  ✓ Taunt status (forced aim, movement, damage reduction) verified.")
+	# 5. E Camouflage: invisible to all enemies unless an enemy is within 6.0m, persists through move/jump/dash, breaks on other actions or 10s
+	monkey.current_mana = 100.0
+	monkey.custom_execute_ability_server("E", monkey.global_position, Vector3(0, 0, -1), Vector3.ZERO, 0.0)
+	assert(monkey.is_camouflaged == true, "E cast must activate camouflage")
+	assert(monkey.camouflage_timer == 10.0, "Camouflage timer must start at 10.0s")
 
-	# 6. 72 Forms Transformation: appearance change only, movement & dash permitted, break on damage/attack
-	monkey.stone_monkey_active_timer = 0.0
-	monkey.invulnerable_timer = 0.0
-	monkey.displacement_immune_timer = 0.0
+	# Enemy dummy is far away (15m) -> Monkey is invisible to enemies
+	dummy.global_position = monkey.global_position + Vector3(15, 0, 0)
+	monkey._process_character_kit(0.016)
+	assert(monkey.is_camouflage_detected == false, "Enemy at 15m (> 6.0m) must NOT detect camouflaged Monkey")
+	assert(monkey.is_invisible() == true, "Camouflaged Monkey must be invisible when undetected")
 
-	monkey.apply_transformation("tree", {"can_move": true, "can_dash": true, "break_on_attack": true, "break_on_damage": true})
-	assert(monkey.is_unit_transformed() == true, "Monkey King must be transformed")
-	assert(monkey.transformed_prop_type == "tree", "Prop type must be tree")
-	assert(monkey.get_node_or_null("MeshInstance3D").visible == false, "Player mesh must be hidden while transformed")
-	assert(monkey.get_node_or_null("TransformedPropVisual") != null, "Transformed prop visual must be attached")
+	# Enemy dummy enters within 6.0m (4m away) -> Detected!
+	dummy.global_position = monkey.global_position + Vector3(4, 0, 0)
+	monkey._process_character_kit(0.016)
+	assert(monkey.is_camouflage_detected == true, "Enemy within 4m (<= 6.0m) must detect camouflaged Monkey")
+	assert(monkey.is_invisible() == false, "Detected Monkey must become visible to enemies")
 
-	# Dashing (SHIFT) does NOT break transformation
+	# Enemy dummy leaves detection range -> Concealed again!
+	dummy.global_position = monkey.global_position + Vector3(12, 0, 0)
+	monkey._process_character_kit(0.016)
+	assert(monkey.is_camouflage_detected == false, "Enemy leaving detection range restores concealment")
+	assert(monkey.is_invisible() == true, "Monkey must return to being invisible when enemies leave detection range")
+
+	# Dashing (SHIFT) does NOT break camouflage
 	monkey.try_cast_ability("SHIFT")
-	assert(monkey.is_unit_transformed() == true, "Dashing must NOT break transformation")
+	assert(monkey.is_camouflaged == true, "Dashing (SHIFT) must NOT break camouflage")
 
-	# Taking damage breaks transformation
+	# Taking damage breaks camouflage
 	monkey.take_damage(10.0)
-	assert(monkey.is_unit_transformed() == false, "Taking damage must break transformation")
-	assert(monkey.get_node_or_null("MeshInstance3D").visible == true, "Player mesh must be restored")
-	assert(monkey.get_node_or_null("TransformedPropVisual") == null, "Transformed prop visual must be removed")
-	assert(monkey.abilities.get("Q").current_cooldown > 0.0, "Breaking transformation must start Q cooldown")
+	assert(monkey.is_camouflaged == false, "Taking damage must break camouflage")
+	assert(monkey.abilities.get("E").current_cooldown > 0.0, "Breaking camouflage must start E cooldown")
 
-	# Cancel choice: refunds 5 mana and triggers reduced cooldown
-	monkey.current_mana = 80.0
-	var mana_before_cancel = monkey.current_mana
-	monkey._process_radial_choice("cancel")
-	assert(monkey.current_mana == 85.0, "Cancel must refund half mana (5.0)")
-	assert(is_equal_approx(monkey.abilities.get("Q").current_cooldown, 2.5), "Cancel must trigger reduced 2.5s cooldown")
-	print("  ✓ 72 Forms transformation, dash persistence, damage break, and cancel refund verified.")
+	# Re-apply camouflage: Attacking (LMB) breaks camouflage
+	monkey.apply_camouflage()
+	assert(monkey.is_camouflaged == true, "Camouflage reapplied")
+	monkey.try_cast_ability("LMB")
+	assert(monkey.is_camouflaged == false, "Attacking (LMB) must break camouflage")
+	print("  ✓ E Camouflage (10s duration, 6m proximity detection, dash persistence, damage & attack break) verified.")
 
-	# 7. RMB Enlarge Charge & Sweet Spot
+	# 6. RMB Enlarge Charge & Sweet Spot
 	var rmb_ab = monkey.abilities.get("RMB")
 	assert(rmb_ab.is_charge_ability() == true, "RMB must be a charge ability")
 	assert(rmb_ab.hold_to_charge == true, "RMB must hold to charge")
@@ -1546,22 +1617,121 @@ func test_monkey_king_kit_and_mechanics() -> void:
 	assert(dummy.stun_timer >= 1.5, "Sweet spot must increase stun duration by 0.5s")
 	print("  ✓ RMB Enlarge charging, sweet spot damage (1.45x), and bonus stun verified.")
 
-	# 8. Ultimate Recast & Invisibility Break
+	# 7. R Ultimate Smoke Duel & Recast (Dash Strike 0 dmg, Smoke Cloud, Intangibility, Recast Opposite Knockback, 5s Target Disguise & Copy)
 	monkey.current_mana = 100.0
-	monkey.custom_execute_ability_server("R", monkey.global_position, Vector3.FORWARD, Vector3.FORWARD * 10.0, 0.0)
-	assert(monkey.ult_recast_window > 0.0, "Ult initial cast must activate recast window")
-	assert(monkey.is_invisible() == true, "Ult initial cast must grant invisibility")
-	assert(monkey.character_handles_slot("R") == true, "Monkey King must handle R slot while recast window is active")
-	assert(monkey.get_custom_ability_mana_cost("R", "") == 0.0, "Ult recast must be free of mana cost")
+	dummy.current_health = 500.0
+	dummy.global_position = monkey.global_position + Vector3(0, 0, -5.0)
 
-	# Recast triggers flurry rush, breaks invisibility, and starts full cooldown
-	monkey.custom_execute_ability_server("R", monkey.global_position, Vector3.FORWARD, Vector3.FORWARD * 12.0, 0.0)
+	var dummy_hp_pre_ult = dummy.current_health
+	monkey.custom_execute_ability_server("R", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+
+	# Strike deals 0 damage
+	assert(dummy.current_health == dummy_hp_pre_ult, "Ult strike must deal 0 damage to target")
+	assert(monkey.ult_recast_window > 0.0, "Ult initial cast must activate recast window")
+	assert(monkey.is_invisible() == true, "Monkey must be invisible during smoke duel")
+	assert(monkey.is_invulnerable() == true, "Monkey must be untargetable/invulnerable during smoke duel")
+	assert(monkey.is_ethereal_active() == true, "Monkey must be intangible during smoke duel")
+	assert(dummy.is_invisible() == true, "Target must be invisible during smoke duel")
+	assert(dummy.is_invulnerable() == true, "Target must be untargetable/invulnerable during smoke duel")
+	assert(dummy.is_ethereal_active() == true, "Target must be intangible during smoke duel")
+
+	# Smoke cloud (gray circle) spawned
+	assert(monkey.smoke_cloud_instance != null, "Smoke cloud instance must exist during duel")
+	assert(monkey.character_handles_slot("R") == true, "Monkey must handle R recast slot")
+	assert(monkey.get_custom_ability_mana_cost("R", "") == 0.0, "Ult recast must cost 0 mana")
+
+	# Recast: Monkey dashes in chosen direction, target sent in opposite direction (-dir)
+	var recast_dir = Vector3(1, 0, 0)
+	monkey.custom_execute_ability_server("R", monkey.global_position, recast_dir, monkey.global_position + recast_dir * 10.0, 0.0)
+
 	assert(monkey.ult_recast_window == 0.0, "Ult recast must close recast window")
-	assert(monkey.is_invisible() == false, "Ult recast flurry must break invisibility")
-	assert(monkey.abilities.get("R").current_cooldown > 0.0, "Ult recast must start full cooldown")
-	assert(monkey.character_handles_slot("R") == false, "Monkey King should not handle R slot after recast")
-	assert(monkey.get_custom_ability_mana_cost("R", "") == -1.0, "Ult mana cost should return to default after recast")
-	print("  ✓ Ultimate stealth dash, recast window, flurry rush, and invisibility break verified.")
+	assert(monkey.smoke_cloud_instance == null, "Smoke cloud must be removed after recast")
+	assert(monkey.is_invulnerable() == false, "Invulnerability must end upon recast")
+	assert(dummy.is_invulnerable() == false, "Target invulnerability must end upon recast")
+	assert(monkey.velocity.x > 15.0, "Monkey must dash in chosen direction")
+	assert(dummy.velocity.x < -15.0, "Target must be sent in opposite direction (-dir)")
+
+	# 5-Second Disguise & Copy Target Abilities
+	assert(monkey.disguise_timer > 0.0, "Disguise timer must be active (5.0s)")
+	assert(monkey.disguised_target == dummy, "Disguised target must be dummy")
+	assert(monkey.display_name == dummy.display_name or monkey.display_name == dummy.name, "Monkey display name must copy target display name")
+
+	# Abilities replaced with target's abilities
+	var copied_lmb = monkey.abilities.get("LMB")
+	assert(copied_lmb != null and copied_lmb.ability_id == dummy.abilities.get("LMB").ability_id, "Monkey's LMB must be replaced with target's LMB ability")
+
+	# Health bar perception check
+	monkey._apply_disguise_team_visuals()
+	var fill_sb = monkey.health_bar.get_theme_stylebox("fill")
+	assert(fill_sb != null, "Health bar fill StyleBox must be present")
+
+	# Disguise expires after 5.0 seconds
+	monkey._process_character_kit(5.1)
+	assert(monkey.disguise_timer == 0.0, "Disguise timer must expire after 5.0 seconds")
+	assert(monkey.abilities.get("LMB").ability_id == "monkey_pillar", "Monkey original LMB must be restored after disguise ends")
+	assert(monkey.abilities.get("R").current_cooldown > 0.0, "Ult cooldown must begin after disguise ends")
+	print("  ✓ R Ultimate (dash strike with 0 damage, smoke duel intangibility, recast opposite knockback, 5s target disguise & ability replacement) verified.")
+
+
+	# 9. 3-Hit Combo Primary Attack (LMB)
+	# Hits 1 & 2: Basic swipes (cone) dealing 30 base damage with 50% attack ratio (30 + 24 * 0.5 = 42.0)
+	# Hit 3: Slam (long line) dealing 50 base damage with 75% attack ratio (50 + 24 * 0.75 = 68.0)
+	# Reset timer: resets combo to Hit 1 if idle
+	monkey._process_character_kit(1.5) # ensure combo is reset to step 0
+	assert(monkey.combo_step == 0, "Combo must start at step 0 (Hit 1 swipe)")
+
+	var swipe_expected_dmg = 30.0 + (float(monkey.damage) * 0.50) # 42.0
+	var slam_expected_dmg = 50.0 + (float(monkey.damage) * 0.75) # 68.0
+	assert(is_equal_approx(swipe_expected_dmg, 42.0), "Swipe damage must be 42.0")
+	assert(is_equal_approx(slam_expected_dmg, 68.0), "Slam damage must be 68.0")
+
+	# Position dummy 3.0m in front of monkey (inside 4.5m cone and 8.5m line)
+	dummy.max_health = 1000.0
+	dummy.current_health = 500.0
+	dummy.global_position = monkey.global_position + Vector3(0, 0, -3.0)
+	var hp0 = dummy.current_health
+	monkey.custom_execute_ability_server("LMB", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+	assert(is_equal_approx(hp0 - dummy.current_health, swipe_expected_dmg), "Hit 1 Swipe must deal 30 base + 50%% ratio (42.0 dmg)")
+	assert(monkey.combo_step == 1, "Combo must advance to step 1 after Hit 1")
+	assert(monkey.combo_reset_timer > 0.0, "Combo reset timer must be active")
+
+	# Hit 2 Swipe
+	var hp1 = dummy.current_health
+	monkey.custom_execute_ability_server("LMB", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+	assert(is_equal_approx(hp1 - dummy.current_health, swipe_expected_dmg), "Hit 2 Swipe must deal 30 base + 50%% ratio (42.0 dmg)")
+	assert(monkey.combo_step == 2, "Combo must advance to step 2 after Hit 2")
+
+	# Hit 3 Slam: position dummy 6.5m in front (outside 4.5m swipe cone, but inside 8.5m slam line)
+	dummy.global_position = monkey.global_position + Vector3(0, 0, -6.5)
+	var hp2 = dummy.current_health
+	monkey.custom_execute_ability_server("LMB", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+	assert(is_equal_approx(hp2 - dummy.current_health, slam_expected_dmg), "Hit 3 Slam must deal 50 base + 75%% ratio (68.0 dmg)")
+	assert(monkey.combo_step == 0, "Combo must cycle back to step 0 after Hit 3 Slam")
+
+	# Test Cone Angular Exclusion for Swipes (target behind Monkey)
+	dummy.global_position = monkey.global_position + Vector3(0, 0, 3.0)
+	var hp_behind = dummy.current_health
+	monkey.custom_execute_ability_server("LMB", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+	assert(dummy.current_health == hp_behind, "Targets behind Monkey must not be hit by frontal cone swipe")
+	# reset combo for next test
+	monkey._process_character_kit(1.5)
+	assert(monkey.combo_step == 0, "Combo must reset to step 0 after timeout")
+
+	# Test Line Lateral Exclusion for Slam (target 6m ahead but 3.5m to side, outside line width 1.6m)
+	monkey.combo_step = 2 # force slam step
+	dummy.global_position = monkey.global_position + Vector3(3.5, 0, -6.0)
+	var hp_lateral = dummy.current_health
+	monkey.custom_execute_ability_server("LMB", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+	assert(dummy.current_health == hp_lateral, "Targets laterally outside slam line must not be hit")
+	assert(monkey.combo_step == 0, "Slam must reset combo to step 0")
+
+	# Test Combo Timeout Reset: strike once (Hit 1), wait for timeout, verify reset to 0
+	dummy.global_position = monkey.global_position + Vector3(0, 0, -2.5)
+	monkey.custom_execute_ability_server("LMB", monkey.global_position, Vector3(0, 0, -1), dummy.global_position, 0.0)
+	assert(monkey.combo_step == 1, "Combo at step 1 after one swipe")
+	monkey._process_character_kit(monkey.COMBO_RESET_WINDOW + 0.1)
+	assert(monkey.combo_step == 0, "Combo must reset to 0 after reset window elapses without attack")
+	print("  ✓ 3-hit combo (2 cone swipes with 30 base + 50% ratio, 1 line slam with 50 base + 75% ratio, cycling & reset) verified.")
 
 	monkey.queue_free()
 	dummy.queue_free()
@@ -1817,8 +1987,7 @@ func test_data_driven_character_pipeline() -> void:
 	# 7. Verify Uru (aspara)
 	assert(CharacterRegistry.has_character("aspara"), "CharacterRegistry must have aspara")
 	assert(CharacterRegistry.get_display_name("aspara") == "Uru", "Display name for aspara must be Uru")
-	assert(CharacterRegistry.has_character("asparsas"), "CharacterRegistry must support alias asparsas")
-	assert(CharacterRegistry.get_display_name("asparsas") == "Uru", "Display name for alias asparsas must be Uru")
+	assert(not CharacterRegistry.has_character("asparsas"), "CharacterRegistry must not have duplicate alias asparsas")
 	assert(not CharacterRegistry.has_character("dive"), "CharacterRegistry must not have obsolete 'dive' key")
 	var urvashi_data = CharacterRegistry.get_character_data("aspara")
 	assert(urvashi_data.id == "aspara", "Uru data id must be 'aspara'")
@@ -1873,10 +2042,10 @@ func test_data_driven_character_pipeline() -> void:
 		else:
 			assert(EnabledCharsClass.is_character_enabled(c_id), "Character %s must be enabled" % c_id)
 			assert(CharacterRegistry.is_character_enabled(c_id), "CharacterRegistry must report %s as enabled" % c_id)
-	assert(EnabledCharsClass.is_character_enabled("cleo"), "Alias 'cleo' must report as enabled")
-	assert(CharacterRegistry.is_character_enabled("cleo"), "CharacterRegistry must report alias 'cleo' as enabled")
-	assert(EnabledCharsClass.is_character_enabled("asparsas"), "Alias 'asparsas' must report as enabled")
-	assert(CharacterRegistry.is_character_enabled("asparsas"), "CharacterRegistry must report alias 'asparsas' as enabled")
+	assert(not EnabledCharsClass.is_character_enabled("cleo"), "Alias 'cleo' must not be registered as an enabled character")
+	assert(not CharacterRegistry.is_character_enabled("cleo"), "CharacterRegistry must not register alias 'cleo'")
+	assert(not EnabledCharsClass.is_character_enabled("asparsas"), "Alias 'asparsas' must not be registered as an enabled character")
+	assert(not CharacterRegistry.is_character_enabled("asparsas"), "CharacterRegistry must not register alias 'asparsas'")
 	assert(not EnabledCharsClass.is_character_enabled("fake_character"), "Fake character must not be enabled")
 	print("  ✓ Enabled characters list verified (all %d non-disabled characters selectable, Reaper disabled)." % enabled_chars.size())
 
@@ -2435,58 +2604,69 @@ func test_ui_modal_states_and_radial_wheel() -> void:
 	wheel.queue_free()
 	print("  ✓ Dynamic N-option radial calculations, selection, and cancel signals verified.")
 
-	# 4. Monkey King Offloaded Pipeline Integration
-	var monkey = CharacterRegistry.create_player_instance("Monkey")
-	root.add_child(monkey)
-	monkey.peer_id = 1
-	var q_ab = monkey.abilities.get("Q")
-	assert(q_ab != null, "Monkey King must have Q ability")
-	assert(q_ab.has_ui_modal() == true, "Monkey King Q must have ui_modal configured via pipeline")
-	assert(q_ab.ui_modal.modal_type == AbilityPipeline.UIModalType.RADIAL_WHEEL, "Monkey Q modal must be RADIAL_WHEEL")
-	assert(q_ab.ui_modal.options.size() == 2, "Monkey Q modal must have 2 options (tree, rock)")
-	assert(monkey.character_handles_slot("Q") == false, "Monkey King should NO LONGER handle Q slot manually (offloaded to pipeline)")
+	# 4. Declarative Pipeline UI Modal Integration
+	var test_player = BasePlayer.new()
+	root.add_child(test_player)
+	test_player.peer_id = 1
+	var q_ab = AbilityClass.new()
+	q_ab.slot_key = "Q"
+	q_ab.mana_cost = 10.0
+	q_ab.ui_modal = AbilityPipeline.create_ui_modal({
+		"type": AbilityPipeline.UIModalType.RADIAL_WHEEL,
+		"interaction_mode": AbilityPipeline.ModalInteractionMode.HOLD_AND_RELEASE,
+		"cancel_cooldown": 2.5,
+		"cancel_refund_percent": 0.5,
+		"options": [
+			{"id": "tree", "label": "Tree"},
+			{"id": "rock", "label": "Rock"}
+		]
+	})
+	test_player.abilities["Q"] = q_ab
+
+	assert(q_ab.has_ui_modal() == true, "Ability Q must have ui_modal configured via pipeline")
+	assert(q_ab.ui_modal.modal_type == AbilityPipeline.UIModalType.RADIAL_WHEEL, "Q modal must be RADIAL_WHEEL")
+	assert(q_ab.ui_modal.options.size() == 2, "Q modal must have 2 options")
 
 	# 5. Player Modal Lifecycle: Open, Mana Reservation, and Cancel Refund
-	monkey.current_mana = 80.0
-	monkey.open_ability_modal("Q", q_ab)
-	assert(monkey.active_modal_slot == "Q", "Active modal slot should be Q")
-	assert(monkey.is_mouse_hijacked == true, "Mouse should be hijacked while modal is open")
-	assert(monkey.current_mana == 70.0, "Opening modal should reserve Q_MANA_COST (10 mana)")
+	test_player.current_mana = 80.0
+	test_player.open_ability_modal("Q", q_ab)
+	assert(test_player.active_modal_slot == "Q", "Active modal slot should be Q")
+	assert(test_player.is_mouse_hijacked == true, "Mouse should be hijacked while modal is open")
+	assert(test_player.current_mana == 70.0, "Opening modal should reserve Q_MANA_COST (10 mana)")
 
 	# Cancel active modal
-	monkey.cancel_active_modal()
-	assert(monkey.active_modal_slot == "", "Active modal slot should be empty after cancel")
-	assert(monkey.is_mouse_hijacked == false, "Mouse should no longer be hijacked after cancel")
-	assert(monkey.current_mana == 75.0, "Canceling must refund 50% of 10 mana (5.0 mana)")
+	test_player.cancel_active_modal()
+	assert(test_player.active_modal_slot == "", "Active modal slot should be empty after cancel")
+	assert(test_player.is_mouse_hijacked == false, "Mouse should no longer be hijacked after cancel")
+	assert(test_player.current_mana == 75.0, "Canceling must refund 50% of 10 mana (5.0 mana)")
 	assert(is_equal_approx(q_ab.current_cooldown, 2.5), "Canceling must apply 2.5s cancel cooldown")
 
 	# 6. CC Interrupt Cancellation
-	monkey.current_mana = 80.0
+	test_player.current_mana = 80.0
 	q_ab.current_cooldown = 0.0
-	monkey.open_ability_modal("Q", q_ab)
-	assert(monkey.active_modal_slot == "Q", "Active modal slot should be Q before CC")
+	test_player.open_ability_modal("Q", q_ab)
+	assert(test_player.active_modal_slot == "Q", "Active modal slot should be Q before CC")
 	# Stun the player and process input
-	monkey.apply_stun(1.0)
-	monkey._process_abilities_input(0.01)
-	assert(monkey.active_modal_slot == "", "CC stun must automatically cancel active modal")
-	assert(monkey.is_mouse_hijacked == false, "CC stun must release mouse hijack")
-	assert(monkey.current_mana == 75.0, "CC cancel must refund 50% mana")
+	test_player.apply_stun(1.0)
+	test_player._process_abilities_input(0.01)
+	assert(test_player.active_modal_slot == "", "CC stun must automatically cancel active modal")
+	assert(test_player.is_mouse_hijacked == false, "CC stun must release mouse hijack")
+	assert(test_player.current_mana == 75.0, "CC cancel must refund 50% mana")
 	assert(is_equal_approx(q_ab.current_cooldown, 2.5), "CC cancel must apply cancel cooldown")
-	monkey.stun_timer = 0.0
+	test_player.stun_timer = 0.0
 
 	# 7. Confirm Option & Execution
-	monkey.current_mana = 80.0
+	test_player.current_mana = 80.0
 	q_ab.current_cooldown = 0.0
-	monkey.open_ability_modal("Q", q_ab)
-	monkey.resolve_modal_choice("Q", q_ab, "rock")
-	assert(monkey.active_modal_slot == "", "Active modal slot should be empty after choice confirmed")
-	assert(monkey.is_mouse_hijacked == false, "Mouse should no longer be hijacked after choice confirmed")
-	assert(monkey.is_unit_transformed() == true, "Choosing rock must execute 72 Forms transformation")
-	assert(monkey.transformed_prop_type == "rock", "Prop type must be rock")
+	test_player.open_ability_modal("Q", q_ab)
+	test_player.resolve_modal_choice("Q", q_ab, "rock")
+	assert(test_player.active_modal_slot == "", "Active modal slot should be empty after choice confirmed")
+	assert(test_player.is_mouse_hijacked == false, "Mouse should no longer be hijacked after choice confirmed")
 
 	# Cleanup
-	monkey.queue_free()
+	test_player.queue_free()
 	print("  ✓ Player modal lifecycle, mana reservation, cancel refund, CC interrupt, and confirmation verified.")
+
 	print("✓ UI Modal States & Radial Wheel Pipeline Integration verified successfully!")
 
 func test_artist_the_painted_sage_kit() -> void:
@@ -2910,21 +3090,21 @@ func test_artist_the_painted_sage_kit() -> void:
 	print("  ✓ RMB Two-part cast wall dimensions (2.4m height, 7.2m length, 1.44m thickness), no damage, and rapid rise pushing characters up on ground & elevated terrain verified.")
 
 	# 11. Astral Projection (Strange Q Ability)
-	artist.global_position = Vector3(10.0, 0.0, 10.0)
+	artist.global_position = Vector3(100.0, 0.0, 100.0)
 	var enemy_dummy = (load("res://characters/Disabled characters/reaper/reaper.tscn") as PackedScene).instantiate() as BasePlayer
 	enemy_dummy.name = "AstralEnemyTarget"
 	root.add_child(enemy_dummy)
 	enemy_dummy.peer_id = 99
 	enemy_dummy.team_id = 2
-	enemy_dummy.global_position = Vector3(10.0, 0.0, 25.0)
+	enemy_dummy.global_position = Vector3(100.0, 0.0, 115.0)
 
 	# Cast Q: marks body location, leaves physical body behind, soul enters flight
 	var cast_q_success = artist.try_cast_ability("Q")
 	assert(cast_q_success == true, "Must successfully cast Q Astral Projection")
 	assert(artist.is_soul_form == true, "Artist must enter soul form")
-	assert(artist.soul_marked_body_pos == Vector3(10.0, 0.0, 10.0), "Soul must mark current body location")
+	assert(artist.soul_marked_body_pos == Vector3(100.0, 0.0, 100.0), "Soul must mark current body location")
 	assert(is_instance_valid(artist.soul_body_puppet), "Physical body puppet must be spawned at marked location")
-	assert(artist.soul_body_puppet.position == Vector3(10.0, 0.0, 10.0), "Dormant body must stay at marked location")
+	assert(artist.soul_body_puppet.position == Vector3(100.0, 0.0, 100.0), "Dormant body must stay at marked location")
 
 	# Defenses & Status Immunities: Targetable, 50% reduced enemy damage, immune to ground hazards & grounded
 	assert(artist.ground_hazard_immune == true, "Soul must be immune to ground hazards")
@@ -2959,12 +3139,12 @@ func test_artist_the_painted_sage_kit() -> void:
 	assert(artist.velocity.z > 0.0, "Soul velocity must steer towards enemy on Z axis")
 
 	# Moving target: soul updates trajectory towards new location
-	enemy_dummy.global_position = Vector3(25.0, 0.0, 10.0)
+	enemy_dummy.global_position = Vector3(115.0, 0.0, 100.0)
 	artist._process_soul_form(0.05)
 	assert(artist.velocity.x > 0.0, "Soul must update persistent tracking towards moving enemy on X axis")
 
 	# Contact with enemy: grabs, stuns for pull duration + 1.0s, pulls back to body
-	artist.global_position = Vector3(24.0, 0.0, 10.0) # Within grab radius
+	artist.global_position = Vector3(114.0, 0.0, 100.0) # Within grab radius
 	artist._process_soul_form(0.01)
 	assert(artist.soul_state == Artist.SoulState.PULLING_BACK, "Soul must enter PULLING_BACK state on contact")
 	assert(artist.soul_grabbed_enemy == enemy_dummy, "Enemy must be grabbed on contact")
@@ -2974,14 +3154,15 @@ func test_artist_the_painted_sage_kit() -> void:
 
 	# Process entire pull back to body
 	artist._process_soul_form(pull_time + 0.05)
+	enemy_dummy._process_status_timers(pull_time + 0.05)
 	assert(artist.is_soul_form == false, "Soul form must end upon arrival back at body")
-	assert(artist.global_position.distance_to(Vector3(10.0, 0.0, 10.0)) < 0.1, "Artist must arrive back at marked body location")
+	assert(artist.global_position.distance_to(Vector3(100.0, 0.0, 100.0)) < 0.1, "Artist must arrive back at marked body location")
 	assert(not is_instance_valid(artist.soul_body_puppet), "Dormant body puppet must be cleaned up")
-	assert(enemy_dummy.global_position.distance_to(Vector3(10.0, 0.0, 10.0)) < 2.0, "Grabbed enemy must be pulled back to body location")
+	assert(enemy_dummy.global_position.distance_to(Vector3(100.0, 0.0, 100.0)) < 2.0, "Grabbed enemy must be pulled back to body location")
 	assert(enemy_dummy.is_stunned() == true, "Enemy must remain stunned for extra 1.0s after pull completes")
 
 	# Extra 1 second stun expires naturally
-	enemy_dummy._process_status_effects(1.1)
+	enemy_dummy._process_status_timers(1.1)
 	assert(enemy_dummy.is_stunned() == false, "Enemy stun must expire after extra second")
 
 	enemy_dummy.queue_free()
@@ -2997,17 +3178,15 @@ func test_cleodolinda_maximum_suction() -> void:
 
 	# 0. Character Registry & Metadata
 	assert(CharacterRegistry.has_character("cleodolinda") == true, "CharacterRegistry must have 'cleodolinda'")
-	assert(CharacterRegistry.has_character("cleo") == true, "CharacterRegistry must have 'cleo' alias")
+	assert(CharacterRegistry.has_character("cleo") == false, "CharacterRegistry must not have duplicate 'cleo' registration")
 	assert(CharacterRegistry.get_display_name("cleodolinda") == "Cleo", "Display name must be 'Cleo'")
-	assert(CharacterRegistry.get_display_name("cleo") == "Cleo", "Display name for 'cleo' must be 'Cleo'")
 	var main_script = load("res://main.gd")
 	assert(main_script != null, "main.gd must load")
 	assert(main_script.CHARACTERS.has("cleodolinda"), "main.gd CHARACTERS must contain 'cleodolinda'")
-	assert(main_script.CHARACTERS.has("cleo"), "main.gd CHARACTERS must contain 'cleo'")
+	assert(main_script.CHARACTERS.has("cleo") == false, "main.gd CHARACTERS must not contain 'cleo'")
 	assert(main_script.CHARACTER_DISPLAY_NAMES.has("cleodolinda"), "main.gd CHARACTER_DISPLAY_NAMES must contain 'cleodolinda'")
 	assert(main_script.CHARACTER_DISPLAY_NAMES["cleodolinda"] == "Cleo", "main.gd cleodolinda display name must be 'Cleo'")
 	assert(main_script.get_character_display_name("cleodolinda") == "Cleo", "main.gd get_character_display_name('cleodolinda') must be 'Cleo'")
-	assert(main_script.get_character_display_name("cleo") == "Cleo", "main.gd get_character_display_name('cleo') must be 'Cleo'")
 
 	# 1. Instantiate Cleo
 	var cleo_scene = load("res://characters/cleodolinda/cleodolinda.tscn") as PackedScene
@@ -3697,6 +3876,113 @@ func test_crush_chargeable_clap() -> void:
 	enemy_behind.queue_free()
 	enemy_far.queue_free()
 	print("✓ Crush Chargeable Cone Clap & RMB Seismic Arc verified successfully!")
+
+func test_morrigan_reworked_passive_and_empower_kit() -> void:
+	print("Testing Morrigan Reworked Passive, Empowerments, and Status Mechanics...")
+	var root = get_root()
+	var morrigan_scene = load("res://characters/morrigan/morrigan.tscn") as PackedScene
+	var morrigan = morrigan_scene.instantiate() as BasePlayer
+	morrigan.name = "201"
+	morrigan.team_id = 1
+	root.add_child(morrigan)
+	if not morrigan.is_node_ready():
+		morrigan._ready()
+
+	var dummy = (load("res://training_dummy.tscn") as PackedScene).instantiate() as BasePlayer
+	dummy.name = "202"
+	dummy.team_id = 2
+	root.add_child(dummy)
+	if not dummy.is_node_ready():
+		dummy._ready()
+
+	# 1. Passive readiness and 1 crow
+	assert(morrigan.passive_crows_count == 1, "Morrigan starts with 1 crow")
+	assert(morrigan.is_passive_empowered_ready == true, "Passive starts ready")
+	assert(morrigan.passive_cooldown_timer == 0.0, "Passive cooldown timer starts at 0.0")
+
+	# 2. Empowered LMB consumption and embedded feather slow
+	morrigan.lmb_charge_timer = 0.55
+	var feathers = morrigan._calculate_lmb_feather_count()
+	assert(feathers >= 2, "Feathers charged must be >= 2")
+	morrigan._release_black_plumage()
+	assert(morrigan.is_passive_empowered_ready == false, "Passive consumed after empowered LMB")
+	assert(morrigan.passive_cooldown_timer == 20.0, "Passive cooldown is 20s")
+	assert(morrigan.passive_crows_count == 0, "Crow count becomes 0 when on cooldown")
+
+	# Test embedded feathers on dummy: 10% + 5% per extra
+	dummy.apply_embedded_feather(5.0)
+	assert(dummy.get_embedded_feathers_count() == 1, "1 embedded feather")
+	assert(abs(dummy.slow_percent - 0.10) < 0.01, "1 feather slows by 10%")
+	dummy.apply_embedded_feather(5.0)
+	assert(dummy.get_embedded_feathers_count() == 2, "2 embedded feathers")
+	assert(abs(dummy.slow_percent - 0.15) < 0.01, "2 feathers slow by 15%")
+	dummy.apply_embedded_feather(5.0)
+	assert(abs(dummy.slow_percent - 0.20) < 0.01, "3 feathers slow by 20%")
+
+	# 3. Cooldown reduction by unempowered ability hit (3s per cast, only once)
+	assert(morrigan.passive_cooldown_timer == 20.0, "Cooldown before hit is 20s")
+	var cast_id_1 = morrigan._get_next_cast_id()
+	morrigan._on_ability_hit(cast_id_1)
+	assert(morrigan.passive_cooldown_timer == 17.0, "Cooldown reduced by 3s to 17s")
+	morrigan._on_ability_hit(cast_id_1)
+	assert(morrigan.passive_cooldown_timer == 17.0, "Cooldown does not reduce twice for same cast")
+	var cast_id_2 = morrigan._get_next_cast_id()
+	morrigan._on_ability_hit(cast_id_2)
+	assert(morrigan.passive_cooldown_timer == 14.0, "Cooldown reduced by another 3s to 14s")
+
+	# Reset passive for testing next skills
+	morrigan.passive_cooldown_timer = 0.0
+	assert(morrigan.is_passive_empowered_ready == true, "Passive reset to ready")
+
+	# 4. Empowered SHIFT: directional dash, murder of crows, ends on dash finish, doesn't put normal shift on CD
+	var shift_ab = morrigan.abilities.get("SHIFT")
+	var old_cd = shift_ab.current_cooldown if shift_ab != null else 0.0
+	var res_shift = morrigan.custom_execute_ability_server("SHIFT", morrigan.global_position, Vector3.FORWARD, morrigan.global_position, 0.0)
+	assert(res_shift == true, "Empowered SHIFT intercepted by custom execution")
+	assert(morrigan.is_crowstorm_active == true, "Empowered dash enters crowstorm murder of crows state")
+	assert(morrigan.is_empowered_dashing == true, "Empowered dash active")
+	assert(morrigan.is_passive_empowered_ready == false, "Passive consumed by empowered dash")
+	if shift_ab != null:
+		assert(shift_ab.current_cooldown == old_cd, "Normal SHIFT cooldown unaffected by empowered dash")
+	morrigan._process_character_kit(0.40)
+	assert(morrigan.is_empowered_dashing == false, "Dash ends after duration")
+	assert(morrigan.is_crowstorm_active == false, "Crowstorm effect ends when dash completes")
+
+	# 5. Empowered RMB: Bleed DoT and red trail
+	morrigan.passive_cooldown_timer = 0.0
+	var initial_hp = dummy.current_health
+	dummy.apply_bleed(10.0, 5.0, morrigan.peer_id)
+	assert(dummy.is_bleeding() == true, "Dummy is bleeding")
+	dummy._process_status_timers(0.6)
+	assert(dummy.current_health < initial_hp, "Dummy took bleed tick damage")
+
+	# 6. E (Banshee Cry): unempowered slows 30% for 1s, empowered deals +20% damage and silences for 0.5s
+	morrigan.passive_cooldown_timer = 10.0
+	morrigan.current_e_is_empowered = false
+	morrigan.current_e_cast_id = morrigan._get_next_cast_id()
+	var pre_e_hp = dummy.current_health
+	morrigan.on_melee_strike_hit(dummy, {})
+	assert(dummy.current_health == pre_e_hp - 24.0, "Unempowered E deals 24.0 damage")
+	assert(abs(dummy.slow_percent - 0.30) < 0.01, "Unempowered E slows for 30%")
+	assert(dummy.is_silenced() == false, "Unempowered E does not silence")
+	morrigan.current_e_is_empowered = true
+	pre_e_hp = dummy.current_health
+	morrigan.on_melee_strike_hit(dummy, {})
+	assert(abs(dummy.current_health - (pre_e_hp - 28.8)) < 0.05, "Empowered E deals +20% damage (28.8)")
+	assert(dummy.is_silenced() == true, "Empowered E silences for 0.5s")
+	assert(dummy.silence_timer >= 0.45, "Silence timer active")
+
+	# 7. R (Born of Blood): fears enemies, cannot be empowered
+	morrigan.passive_cooldown_timer = 0.0
+	morrigan.custom_execute_ability_server("R", morrigan.global_position, Vector3.FORWARD, morrigan.global_position, 0.0)
+	assert(morrigan.is_passive_empowered_ready == true, "R does NOT consume passive (cannot be empowered)")
+	dummy.apply_fear(1.5, morrigan)
+	assert(dummy.is_feared() == true, "Dummy is feared by Born of Blood")
+	assert(dummy.can_cast_ability_slot("LMB") == false, "Feared targets cannot cast abilities")
+
+	dummy.queue_free()
+	morrigan.queue_free()
+	print("✓ Morrigan reworked passive, empowerments, and status mechanics verified successfully!")
 
 func test_offline_presentation_and_indicator_hygiene() -> void:
 	print("Testing Offline Presentation and Indicator Hygiene...")

@@ -710,7 +710,26 @@ func _process_soul_form(delta: float) -> void:
 		# 1. Persistently track nearest visible enemy
 		var nearest_enemy: Node = null
 		var nearest_dist: float = 999999.0
-		var players = get_tree().get_nodes_in_group("players") if (is_inside_tree() and get_tree()) else []
+		var players: Array = []
+		if is_inside_tree() and get_tree():
+			for p in get_tree().get_nodes_in_group("players"):
+				if not players.has(p):
+					players.append(p)
+			var root_node = get_tree().root
+			if root_node:
+				for child in root_node.get_children():
+					if child is BasePlayer and not players.has(child):
+						players.append(child)
+				var players_container = root_node.get_node_or_null("Main/Players")
+				if players_container:
+					for p in players_container.get_children():
+						if p is BasePlayer and not players.has(p):
+							players.append(p)
+		var p_parent = get_parent()
+		if p_parent:
+			for child in p_parent.get_children():
+				if child is BasePlayer and not players.has(child):
+					players.append(child)
 		for p in players:
 			if not is_instance_valid(p) or p == self or p.get("is_dead"):
 				continue

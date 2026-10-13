@@ -8,7 +8,6 @@ static func create() -> CharacterData:
 	data.id = "monkey"
 	data.character_name = "Monkey"
 	data.display_name = "Sunny Kong"
-	data.archetype = "Trickster"
 	data.origins = [CharacterOrigin.ID_DIVINE, CharacterOrigin.ID_MONSTROUS]
 	data.max_health = 160.0
 	data.damage = 24.0
@@ -24,6 +23,8 @@ static func create() -> CharacterData:
 		"stone_monkey_threshold": 0.30,
 		"stone_monkey_duration": 3.0,
 		"stone_monkey_heal_pct": 0.30,
-		"stone_monkey_cooldown": 75.0
+		"stone_monkey_max_charge": 100.0,
+		"stone_monkey_charge_per_damage": 0.1,
+		"stone_monkey_charge_per_takedown": 10.0
 	}
 	return data

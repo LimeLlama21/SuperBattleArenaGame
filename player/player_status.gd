@@ -31,6 +31,24 @@ var taunt_timer: float = 0.0
 var taunter_node: Node = null
 var taunt_damage_reduction: float = 0.35
 
+# --- Fear Status Effect ---
+var fear_timer: float = 0.0
+var fear_source_node: Node = null
+var fear_source_pos: Vector3 = Vector3.ZERO
+
+# --- Bleed Status Effect ---
+var bleed_timer: float = 0.0
+var bleed_total_damage: float = 0.0
+var bleed_applier_id: int = 0
+var bleed_tick_timer: float = 0.0
+var bleed_trail_spawn_timer: float = 0.0
+const BLEED_TICK_INTERVAL: float = 0.5
+const BLEED_TRAIL_INTERVAL: float = 0.12
+
+# --- Embedded Feathers Status (Morrigan Empowered LMB) ---
+var embedded_feathers_count: int = 0
+var embedded_feathers_timer: float = 0.0
+
 var is_transformed: bool = false
 var transformed_prop_type: String = ""
 var transformation_properties: Dictionary = {}
@@ -116,6 +134,18 @@ func is_invisible() -> bool:
 
 func is_taunted() -> bool:
 	return taunt_timer > 0.0
+
+func is_feared() -> bool:
+	return fear_timer > 0.0
+
+func get_fear_source_node() -> Node:
+	return fear_source_node if is_instance_valid(fear_source_node) else null
+
+func is_bleeding() -> bool:
+	return bleed_timer > 0.0
+
+func get_embedded_feathers_count() -> int:
+	return embedded_feathers_count
 
 func is_blinded() -> bool:
 	return blind_timer > 0.0
@@ -471,6 +501,13 @@ func sync_cleanse_cc() -> void:
 	float_timer = 0.0
 	taunt_timer = 0.0
 	taunter_node = null
+	fear_timer = 0.0
+	fear_source_node = null
+	fear_source_pos = Vector3.ZERO
+	bleed_timer = 0.0
+	bleed_total_damage = 0.0
+	embedded_feathers_count = 0
+	embedded_feathers_timer = 0.0
 	external_velocity = Vector3.ZERO
 	ink_timer = 0.0
 	ink_source_id = 0
@@ -549,6 +586,113 @@ func sync_apply_taunt(taunter_path: NodePath, duration: float, damage_reduction:
 		taunter_node = get_node_or_null(taunter_path)
 	else:
 		taunter_node = null
+
+func apply_fear(duration: float, source: Variant = null) -> void:
+	if is_cc_immune or is_ethereal_active():
+		return
+	var src_path = NodePath("")
+	var src_pos = Vector3.ZERO
+	if source is Node and is_instance_valid(source):
+		src_path = source.get_path()
+		src_pos = source.global_position
+	elif source is Vector3:
+		src_pos = source
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_fear.rpc(duration, src_path, src_pos)
+	else:
+		sync_apply_fear(duration, src_path, src_pos)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_fear(duration: float, source_path: NodePath, source_pos: Vector3) -> void:
+	if not _is_sender_host():
+		return
+	fear_timer = max(fear_timer, duration)
+	if not source_path.is_empty():
+		fear_source_node = get_node_or_null(source_path)
+	else:
+		fear_source_node = null
+	fear_source_pos = source_pos
+	cancel_channel()
+	clear_buffered_ability()
+	if has_method("cancel_active_windup"):
+		cancel_active_windup()
+
+func apply_bleed(damage_amount: float, duration: float = 5.0, applier_id: int = 0) -> void:
+	if is_ethereal_active():
+		return
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_bleed.rpc(damage_amount, duration, applier_id)
+	else:
+		sync_apply_bleed(damage_amount, duration, applier_id)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_bleed(damage_amount: float, duration: float, applier_id: int) -> void:
+	if not _is_sender_host():
+		return
+	bleed_timer = duration
+	bleed_total_damage += damage_amount
+	bleed_applier_id = applier_id
+	bleed_tick_timer = 0.0
+	bleed_trail_spawn_timer = 0.0
+
+func _spawn_bleed_trail_segment(pos: Vector3, applier_id: int) -> void:
+	var tree = get_tree()
+	if not tree or not tree.root:
+		return
+	var main_node = tree.root.get_node_or_null("Main")
+	var parent_node = main_node if main_node else tree.root
+
+	var trail_inst = MeshInstance3D.new()
+	var mesh = CylinderMesh.new()
+	mesh.top_radius = 0.35
+	mesh.bottom_radius = 0.35
+	mesh.height = 0.05
+	trail_inst.mesh = mesh
+
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(0.9, 0.05, 0.08, 0.95)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.1, 0.15, 1.0)
+	mat.emission_energy_multiplier = 4.0
+	mat.no_depth_test = true
+	trail_inst.material_override = mat
+
+	trail_inst.top_level = true
+	parent_node.add_child(trail_inst)
+	trail_inst.global_position = Vector3(pos.x, pos.y + 0.04, pos.z)
+	trail_inst.set_meta("bleed_applier_id", applier_id)
+
+	# Fades gradually over 3.0 seconds after placement
+	var tween = tree.create_tween()
+	tween.tween_property(mat, "albedo_color:a", 0.0, 3.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(trail_inst, "scale", Vector3(0.4, 1.0, 0.4), 3.0)
+	tween.tween_callback(trail_inst.queue_free)
+
+func apply_embedded_feather(duration: float = 5.0) -> void:
+	if is_ethereal_active():
+		return
+	if is_multiplayer_match():
+		if not is_server_authoritative():
+			return
+		sync_apply_embedded_feather.rpc(duration)
+	else:
+		sync_apply_embedded_feather(duration)
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_apply_embedded_feather(duration: float = 5.0) -> void:
+	if not _is_sender_host():
+		return
+	embedded_feathers_count += 1
+	embedded_feathers_timer = duration
+	var feather_slow = 0.10 + float(max(0, embedded_feathers_count - 1)) * 0.05
+	apply_slow(duration, feather_slow)
 
 func apply_transformation(prop_type: String, properties: Dictionary = {}) -> void:
 	if is_multiplayer_match():
@@ -787,6 +931,37 @@ func _process_status_timers(delta: float) -> void:
 		taunt_timer = max(0.0, taunt_timer - delta)
 		if taunt_timer <= 0.0:
 			taunter_node = null
+
+	if fear_timer > 0.0:
+		fear_timer = max(0.0, fear_timer - delta)
+		if fear_timer <= 0.0:
+			fear_source_node = null
+			fear_source_pos = Vector3.ZERO
+
+	# Bleed processing: DoT and fading red trail
+	if bleed_timer > 0.0:
+		bleed_timer = max(0.0, bleed_timer - delta)
+		bleed_tick_timer += delta
+		if bleed_tick_timer >= BLEED_TICK_INTERVAL:
+			var ticks_total = max(1.0, 5.0 / BLEED_TICK_INTERVAL)
+			var tick_dmg = bleed_total_damage / ticks_total
+			bleed_tick_timer = 0.0
+			if has_method("take_damage") and is_server_authoritative():
+				call("take_damage", tick_dmg, bleed_applier_id, 1)
+		
+		bleed_trail_spawn_timer += delta
+		if bleed_trail_spawn_timer >= BLEED_TRAIL_INTERVAL:
+			bleed_trail_spawn_timer = 0.0
+			_spawn_bleed_trail_segment(global_position, bleed_applier_id)
+		
+		if bleed_timer <= 0.0:
+			bleed_total_damage = 0.0
+
+	# Embedded feathers decay
+	if embedded_feathers_timer > 0.0:
+		embedded_feathers_timer = max(0.0, embedded_feathers_timer - delta)
+		if embedded_feathers_timer <= 0.0:
+			embedded_feathers_count = 0
 
 	if invulnerable_timer > 0.0:
 		invulnerable_timer = max(0.0, invulnerable_timer - delta)

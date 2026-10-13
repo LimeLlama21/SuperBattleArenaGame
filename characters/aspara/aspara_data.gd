@@ -8,7 +8,6 @@ static func create() -> CharacterData:
 	data.id = "aspara"
 	data.character_name = "Aspara"
 	data.display_name = "Uru"
-	data.archetype = "Skirmisher"
 	data.origins = [CharacterOrigin.ID_DIVINE]
 	data.max_health = 240.0
 	data.damage = 25.0

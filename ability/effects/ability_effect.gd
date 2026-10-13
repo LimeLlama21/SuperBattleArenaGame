@@ -54,12 +54,8 @@ enum HitboxType {
 @export var hitbox_annul: Variant = false
 
 @export_group("Rider Settings")
-<<<<<<< Updated upstream
-=======
-@export var damage_amount: float = 0.0
 @export var damage_ratio: float = 0.0
 @export var max_hp_ratio: float = 0.0
->>>>>>> Stashed changes
 @export var action_type: int = 0
 @export var stun_duration: float = 0.0
 @export var bound_duration: float = 0.0

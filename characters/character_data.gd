@@ -1,12 +1,24 @@
 class_name CharacterData
 extends Resource
 
+# --- Archetype Constants (from Character Select) ---
+const ARCHETYPE_VANGUARD: String = "vanguard"
+const ARCHETYPE_BRAWLER: String = "brawler"
+const ARCHETYPE_STRIKER: String = "striker"
+const ARCHETYPE_BLASTER: String = "blaster"
+const VALID_ARCHETYPES: Array[String] = [
+	ARCHETYPE_VANGUARD,
+	ARCHETYPE_BRAWLER,
+	ARCHETYPE_STRIKER,
+	ARCHETYPE_BLASTER
+]
+
 # --- Base Character Identification ---
 @export_group("Identity")
-@export var id: String = "" # Canonical identifier matching folder name & code references (e.g. "poke", "asparsas")
+@export var id: String = "" # Canonical identifier matching folder name & code references (e.g. "poke", "aspara")
 @export var character_name: String = ""
-@export var display_name: String = "" # Player-facing display name (e.g. "Arash", "Urvashi")
-@export var archetype: String = "" # e.g. "Sharpshooter", "Skirmisher", "Juggernaut", "Reaper"
+@export var display_name: String = "" # Player-facing display name (e.g. "Aslan", "Uru")
+@export var archetype: String = "" # Valid archetypes: "vanguard", "brawler", "striker", "blaster"
 @export_multiline var description: String = ""
 
 # --- Origins & Classification ---
