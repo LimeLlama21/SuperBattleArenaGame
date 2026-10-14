@@ -325,6 +325,7 @@ func _process_target_hit(body: Node) -> void:
 		return
 	if not body.get("is_dead") and not (body in hit_targets):
 		hit_targets.append(body)
+		var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
 		
 		var final_damage = damage
 		if effect_type == "execute_scaling":
@@ -356,7 +357,6 @@ func _process_target_hit(body: Node) -> void:
 			if body.has_method("apply_knockback"):
 				var kb_dir = Vector3(direction.x, 0.0, direction.z).normalized()
 				body.apply_knockback(kb_dir * effect_intensity, true, effect_duration)
-		var shooter = get_tree().root.get_node_or_null("Main/Players/" + str(shooter_id))
 		if shooter and shooter.has_method("on_ability_projectile_hit_enemy"):
 			shooter.on_ability_projectile_hit_enemy(effect_type, body)
 		if effect_type == "poke_sniper_empowered":

@@ -819,6 +819,3 @@ func request_cast_astral_projection() -> void:
 	if is_multiplayer_match() and not multiplayer.is_server():
 		return
 	cast_astral_projection()
-
-
-

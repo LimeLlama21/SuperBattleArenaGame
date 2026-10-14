@@ -25,6 +25,7 @@ const CleoTrailZoneClass = preload("res://characters/cleodolinda/cleo_trail_zone
 @export var q_trail_base_tick_damage: float = 5.0 # 5 base damage
 @export var q_trail_attack_ratio: float = 0.10 # 10% attack
 @export var q_trail_tick_interval: float = 0.25 # every 0.25 seconds
+@export var q_trail_segment_unit_time: float = 0.05 # Check every 0.05 seconds (20 times per second)
 @export var q_trail_width: float = 3.2 # Trail width
 @export var q_trail_linger_duration: float = 4.0 # Time trail lingers after being left behind
 
@@ -177,6 +178,7 @@ func start_q_trail() -> void:
 	zone.tick_interval = q_trail_tick_interval
 	zone.trail_width = q_trail_width
 	zone.point_lifetime = q_trail_linger_duration
+	zone.segment_unit_time = q_trail_segment_unit_time
 
 	var parent_node = get_parent()
 	if parent_node:
@@ -209,7 +211,7 @@ func _process_q_trail(delta: float) -> void:
 
 	q_trail_timer -= delta
 	if is_instance_valid(_active_trail_zone):
-		_active_trail_zone.add_trail_point(global_position)
+		_active_trail_zone.add_trail_point(global_position, delta)
 
 	if q_trail_timer <= 0.0:
 		end_q_trail()

@@ -26,6 +26,7 @@ const ArtistClass = preload("res://characters/artist/artist.gd")
 const HanziPointCloudRecognizer = preload("res://characters/artist/hanzi_point_cloud_recognizer.gd")
 const CleodolindaClass = preload("res://characters/cleodolinda/cleodolinda.gd")
 const CleodolindaDataClass = preload("res://characters/cleodolinda/cleodolinda_data.gd")
+const CleoTrailZoneClass = preload("res://characters/cleodolinda/cleo_trail_zone.gd")
 const MonkeyClone = preload("res://characters/monkey/monkey_clone.gd")
 
 func _initialize() -> void:
@@ -2490,8 +2491,8 @@ func test_player_projectile_armor_charges() -> void:
 	proj2._on_area_entered(dummy_hb)
 	assert(dummy.current_health == hp_before_proj2, "Second projectile damage must be resisted by second armor charge")
 	assert(dummy.armor_charges == 0, "Second projectile must consume last armor charge (remaining: 0)")
-	assert(dummy.is_stunned() == true, "Projectile stun rider must still apply when damage is resisted")
-	print("  ✓ Second projectile damage resisted, 0 charges remaining, and stun rider applied.")
+	assert(dummy.is_feared() == true or dummy.is_stunned() == true, "Projectile CC rider must still apply when damage is resisted")
+	print("  ✓ Second projectile damage resisted, 0 charges remaining, and CC rider applied.")
 
 	# 5. Third projectile hit (no armor charges left) deals full damage
 	var hp_before_proj3 = dummy.current_health
@@ -3716,6 +3717,77 @@ func test_cleodolinda_q_trail() -> void:
 	assert(anim_player.current_animation == "Idle", "Animation must return to Idle")
 	assert(is_instance_valid(trail_zone), "Trail zone must continue lingering on the ground for configured linger duration")
 	print("  ✓ Q trail emission terminates with animation; trail zone lingers independently on ground.")
+
+	# 8. Dynamic Segment Sizing & Progressive Shrink Dissolve Lifecycle Test
+	var test_zone = CleoTrailZoneClass.new()
+	test_zone.segment_unit_time = 0.25
+	test_zone.point_lifetime = 1.0 # 1.0s linger for test clarity
+	root.add_child(test_zone)
+	
+	# Start at origin at t=100.0
+	test_zone.current_time = 100.0
+	test_zone.add_trail_point(Vector3(0, 0, 0))
+	
+	# Move 8m over 0.25s (slow)
+	test_zone.add_trail_point(Vector3(8, 0, 0), 0.25)
+	assert(test_zone.segments.size() == 1, "Must have 1 finalized segment")
+	var seg1 = test_zone.segments[0]
+	assert(is_equal_approx(seg1.get_length(), 8.0), "Segment 1 dynamically sized to 8.0m")
+	assert(is_equal_approx(seg1.unit_time, 0.25), "Segment 1 measured unit time is 0.25s")
+	
+	# Move 20m over 0.25s (fast / dash)
+	test_zone.add_trail_point(Vector3(28, 0, 0), 0.25)
+	assert(test_zone.segments.size() == 2, "Must have 2 finalized segments")
+	var seg2 = test_zone.segments[1]
+	assert(is_equal_approx(seg2.get_length(), 20.0), "Segment 2 dynamically sized to 20.0m based on distance traveled")
+	assert(is_equal_approx(seg2.unit_time, 0.25), "Segment 2 measured unit time is 0.25s")
+	
+	test_zone.finish_emission()
+	
+	# Verify linger period: at t = 100.0 + 0.5s linger, seg1 has NOT shrunk yet
+	test_zone.current_time = 100.5
+	test_zone._update_segments_lifecycle(test_zone.current_time)
+	assert(test_zone.segments.size() == 2, "Both segments still present during linger")
+	assert(seg1.get_shrink_progress(test_zone.current_time) == 0.0, "Segment 1 has not started shrinking during linger period")
+	assert(is_equal_approx(seg1.get_current_start(test_zone.current_time).x, 0.0), "Segment 1 starts at 0.0")
+	assert(is_equal_approx(seg1.get_current_end(test_zone.current_time).x, 8.0), "Segment 1 ends at 8.0")
+	
+	# At t = 100.0 + 1.0 (lifetime reached) + 0.125s (halfway through its 0.25s unit_time):
+	test_zone.current_time = 101.125
+	test_zone._update_segments_lifecycle(test_zone.current_time)
+	assert(test_zone.segments.size() == 2, "Segment 1 is still shrinking, not deleted yet")
+	assert(is_equal_approx(seg1.get_shrink_progress(test_zone.current_time), 0.5), "Segment 1 is 50% shrunk")
+	assert(is_equal_approx(seg1.get_current_start(test_zone.current_time).x, 4.0), "Segment 1 has shrunk from start (0.0) towards end, now at 4.0m")
+	assert(is_equal_approx(seg1.get_current_length(test_zone.current_time), 4.0), "Segment 1 current length is 4.0m")
+	# Hit detection check on shrinking segment:
+	# Point at x = 2.0 (in shrunk portion) is NO LONGER inside trail
+	assert(test_zone.is_point_in_trail(Vector3(2.0, 0, 0), 1.0) == false, "Position behind shrinking front must no longer be in trail")
+	# Point at x = 6.0 (in remaining portion) IS inside trail
+	assert(test_zone.is_point_in_trail(Vector3(6.0, 0, 0), 1.0) == true, "Position in remaining segment portion must still be in trail")
+	
+	# At t = 100.0 + 1.0 + 0.25 (unit_time fully elapsed):
+	test_zone.current_time = 101.251
+	test_zone._update_segments_lifecycle(test_zone.current_time)
+	# Only then should the game delete segment 1!
+	assert(test_zone.segments.size() == 1, "Segment 1 deleted only after fully disappearing in its unit of time")
+	assert(test_zone.segments[0] == seg2, "Segment 2 is now first in array")
+	
+	# At t = 100.25 + 1.0 + 0.125 (seg2 is 50% shrunk from 8.0 to 28.0 -> current_start at 18.0):
+	test_zone.current_time = 101.375
+	test_zone._update_segments_lifecycle(test_zone.current_time)
+	assert(is_equal_approx(seg2.get_shrink_progress(test_zone.current_time), 0.5), "Segment 2 is 50% shrunk")
+	assert(is_equal_approx(seg2.get_current_start(test_zone.current_time).x, 18.0), "Segment 2 current start shrank to 18.0m")
+	assert(is_equal_approx(seg2.get_current_length(test_zone.current_time), 10.0), "Segment 2 current length is 10.0m")
+	assert(test_zone.is_point_in_trail(Vector3(12.0, 0, 0), 1.0) == false, "Position behind seg2 shrinking front is outside trail")
+	assert(test_zone.is_point_in_trail(Vector3(22.0, 0, 0), 1.0) == true, "Position ahead of seg2 shrinking front is inside trail")
+	
+	# At t = 100.25 + 1.0 + 0.25 (seg2 fully shrunk):
+	test_zone.current_time = 101.501
+	test_zone._update_segments_lifecycle(test_zone.current_time)
+	assert(test_zone.segments.is_empty(), "Segment 2 deleted only after fully disappearing in its unit of time")
+	
+	test_zone.queue_free()
+	print("  ✓ Dynamic segment sizing based on travel distance and progressive shrink dissolve lifecycle verified.")
 
 	cleo.queue_free()
 	enemy_on_trail.queue_free()

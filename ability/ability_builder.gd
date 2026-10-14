@@ -161,7 +161,7 @@ static func _build_effect(cfg: Dictionary) -> Node:
 			eff = ProjectileScene.instantiate()
 	return eff
 
-static func _build_hitbox(cfg: Dictionary) -> Node:
+static func _build_hitbox(cfg: Dictionary) -> AbilityHitbox:
 	var raw_shape = cfg.get("shape", AbilityPipeline.HitboxShape.NONE)
 	var shape_val = AbilityPipeline.parse_hitbox_shape(raw_shape)
 	
@@ -206,11 +206,11 @@ static func _build_hitbox(cfg: Dictionary) -> Node:
 			return hb
 	return null
 
-static func _build_trigger(cfg: Dictionary) -> Node:
+static func _build_trigger(cfg: Dictionary) -> AbilityTrigger:
 	var raw_type = cfg.get("type", AbilityPipeline.TriggerType.ON_HIT_ENEMY)
 	var type_val = AbilityPipeline.parse_trigger_type(raw_type)
 	
-	var trig: Node = null
+	var trig: AbilityTrigger = null
 	match type_val:
 		AbilityPipeline.TriggerType.ON_CAST:
 			trig = OnCastTriggerClass.new()
@@ -236,7 +236,7 @@ static func _build_trigger(cfg: Dictionary) -> Node:
 			trig.rider_instances.append(r_node)
 	return trig
 
-static func _build_rider(cfg: Dictionary) -> Node:
+static func _build_rider(cfg: Dictionary) -> AbilityRider:
 	var raw_type = cfg.get("type", AbilityPipeline.RiderType.DAMAGE)
 	var type_val = AbilityPipeline.parse_rider_type(raw_type)
 	
