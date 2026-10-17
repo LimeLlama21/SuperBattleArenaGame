@@ -597,14 +597,25 @@ func set_opponent_visible(is_vis: bool) -> void:
 	if is_local_player():
 		visible = not is_dead
 		return
-	if is_dead or is_invisible():
+	if is_dead:
 		visible = false
 		if sprite_3d:
 			sprite_3d.visible = false
 		return
-	visible = is_vis
+	var in_duel_with_local = false
+	if has_meta("smoke_duel_partner"):
+		var partner = get_meta("smoke_duel_partner")
+		if is_instance_valid(partner):
+			if (partner.has_method("is_local_player") and partner.is_local_player()) or not is_multiplayer_match():
+				in_duel_with_local = true
+	if is_invisible() and not in_duel_with_local:
+		visible = false
+		if sprite_3d:
+			sprite_3d.visible = false
+		return
+	visible = is_vis or in_duel_with_local
 	if sprite_3d:
-		sprite_3d.visible = is_vis
+		sprite_3d.visible = is_vis or in_duel_with_local
 
 func _on_invisibility_changed(is_invis: bool) -> void:
 	if is_local_player():
@@ -635,7 +646,13 @@ func _on_invisibility_changed(is_invis: bool) -> void:
 				if not is_invis:
 					facing_ind.material_override = null
 	else:
-		if is_invis:
+		var in_duel_with_local = false
+		if has_meta("smoke_duel_partner"):
+			var partner = get_meta("smoke_duel_partner")
+			if is_instance_valid(partner):
+				if (partner.has_method("is_local_player") and partner.is_local_player()) or not is_multiplayer_match():
+					in_duel_with_local = true
+		if is_invis and not in_duel_with_local:
 			visible = false
 			if sprite_3d:
 				sprite_3d.visible = false
@@ -1429,6 +1446,8 @@ func should_ability_have_indicator(ab: Variant) -> bool:
 	var custom_eff = str(eff.get("custom_effect_type")).to_lower() if eff.get("custom_effect_type") != null else ""
 	if custom_eff == "mortar_shell" or ab_id.contains("mortar") or ab_id.contains("omen"):
 		return true
+	if custom_eff == "dive_earth_tremor" or ab_id.contains("earth_tremor"):
+		return true
 	var rng = float(eff.get("max_range")) if eff.get("max_range") != null else 0.0
 	if rng >= 35.0:
 		return true
@@ -1886,9 +1905,16 @@ func apply_all_items() -> void:
 						abilities[ab_node.ability_id] = ab_node
 					if not ab_node.slot_key.is_empty():
 						abilities[ab_node.slot_key] = ab_node
-					if is_local_player() and ab_node.hitbox and not ab_node.cast_on_press and not ab_node.active_indicator:
+					if is_local_player() and not ab_node.cast_on_press and not ab_node.active_indicator:
 						if should_ability_have_indicator(ab_node):
-							ab_node.active_indicator = ab_node.hitbox.create_indicator()
+							var custom_eff = ""
+							if "custom_effect_type" in ab_node: custom_eff = str(ab_node.custom_effect_type)
+							elif ab_node.effect_instance and "custom_effect_type" in ab_node.effect_instance: custom_eff = str(ab_node.effect_instance.custom_effect_type)
+							var ab_id = str(ab_node.ability_id).to_lower()
+							if custom_eff == "mortar_shell" or ab_id.contains("mortar") or ab_id.contains("omen"):
+								ab_node.active_indicator = AbilityIndicator.create_mortar_indicator(3.2)
+							elif ab_node.hitbox:
+								ab_node.active_indicator = ab_node.hitbox.create_indicator()
 							if ab_node.active_indicator:
 								ab_node.active_indicator.top_level = true
 								if is_inside_tree() and get_tree() and get_tree().root:
@@ -2220,11 +2246,11 @@ func show_ability_telegraph(ability_def: Variant, origin: Vector3, facing_dir: V
 	var hb_angle = hb.angle_deg if (hb and "angle_deg" in hb) else 360.0
 
 	var is_ground_targeted = false
-	if target_pos != Vector3.ZERO:
+	if target_pos != Vector3.ZERO and not follows_caster:
 		var eff_name = ""
 		if "effect_name" in ab: eff_name = ab.effect_name
 		elif ab.effect_instance and "effect_name" in ab.effect_instance: eff_name = ab.effect_instance.effect_name
-		if eff_name in ["AerialCrash", "AreaZone"] or hb_shape == AbilityPipeline.HitboxShape.CYLINDER or (hb_shape == AbilityPipeline.HitboxShape.CIRCLE and hb_angle >= 360.0):
+		if eff_name in ["AerialCrash", "AreaZone"] or ab.get("is_ground_targeted") == true or (ab.effect_instance and ab.effect_instance.get("is_ground_targeted") == true):
 			is_ground_targeted = true
 
 	var spawn_pos = target_pos if is_ground_targeted else global_position
@@ -2489,9 +2515,16 @@ func _setup_abilities() -> void:
 		var ab = abilities[slot_key]
 		if ab is AbilityClass:
 			ab.setup()
-			if is_local_player() and ab.hitbox and not ab.cast_on_press and not ab.active_indicator:
+			if is_local_player() and not ab.cast_on_press and not ab.active_indicator:
 				if should_ability_have_indicator(ab):
-					ab.active_indicator = ab.hitbox.create_indicator()
+					var custom_eff = ""
+					if "custom_effect_type" in ab: custom_eff = str(ab.custom_effect_type)
+					elif ab.effect_instance and "custom_effect_type" in ab.effect_instance: custom_eff = str(ab.effect_instance.custom_effect_type)
+					var ab_id = str(ab.ability_id).to_lower()
+					if custom_eff == "mortar_shell" or ab_id.contains("mortar") or ab_id.contains("omen"):
+						ab.active_indicator = AbilityIndicator.create_mortar_indicator(3.2)
+					elif ab.hitbox:
+						ab.active_indicator = ab.hitbox.create_indicator()
 					if ab.active_indicator:
 						ab.active_indicator.top_level = true
 						if is_inside_tree() and get_tree() and get_tree().root:
@@ -2595,8 +2628,34 @@ func _process_abilities_input(delta: float) -> void:
 			if should_ability_have_indicator(ab):
 				var origin = global_position
 				var facing = (Vector3(hit_pos.x, origin.y, hit_pos.z) - origin).normalized()
-				if ab.hitbox:
-					ab.hitbox.update_indicator(ab.active_indicator, origin, facing)
+				if ab.active_indicator.name == "ArcTrajectoryIndicator":
+					var dist = origin.distance_to(Vector3(hit_pos.x, origin.y, hit_pos.z))
+					var eff = ab.get("effect_instance") if ab.get("effect_instance") != null else ab
+					var max_rng = float(eff.get("max_range")) if eff and eff.get("max_range") != null else 30.0
+					if max_rng > 0.0:
+						dist = min(dist, max_rng)
+					var angle_rad = atan2(facing.x, -facing.z)
+					AbilityIndicator.update_mortar_distance_and_angle(ab.active_indicator, origin, dist, angle_rad)
+					ab.active_indicator.show()
+				else:
+					var is_ground_targeted = false
+					var eff_name = ""
+					if "effect_name" in ab: eff_name = ab.effect_name
+					elif ab.effect_instance and "effect_name" in ab.effect_instance: eff_name = ab.effect_instance.effect_name
+					if eff_name in ["AerialCrash", "AreaZone"] or ab.get("is_ground_targeted") == true or (ab.effect_instance and ab.effect_instance.get("is_ground_targeted") == true):
+						is_ground_targeted = true
+
+					var ind_origin = origin
+					if is_ground_targeted:
+						var eff = ab.get("effect_instance") if ab.get("effect_instance") != null else ab
+						var max_rng = float(eff.get("max_range")) if eff and eff.get("max_range") != null else 0.0
+						ind_origin = Vector3(hit_pos.x, origin.y, hit_pos.z)
+						if max_rng > 0.0 and origin.distance_to(ind_origin) > max_rng:
+							ind_origin = origin + (ind_origin - origin).normalized() * max_rng
+
+					if ab.hitbox:
+						ab.hitbox.update_indicator(ab.active_indicator, ind_origin, facing)
+					ab.active_indicator.show()
 			else:
 				ab.active_indicator.hide()
 

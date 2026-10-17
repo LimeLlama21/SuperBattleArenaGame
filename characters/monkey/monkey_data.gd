@@ -20,7 +20,7 @@ static func create() -> CharacterData:
 	data.jump_velocity = 13.0
 	data.jump_horizontal_impulse = 2.0
 	data.passive_data = {
-		"stone_monkey_threshold": 0.30,
+		"stone_monkey_threshold": 0.25,
 		"stone_monkey_duration": 3.0,
 		"stone_monkey_heal_pct": 0.30,
 		"stone_monkey_max_charge": 100.0,

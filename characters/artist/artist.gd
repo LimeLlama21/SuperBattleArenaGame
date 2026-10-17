@@ -133,7 +133,7 @@ func _setup_abilities_kit() -> void:
 	rmb_ab.cast_on_press = false
 	rmb_ab.damage_amount = 0.0
 	rmb_ab.show_indicator = true
-
+	
 	# Ultimate (R): Vancian Ammunition Wheel + Hanzi Scribing Canvas
 	var r_ab = abilities.get("R")
 	if not r_ab:
@@ -145,7 +145,7 @@ func _setup_abilities_kit() -> void:
 		r_ab.description = "Vancian talisman wheel. Inscribe Hanzi to prepare spells, or unleash prepared elements."
 		r_ab.cooldown = 3.0
 		r_ab.mana_cost = 0.0
-
+		
 		r_ab.ui_modal = AbilityPipeline.create_ui_modal({
 			"type": AbilityPipeline.UIModalType.RADIAL_WHEEL,
 			"click_to_cast": true,
@@ -153,7 +153,7 @@ func _setup_abilities_kit() -> void:
 			"cancel_cooldown": 1.0,
 			"cancel_refund_percent": 1.0
 		})
-
+		
 		var modal_inst = r_ab.active_modal_instance
 		if not modal_inst or not is_instance_valid(modal_inst):
 			modal_inst = VancianHanziModal.new()
@@ -203,7 +203,6 @@ func _on_ability_primed_cast(slot_key: String, choice: String) -> void:
 				vancian_slots[slot_idx] = null
 			active_element = elem
 			_apply_elemental_payload(elem)
-
 
 func get_vancian_modal_options(_slot_key: String) -> Array:
 	if is_primed_for_cast:
@@ -272,12 +271,12 @@ func _apply_elemental_payload(elem: String) -> void:
 	var r_ab = abilities.get("R")
 	if not r_ab or not r_ab is AbilityClass:
 		return
-
+	
 	var info = ELEMENT_LABELS.get(elem, ELEMENT_LABELS["fire"])
 	r_ab.damage_amount = float(info.get("damage", 60.0))
 	r_ab.speed = float(info.get("speed", 65.0))
 	r_ab.projectile_size = float(info.get("size", 1.0))
-
+	
 	if r_ab.effect_instance and "speed" in r_ab.effect_instance:
 		r_ab.effect_instance.speed = r_ab.speed
 	if r_ab.effect_instance and "damage_amount" in r_ab.effect_instance:

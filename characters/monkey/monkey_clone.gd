@@ -3,12 +3,82 @@ extends CharacterBody3D
 
 signal died(clone: MonkeyClone)
 
-var summoner: Node = null
+var summoner: Node = null:
+	set(value):
+		if summoner != value and is_instance_valid(summoner) and summoner.has_method("unregister_clone"):
+			summoner.unregister_clone(self)
+		summoner = value
+		if is_instance_valid(summoner):
+			if summoner.has_method("register_clone"):
+				summoner.register_clone(self)
+			sync_stats_from_summoner(true)
+
 var team_id: int = 1
-var max_health: float = 160.0
-var current_health: float = 160.0
-var damage: float = 24.0
-var max_move_speed: float = 6.0
+
+var _max_health: float = 160.0
+var _last_known_max_health: float = 160.0
+var max_health: float:
+	get:
+		if is_instance_valid(summoner) and ("max_health" in summoner):
+			return float(summoner.max_health)
+		return _max_health
+	set(value):
+		_max_health = value
+		_last_known_max_health = _max_health
+		if current_health > _max_health:
+			current_health = _max_health
+		update_health_bar()
+
+var current_health: float = 160.0:
+	set(value):
+		current_health = clamp(value, 0.0, max_health)
+		update_health_bar()
+
+var _damage: float = 24.0
+var damage: float:
+	get:
+		if is_instance_valid(summoner) and ("damage" in summoner):
+			return float(summoner.damage)
+		return _damage
+	set(value):
+		_damage = value
+
+var _max_move_speed: float = 6.0
+var max_move_speed: float:
+	get:
+		if is_instance_valid(summoner) and ("max_move_speed" in summoner):
+			return float(summoner.max_move_speed)
+		return _max_move_speed
+	set(value):
+		_max_move_speed = value
+
+var _haste: float = 0.0
+var haste: float:
+	get:
+		if is_instance_valid(summoner) and ("haste" in summoner):
+			return float(summoner.haste)
+		return _haste
+	set(value):
+		_haste = value
+
+var _crit_chance: float = 0.0
+var crit_chance: float:
+	get:
+		if is_instance_valid(summoner) and ("crit_chance" in summoner):
+			return float(summoner.crit_chance)
+		return _crit_chance
+	set(value):
+		_crit_chance = value
+
+var _crit_multiplier: float = 2.0
+var crit_multiplier: float:
+	get:
+		if is_instance_valid(summoner) and ("crit_multiplier" in summoner):
+			return float(summoner.crit_multiplier)
+		return _crit_multiplier
+	set(value):
+		_crit_multiplier = value
+
 var is_dead: bool = false
 var lifetime: float = 10.0
 
@@ -25,8 +95,23 @@ const ATTACK_DAMAGE_RATIO: float = 0.50
 const TARGET_DETECTION_RANGE: float = 25.0
 const FOLLOW_DISTANCE: float = 2.8
 
-var forward_vision_range: float = 24.0
-var forward_vision_angle: float = 32.5
+var _forward_vision_range: float = 24.0
+var forward_vision_range: float:
+	get:
+		if is_instance_valid(summoner) and ("forward_vision_range" in summoner):
+			return float(summoner.forward_vision_range)
+		return _forward_vision_range
+	set(value):
+		_forward_vision_range = value
+
+var _forward_vision_angle: float = 32.5
+var forward_vision_angle: float:
+	get:
+		if is_instance_valid(summoner) and ("forward_vision_angle" in summoner):
+			return float(summoner.forward_vision_angle)
+		return _forward_vision_angle
+	set(value):
+		_forward_vision_angle = value
 
 # Visual and UI nodes
 var mesh_inst: MeshInstance3D = null
@@ -41,7 +126,35 @@ func _ready() -> void:
 	collision_mask = 1
 
 	_setup_nodes()
+	_last_known_max_health = max_health
 	update_health_bar()
+
+func sync_stats_from_summoner(is_initial_spawn: bool = false) -> void:
+	if not is_instance_valid(summoner):
+		return
+	if "team_id" in summoner:
+		team_id = summoner.team_id
+	
+	var cur_max_hp = max_health
+	if is_initial_spawn:
+		if "current_health" in summoner:
+			current_health = summoner.current_health
+		else:
+			current_health = cur_max_hp
+		_last_known_max_health = cur_max_hp
+	else:
+		if _last_known_max_health > 0.0 and cur_max_hp != _last_known_max_health:
+			var diff = cur_max_hp - _last_known_max_health
+			if diff > 0.0:
+				current_health += diff
+			else:
+				current_health = min(current_health, cur_max_hp)
+		_last_known_max_health = cur_max_hp
+
+	update_health_bar()
+
+func inherit_stats_from_summoner() -> void:
+	sync_stats_from_summoner(true)
 
 func _setup_nodes() -> void:
 	# 1. CollisionShape3D
@@ -129,9 +242,21 @@ func _setup_nodes() -> void:
 	health_bar_sprite.texture = health_bar_vp.get_texture()
 	add_child(health_bar_sprite)
 
+func get_cooldown_multiplier() -> float:
+	if is_instance_valid(summoner) and summoner.has_method("get_cooldown_multiplier"):
+		return summoner.get_cooldown_multiplier()
+	if haste > 0.0:
+		return 100.0 / (100.0 + haste)
+	return 1.0
+
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
+
+	if is_instance_valid(summoner):
+		var cur_max = max_health
+		if cur_max != _last_known_max_health:
+			sync_stats_from_summoner(false)
 
 	lifetime -= delta
 	if lifetime <= 0.0:
@@ -158,7 +283,7 @@ func _physics_process(delta: float) -> void:
 
 		# Dash towards enemy if > 4.5m away
 		if dist > 4.5 and dash_cooldown <= 0.0:
-			dash_cooldown = DASH_COOLDOWN_TIME
+			dash_cooldown = DASH_COOLDOWN_TIME * get_cooldown_multiplier()
 			velocity.x = dir.x * DASH_IMPULSE
 			velocity.z = dir.z * DASH_IMPULSE
 		elif dist > ATTACK_RANGE * 0.8:
@@ -170,7 +295,7 @@ func _physics_process(delta: float) -> void:
 
 		# Attack enemy if in range
 		if dist <= ATTACK_RANGE and attack_cooldown <= 0.0:
-			attack_cooldown = ATTACK_COOLDOWN_TIME
+			attack_cooldown = ATTACK_COOLDOWN_TIME * get_cooldown_multiplier()
 			perform_attack(target, dir)
 	else:
 		# Follow summoner
@@ -245,6 +370,10 @@ func find_target() -> Node:
 
 func perform_attack(target: Node, dir: Vector3) -> void:
 	var dmg = ATTACK_BASE_DAMAGE + (float(damage) * ATTACK_DAMAGE_RATIO)
+	if is_instance_valid(summoner) and summoner.has_method("get_damage_multiplier"):
+		dmg *= summoner.get_damage_multiplier()
+	if crit_chance > 0.0 and randf() < crit_chance:
+		dmg *= crit_multiplier
 	if target.has_method("take_damage"):
 		var attacker_id = summoner.name.to_int() if is_instance_valid(summoner) else 0
 		target.take_damage(dmg, attacker_id, BasePlayer.ActionType.ATTACK if ("ActionType" in BasePlayer) else 0)

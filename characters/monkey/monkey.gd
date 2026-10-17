@@ -5,6 +5,8 @@ const MonkeyKing = Monkey
 const MonkeyData = preload("res://characters/monkey/monkey_data.gd")
 const MonkeyKingData = MonkeyData
 const MonkeyCloneClass = preload("res://characters/monkey/monkey_clone.gd")
+const LineHitboxClass = preload("res://ability/hitboxes/line_hitbox.gd")
+const SectorHitboxClass = preload("res://ability/hitboxes/sector_hitbox.gd")
 
 # --- Stone Monkey (Passive) ---
 var stone_monkey_charge: float = 100.0 # 0.0 to 100.0%
@@ -47,6 +49,8 @@ var disguised_target: Node = null
 var original_abilities: Dictionary = {}
 var original_display_name: String = ""
 var original_mesh: Mesh = null
+var original_staff_mesh: Mesh = null
+var original_staff_transform: Transform3D = Transform3D.IDENTITY
 
 # --- 3-Hit Combo (LMB) ---
 var combo_step: int = 0 # 0 = Swipe 1, 1 = Swipe 2, 2 = Slam 3
@@ -74,11 +78,14 @@ func _setup_character_kit() -> void:
 
 	var mesh_inst: MeshInstance3D = get_node_or_null("MeshInstance3D")
 	if mesh_inst:
+		original_mesh = mesh_inst.mesh
 		default_mesh_material = mesh_inst.material_override
 		if not default_mesh_material and mesh_inst.mesh:
 			default_mesh_material = mesh_inst.mesh.material
 
 	if staff_facing:
+		original_staff_mesh = staff_facing.mesh
+		original_staff_transform = staff_facing.transform
 		default_staff_material = staff_facing.material_override
 		if not default_staff_material and staff_facing.mesh:
 			default_staff_material = staff_facing.mesh.material
@@ -94,13 +101,53 @@ func _setup_character_kit() -> void:
 		_add_sync_property(sync.replication_config, NodePath(".:disguise_timer"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 
 	_update_lmb_node_config()
+	if not leveled_up.is_connected(_on_monkey_leveled_up):
+		leveled_up.connect(_on_monkey_leveled_up)
+
+var active_clones: Array = []
+
+func register_clone(clone_node: Node) -> void:
+	if not active_clones.has(clone_node):
+		active_clones.append(clone_node)
+		if clone_node.has_signal("died") and not clone_node.died.is_connected(_on_clone_died):
+			clone_node.died.connect(_on_clone_died)
+		if clone_node.has_signal("tree_exited") and not clone_node.tree_exited.is_connected(_on_clone_exited.bind(clone_node)):
+			clone_node.tree_exited.connect(_on_clone_exited.bind(clone_node))
+
+func unregister_clone(clone_node: Node) -> void:
+	active_clones.erase(clone_node)
+
+func _on_clone_died(clone_node: Node) -> void:
+	active_clones.erase(clone_node)
+
+func _on_clone_exited(clone_node: Node) -> void:
+	active_clones.erase(clone_node)
+
+func update_clones_stats() -> void:
+	for i in range(active_clones.size() - 1, -1, -1):
+		var c = active_clones[i]
+		if not is_instance_valid(c):
+			active_clones.remove_at(i)
+		elif c.has_method("sync_stats_from_summoner"):
+			c.sync_stats_from_summoner(false)
+
+func _on_monkey_leveled_up(_new_level: int, _available_points: int) -> void:
+	update_clones_stats()
+
+func apply_all_items() -> void:
+	super.apply_all_items()
+	update_clones_stats()
 
 func character_handles_slot(slot_key: String) -> bool:
+	if disguise_timer > 0.0:
+		return false
 	if slot_key == "R" and ult_recast_window > 0.0:
 		return true
 	return false
 
 func get_custom_ability_mana_cost(slot_key: String, _ability_id: String) -> float:
+	if disguise_timer > 0.0:
+		return -1.0
 	if slot_key == "R" and ult_recast_window > 0.0:
 		return 0.0 # Free recast of Ultimate
 	if slot_key == "Q":
@@ -110,6 +157,8 @@ func get_custom_ability_mana_cost(slot_key: String, _ability_id: String) -> floa
 	return -1.0
 
 func should_ability_start_cooldown_on_cast(slot_key: String, _ability_id: String) -> bool:
+	if disguise_timer > 0.0:
+		return true
 	if slot_key == "R":
 		return false
 	if slot_key == "E":
@@ -177,6 +226,24 @@ func _process_character_kit(delta: float) -> void:
 	# Ultimate Recast Window Timer (R Phase 1 -> Phase 2)
 	if ult_recast_window > 0.0:
 		ult_recast_window -= delta
+		if is_instance_valid(duel_target):
+			if not has_meta("smoke_duel_partner"):
+				set_meta("smoke_duel_partner", duel_target)
+			if not duel_target.has_meta("smoke_duel_partner"):
+				duel_target.set_meta("smoke_duel_partner", self)
+			if not is_multiplayer_match():
+				visible = true
+				duel_target.visible = true
+			else:
+				if is_local_player():
+					visible = true
+					if duel_target.has_method("set_opponent_visible"):
+						duel_target.set_opponent_visible(true)
+					else:
+						duel_target.visible = true
+				elif duel_target.has_method("is_local_player") and duel_target.is_local_player():
+					duel_target.visible = true
+					set_opponent_visible(true)
 		if ult_recast_window <= 0.0:
 			ult_recast_window = 0.0
 			var fwd = -global_transform.basis.z.normalized()
@@ -279,14 +346,25 @@ func set_opponent_visible(is_vis: bool) -> void:
 	if is_local_player():
 		visible = not is_dead
 		return
-	if is_dead or is_invisible():
+	if is_dead:
 		visible = false
 		if sprite_3d:
 			sprite_3d.visible = false
 		return
-	visible = is_vis
+	var in_duel_with_local = false
+	if has_meta("smoke_duel_partner"):
+		var partner = get_meta("smoke_duel_partner")
+		if is_instance_valid(partner):
+			if (partner.has_method("is_local_player") and partner.is_local_player()) or not is_multiplayer_match():
+				in_duel_with_local = true
+	if is_invisible() and not in_duel_with_local:
+		visible = false
+		if sprite_3d:
+			sprite_3d.visible = false
+		return
+	visible = is_vis or in_duel_with_local
 	if sprite_3d:
-		sprite_3d.visible = is_vis
+		sprite_3d.visible = is_vis or in_duel_with_local
 
 # --- Input Handling for R Recast ---
 func _handle_character_input(_delta: float) -> void:
@@ -298,18 +376,49 @@ func _handle_character_input(_delta: float) -> void:
 func _update_lmb_node_config() -> void:
 	var lmb_ab = abilities.get("LMB")
 	if lmb_ab:
+		var eff = lmb_ab.get("effect_instance") if lmb_ab.get("effect_instance") != null else lmb_ab
 		if combo_step < 2:
 			lmb_ab.hitbox_type = 1 # Sector / Cone
 			lmb_ab.hitbox_radius = SWIPE_RADIUS
 			lmb_ab.hitbox_angle_deg = SWIPE_ANGLE
 			lmb_ab.damage_amount = SWIPE_BASE_DAMAGE
 			lmb_ab.damage_ratio = SWIPE_ATTACK_RATIO
+			if eff:
+				if not (eff.hitbox_instance is SectorHitboxClass):
+					eff.hitbox_instance = SectorHitboxClass.new()
+				eff.hitbox_instance.radius = SWIPE_RADIUS
+				eff.hitbox_instance.angle_deg = SWIPE_ANGLE
+				eff.hitbox_instance.height = 2.5
+				if is_local_player() and lmb_ab.active_indicator and is_instance_valid(lmb_ab.active_indicator):
+					lmb_ab.active_indicator.queue_free()
+					lmb_ab.active_indicator = eff.hitbox_instance.create_indicator()
+					if lmb_ab.active_indicator:
+						lmb_ab.active_indicator.top_level = true
+						var tree = get_tree()
+						if tree and tree.root:
+							tree.root.call_deferred("add_child", lmb_ab.active_indicator)
+						lmb_ab.active_indicator.hide()
 		else:
-			lmb_ab.hitbox_type = 5 # Line
+			lmb_ab.hitbox_type = 5 # Line (long forward reach extending away from Monkey)
 			lmb_ab.hitbox_length = SLAM_LENGTH
 			lmb_ab.hitbox_width = SLAM_WIDTH
 			lmb_ab.damage_amount = SLAM_BASE_DAMAGE
 			lmb_ab.damage_ratio = SLAM_ATTACK_RATIO
+			if eff:
+				if not (eff.hitbox_instance is LineHitboxClass):
+					eff.hitbox_instance = LineHitboxClass.new()
+				eff.hitbox_instance.length = SLAM_LENGTH
+				eff.hitbox_instance.width = SLAM_WIDTH
+				eff.hitbox_instance.height = 2.5
+				if is_local_player() and lmb_ab.active_indicator and is_instance_valid(lmb_ab.active_indicator):
+					lmb_ab.active_indicator.queue_free()
+					lmb_ab.active_indicator = eff.hitbox_instance.create_indicator()
+					if lmb_ab.active_indicator:
+						lmb_ab.active_indicator.top_level = true
+						var tree = get_tree()
+						if tree and tree.root:
+							tree.root.call_deferred("add_child", lmb_ab.active_indicator)
+						lmb_ab.active_indicator.hide()
 
 func try_cast_ability(slot_key: String, charge_ratio: float = 0.0) -> bool:
 	var eff_slot = get_effective_slot(slot_key)
@@ -330,6 +439,9 @@ func custom_execute_ability_server(slot_key: String, origin: Vector3, dir: Vecto
 	if slot_key != "SHIFT" and slot_key != "E":
 		if is_camouflaged:
 			break_camouflage()
+
+	if disguise_timer > 0.0:
+		return false
 
 	match slot_key:
 		"LMB":
@@ -356,6 +468,9 @@ func custom_execute_ability_client(slot_key: String, origin: Vector3, dir: Vecto
 	if slot_key != "SHIFT" and slot_key != "E":
 		if is_camouflaged:
 			break_camouflage()
+
+	if disguise_timer > 0.0:
+		return false
 
 	match slot_key:
 		"LMB":
@@ -723,6 +838,8 @@ func _server_execute_clone() -> void:
 	else:
 		add_child(clone)
 
+	register_clone(clone)
+
 	start_ability_cooldown("Q", Q_BASE_COOLDOWN)
 
 func _client_execute_clone() -> void:
@@ -831,7 +948,7 @@ func _server_execute_ult_initial(dir: Vector3) -> void:
 		var duel_center = (global_position + hit_enemy.global_position) * 0.5
 		duel_center.y = global_position.y
 
-		# Both players invisible and untargetable/intangible
+		# Both players invisible to outsiders and untargetable/intangible
 		apply_invisibility(ULT_RECAST_MAX_WINDOW)
 		apply_invulnerability(ULT_RECAST_MAX_WINDOW)
 		apply_ethereal(ULT_RECAST_MAX_WINDOW)
@@ -844,6 +961,15 @@ func _server_execute_ult_initial(dir: Vector3) -> void:
 			hit_enemy.apply_ethereal(ULT_RECAST_MAX_WINDOW)
 		if hit_enemy.has_method("apply_root"):
 			hit_enemy.apply_root(ULT_RECAST_MAX_WINDOW)
+
+		# Mutual visibility setup: caster and target must be able to see each other
+		set_meta("smoke_duel_partner", hit_enemy)
+		hit_enemy.set_meta("smoke_duel_partner", self)
+		if hit_enemy.has_method("set_opponent_visible"):
+			hit_enemy.set_opponent_visible(true)
+		else:
+			hit_enemy.visible = true
+		set_opponent_visible(true)
 
 		# Spawn smoke cloud (gray circle)
 		_spawn_smoke_cloud(duel_center, 5.0)
@@ -885,6 +1011,12 @@ func _server_execute_ult_recast(dir: Vector3) -> void:
 	ult_recast_window = 0.0
 	_remove_smoke_cloud()
 
+	# Clear mutual visibility duel metadata
+	if has_meta("smoke_duel_partner"):
+		remove_meta("smoke_duel_partner")
+	if is_instance_valid(duel_target) and duel_target.has_meta("smoke_duel_partner"):
+		duel_target.remove_meta("smoke_duel_partner")
+
 	# Remove intangibility and invisibility
 	invulnerable_timer = 0.0
 	ethereal_timer = 0.0
@@ -897,6 +1029,10 @@ func _server_execute_ult_recast(dir: Vector3) -> void:
 			duel_target.break_invisibility()
 		if duel_target.has_method("cleanse_cc"):
 			duel_target.cleanse_cc()
+		if duel_target.has_method("set_opponent_visible"):
+			duel_target.set_opponent_visible(not duel_target.is_invisible())
+		else:
+			duel_target.visible = not duel_target.is_dead if "is_dead" in duel_target else true
 
 		# Player dashes in chosen direction
 		apply_velocity_impulse(fwd * 24.0, true)
@@ -908,11 +1044,14 @@ func _server_execute_ult_recast(dir: Vector3) -> void:
 		# Transform player into a copy of the target for 5 seconds
 		_apply_target_copy_disguise(duel_target)
 
+	set_opponent_visible(not is_invisible())
+
 	if is_multiplayer_match() and is_server_authoritative():
 		sync_ult_recast.rpc(fwd)
 
 func _client_execute_ult_recast(dir: Vector3) -> void:
 	ult_recast_window = 0.0
+	_remove_smoke_cloud()
 	if is_local_player():
 		var fwd = dir.normalized()
 		fwd.y = 0.0
@@ -927,12 +1066,23 @@ func sync_ult_duel_start(target_path: NodePath, duel_center: Vector3) -> void:
 	var hit_enemy = get_node_or_null(target_path)
 	if hit_enemy:
 		duel_target = hit_enemy
+		set_meta("smoke_duel_partner", hit_enemy)
+		hit_enemy.set_meta("smoke_duel_partner", self)
+		if hit_enemy.has_method("set_opponent_visible"):
+			hit_enemy.set_opponent_visible(true)
+		else:
+			hit_enemy.visible = true
+	set_opponent_visible(true)
 	_spawn_smoke_cloud(duel_center, 5.0)
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_ult_recast(fwd: Vector3) -> void:
 	ult_recast_window = 0.0
 	_remove_smoke_cloud()
+	if has_meta("smoke_duel_partner"):
+		remove_meta("smoke_duel_partner")
+	if is_instance_valid(duel_target) and duel_target.has_meta("smoke_duel_partner"):
+		duel_target.remove_meta("smoke_duel_partner")
 	if is_instance_valid(duel_target):
 		_apply_target_copy_disguise(duel_target)
 
@@ -963,10 +1113,47 @@ func _spawn_smoke_cloud(center: Vector3, radius: float) -> void:
 	cloud.global_position = Vector3(center.x, 0.06, center.z)
 	smoke_cloud_instance = cloud
 
+	# Failsafe timer: ensure cloud is cleaned up even if recast fails to trigger
+	var tween = cloud.create_tween()
+	if tween:
+		tween.tween_interval(ULT_RECAST_MAX_WINDOW + 1.0)
+		tween.tween_callback(func():
+			if is_instance_valid(cloud):
+				cloud.queue_free()
+		)
+
 func _remove_smoke_cloud() -> void:
 	if is_instance_valid(smoke_cloud_instance):
 		smoke_cloud_instance.queue_free()
 		smoke_cloud_instance = null
+	var tree = get_tree()
+	if tree and tree.root:
+		var root_node = tree.root.get_node_or_null("Main")
+		if not root_node:
+			root_node = tree.root
+		if root_node:
+			for child in root_node.get_children():
+				if child and child.name.begins_with("SmokeDuelCloud") and is_instance_valid(child):
+					child.queue_free()
+
+func die() -> void:
+	_remove_smoke_cloud()
+	if has_meta("smoke_duel_partner"):
+		remove_meta("smoke_duel_partner")
+	if is_instance_valid(duel_target) and duel_target.has_meta("smoke_duel_partner"):
+		duel_target.remove_meta("smoke_duel_partner")
+	if disguise_timer > 0.0:
+		_revert_disguise()
+	super.die()
+
+func _exit_tree() -> void:
+	_remove_smoke_cloud()
+	if has_meta("smoke_duel_partner"):
+		remove_meta("smoke_duel_partner")
+	if is_instance_valid(duel_target) and duel_target.has_meta("smoke_duel_partner"):
+		duel_target.remove_meta("smoke_duel_partner")
+	if super.has_method("_exit_tree"):
+		super._exit_tree()
 
 # --- 5-Second Target Copy Disguise Implementation ---
 func _apply_target_copy_disguise(target: Node) -> void:
@@ -975,9 +1162,12 @@ func _apply_target_copy_disguise(target: Node) -> void:
 	disguised_target = target
 	disguise_timer = DISGUISE_MAX_DURATION
 
-	# 1. Replace abilities for the duration
+	# 1. Replace abilities for the duration (copy target's abilities)
 	original_abilities = abilities.duplicate()
 	var target_abilities = target.get("abilities")
+	var abilities_container = get_node_or_null("Abilities")
+	var attach_parent: Node = abilities_container if abilities_container else self
+
 	if target_abilities is Dictionary:
 		for slot in ["LMB", "RMB", "SHIFT", "Q", "E", "R"]:
 			if target_abilities.has(slot):
@@ -985,12 +1175,14 @@ func _apply_target_copy_disguise(target: Node) -> void:
 				if src_ab is AbilityClass:
 					var copy_ab = src_ab.duplicate()
 					copy_ab.name = "Copied_%s" % slot
-					add_child(copy_ab)
+					attach_parent.add_child(copy_ab)
+					if copy_ab.has_method("setup"):
+						copy_ab.setup()
 					abilities[slot] = copy_ab
 
 	_setup_abilities_hud()
 
-	# 2. Appearance & Identity Disguise
+	# 2. Appearance & Identity Disguise (Copy Model, NOT stats)
 	original_display_name = display_name
 	var target_name = target.get_display_name() if target.has_method("get_display_name") else target.get("display_name")
 	if target_name != null and not str(target_name).is_empty():
@@ -1000,16 +1192,51 @@ func _apply_target_copy_disguise(target: Node) -> void:
 
 	var my_mesh_inst: MeshInstance3D = get_node_or_null("MeshInstance3D")
 	var target_mesh_inst: MeshInstance3D = target.get_node_or_null("MeshInstance3D")
-	if my_mesh_inst and target_mesh_inst:
-		if not original_mesh:
-			original_mesh = my_mesh_inst.mesh
-		if target_mesh_inst.mesh:
-			my_mesh_inst.mesh = target_mesh_inst.mesh
-		if target_mesh_inst.material_override:
-			my_mesh_inst.material_override = target_mesh_inst.material_override.duplicate()
 
 	if staff_facing:
 		staff_facing.visible = false
+
+	# Check if target uses a custom CharacterModel (e.g. Cleodolinda)
+	var target_char_model = target.get_node_or_null("CharacterModel")
+	if target_char_model:
+		if my_mesh_inst:
+			my_mesh_inst.visible = false
+		var copied_model = target_char_model.duplicate()
+		copied_model.name = "DisguiseCharacterModel"
+		add_child(copied_model)
+		copied_model.visible = true
+	else:
+		if my_mesh_inst:
+			my_mesh_inst.visible = true
+			if not original_mesh:
+				original_mesh = my_mesh_inst.mesh
+			if target_mesh_inst and target_mesh_inst.mesh:
+				my_mesh_inst.mesh = target_mesh_inst.mesh
+				if target_mesh_inst.material_override:
+					my_mesh_inst.material_override = target_mesh_inst.material_override.duplicate()
+				elif target_mesh_inst.mesh.material:
+					my_mesh_inst.material_override = target_mesh_inst.mesh.material.duplicate()
+				else:
+					my_mesh_inst.material_override = null
+
+	# Copy target facing indicator if present and target has no custom CharacterModel
+	var target_facing = target.get_node_or_null("FacingIndicator") as MeshInstance3D
+	if target_facing and target_facing.visible and not target_char_model:
+		if staff_facing:
+			staff_facing.visible = true
+			if not original_staff_mesh:
+				original_staff_mesh = staff_facing.mesh
+			staff_facing.mesh = target_facing.mesh
+			staff_facing.material_override = target_facing.material_override.duplicate() if target_facing.material_override else null
+			staff_facing.transform = target_facing.transform
+
+	# Copy target's accessories (e.g. Cleo's VacuumCleaner)
+	var target_vac = target.get_node_or_null("VacuumCleaner")
+	if target_vac:
+		var copied_vac = target_vac.duplicate()
+		copied_vac.name = "DisguiseVacuumCleaner"
+		add_child(copied_vac)
+		copied_vac.visible = true
 
 	_update_team_visuals()
 
@@ -1021,7 +1248,7 @@ func _revert_disguise() -> void:
 	for slot in ["LMB", "RMB", "SHIFT", "Q", "E", "R"]:
 		if abilities.has(slot) and abilities[slot] != original_abilities.get(slot):
 			var ab = abilities[slot]
-			if is_instance_valid(ab) and ab.get_parent() == self:
+			if is_instance_valid(ab) and ab.get_parent() != null:
 				ab.queue_free()
 
 	abilities = original_abilities.duplicate()
@@ -1030,13 +1257,28 @@ func _revert_disguise() -> void:
 	if not original_display_name.is_empty():
 		display_name = original_display_name
 
+	# Clean up custom model / prop clones
+	var disguise_model = get_node_or_null("DisguiseCharacterModel")
+	if disguise_model:
+		disguise_model.queue_free()
+
+	var disguise_vac = get_node_or_null("DisguiseVacuumCleaner")
+	if disguise_vac:
+		disguise_vac.queue_free()
+
 	var my_mesh_inst: MeshInstance3D = get_node_or_null("MeshInstance3D")
-	if my_mesh_inst and original_mesh:
-		my_mesh_inst.mesh = original_mesh
+	if my_mesh_inst:
+		my_mesh_inst.visible = true
+		if original_mesh:
+			my_mesh_inst.mesh = original_mesh
 		my_mesh_inst.material_override = default_mesh_material
 
 	if staff_facing:
 		staff_facing.visible = true
+		if original_staff_mesh:
+			staff_facing.mesh = original_staff_mesh
+		staff_facing.material_override = default_staff_material
+		staff_facing.transform = original_staff_transform
 
 	_update_team_visuals()
 	start_ability_cooldown("R", ULT_COOLDOWN)
@@ -1052,35 +1294,13 @@ func _apply_disguise_team_visuals() -> void:
 	var local_team = get_local_player_team()
 	var is_viewer_ally = (team_id == local_team) or (name == str(local_id))
 
-	var model_color: Color
-	var emissive_color: Color
 	var health_color: Color
-
 	if is_viewer_ally:
-		# Allies see them normally
-		model_color = Color(0.18, 0.58, 1.0, 1.0)
-		emissive_color = Color(0.08, 0.25, 0.5, 1.0)
+		# Allies see friendly color
 		health_color = Color(0.18, 0.65, 1.0, 1.0)
 	else:
-		# Enemies see them as their ally!
-		model_color = Color(0.18, 0.58, 1.0, 1.0)
-		emissive_color = Color(0.08, 0.25, 0.5, 1.0)
+		# Enemies see them with ally color (disguised as their ally)
 		health_color = Color(0.18, 0.65, 1.0, 1.0)
-
-	var mesh_inst: MeshInstance3D = get_node_or_null("MeshInstance3D")
-	if mesh_inst:
-		var mat = mesh_inst.material_override as StandardMaterial3D
-		if not mat:
-			mat = StandardMaterial3D.new()
-		else:
-			mat = mat.duplicate() as StandardMaterial3D
-		mat.albedo_color = model_color
-		mat.roughness = 0.35
-		mat.metallic = 0.2
-		mat.emission_enabled = true
-		mat.emission = emissive_color
-		mat.emission_energy_multiplier = 0.3
-		mesh_inst.material_override = mat
 
 	if health_bar:
 		var fill_sb = health_bar.get_theme_stylebox("fill")

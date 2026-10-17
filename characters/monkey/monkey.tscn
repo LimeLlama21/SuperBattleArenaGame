@@ -175,13 +175,15 @@ description = "Spawns a clone with identical stats that provides player vision, 
 cooldown = 16.0
 mana_cost = 10.0
 
-[node name="E" parent="Abilities" instance=ExtResource("ext_eff_area")]
+[node name="E" parent="Abilities" instance=ExtResource("ext_eff_buff")]
 slot_key = "E"
 ability_id = "monkey_camouflage"
 ability_name = "Camouflage"
 icon_symbol = "💨"
 description = "Grants camouflage, making you invisible to enemies unless an enemy is within 6m. Lasts 10s or until any action other than move/jump/dash."
 cooldown = 14.0
+buff_name = "Camouflage"
+buff_duration = 10.0
 mana_cost = 10.0
 
 [node name="R" parent="Abilities" instance=ExtResource("ext_eff_buff")]

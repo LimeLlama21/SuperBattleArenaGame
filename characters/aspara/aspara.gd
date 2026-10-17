@@ -24,7 +24,9 @@ const DIVE_ULT_SPEED_MULT: float = 0.35
 const DIVE_ULT_ATTACK_SPEED_MULT: float = 0.40
 
 # Dash, Wall Bounce & Aerial Crash Down
+@export var wall_bounce_ratio: float = 1.65
 var is_wall_launched: bool = false
+var wall_launch_air_time: float = 0.0
 var dash_wall_bounce_timer: float = 0.0
 var dive_dash_dir: Vector3 = Vector3.FORWARD
 var is_crashing_down: bool = false:
@@ -36,6 +38,7 @@ var crash_target_pos: Vector3 = Vector3.ZERO
 const CRASH_SPEED: float = 52.0
 const CRASH_DAMAGE: float = 36.0
 const CRASH_RADIUS: float = 6.0
+const CRASH_MAX_RANGE: float = 18.0
 
 @onready var block_visual: Node3D = get_node_or_null("BlockVisual")
 @onready var crash_visual: Node3D = get_node_or_null("CrashVisual")
@@ -50,11 +53,15 @@ func _setup_character_kit() -> void:
 	if display_name.is_empty() or display_name == "Aspara" or display_name == "Asparsas" or display_name == "Character":
 		display_name = "Uru"
 
+	if data and data.passive_data and data.passive_data.has("wall_bounce_ratio"):
+		wall_bounce_ratio = float(data.passive_data["wall_bounce_ratio"])
+
 	var sync = get_node_or_null("MultiplayerSynchronizer") as MultiplayerSynchronizer
 	if sync and sync.replication_config:
 		_add_sync_property(sync.replication_config, NodePath(".:is_blocking"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 		_add_sync_property(sync.replication_config, NodePath(".:dive_ult_buff_timer"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 		_add_sync_property(sync.replication_config, NodePath(".:is_crashing_down"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
+		_add_sync_property(sync.replication_config, NodePath(".:is_wall_launched"), SceneReplicationConfig.REPLICATION_MODE_ON_CHANGE)
 
 func _process_character_kit(delta: float) -> void:
 	if is_blocking:
@@ -78,9 +85,24 @@ func _process_character_kit(delta: float) -> void:
 		velocity.z = 0.0
 		if is_on_floor():
 			_execute_crash_impact()
+	elif is_wall_launched:
+		wall_launch_air_time += delta
+		# While airborne and waiting to crash down, update crash targeting indicator for local player
+		if is_local_player() and crash_visual:
+			var hit_pos = get_mouse_ground_intersection()
+			var target = hit_pos if hit_pos != null else (global_position - global_transform.basis.z * 5.0)
+			var h_offset = target - Vector3(global_position.x, target.y, global_position.z)
+			if h_offset.length() > CRASH_MAX_RANGE:
+				target = Vector3(global_position.x, target.y, global_position.z) + h_offset.normalized() * CRASH_MAX_RANGE
+			crash_visual.top_level = true
+			crash_visual.global_position = Vector3(target.x, target.y + 0.15, target.z)
+			crash_visual.visible = true
 
-	if is_wall_launched and is_on_floor() and not is_crashing_down:
-		is_wall_launched = false
+		if wall_launch_air_time > 0.20 and is_on_floor() and velocity.y <= 0.0:
+			is_wall_launched = false
+			wall_launch_air_time = 0.0
+			if crash_visual:
+				crash_visual.visible = false
 
 func start_block_stance(duration: float = BLOCK_DURATION) -> void:
 	is_blocking = true
@@ -132,12 +154,19 @@ func on_melee_strike_hit(target: Node, hit_data: Dictionary) -> void:
 func _trigger_wall_bounce() -> void:
 	dash_wall_bounce_timer = 0.0
 	is_wall_launched = true
+	wall_launch_air_time = 0.0
+	var horiz_speed = Vector2(velocity.x, velocity.z).length()
+	var shift_ab = abilities.get("SHIFT")
+	var dash_imp = 26.0
+	if shift_ab and "impulse" in shift_ab:
+		dash_imp = shift_ab.impulse
+	var base_speed = max(horiz_speed, dash_imp * 0.8)
 	velocity.x = 0.0
 	velocity.z = 0.0
-	velocity.y = 16.0
+	velocity.y = base_speed * wall_bounce_ratio
 
 func custom_execute_ability_server(slot_key: String, _origin: Vector3, dir: Vector3, target_pos: Vector3, _charge: float) -> bool:
-	if slot_key == "SHIFT":
+	if slot_key == "SHIFT" or (slot_key == "LMB" and is_wall_launched):
 		if is_wall_launched:
 			execute_crash_down(target_pos)
 			return true
@@ -149,7 +178,7 @@ func custom_execute_ability_server(slot_key: String, _origin: Vector3, dir: Vect
 	return false
 
 func custom_execute_ability_client(slot_key: String, _origin: Vector3, dir: Vector3, target_pos: Vector3, _charge: float) -> bool:
-	if slot_key == "SHIFT":
+	if slot_key == "SHIFT" or (slot_key == "LMB" and is_wall_launched):
 		if is_wall_launched:
 			execute_crash_down(target_pos)
 			return true
@@ -160,19 +189,43 @@ func custom_execute_ability_client(slot_key: String, _origin: Vector3, dir: Vect
 
 func execute_crash_down(target_pos: Vector3) -> void:
 	is_crashing_down = true
-	crash_target_pos = target_pos
-	global_position.x = target_pos.x
-	global_position.z = target_pos.z
+	var target = target_pos
+	if target == Vector3.ZERO:
+		target = global_position
+	var h_offset = target - Vector3(global_position.x, target.y, global_position.z)
+	if h_offset.length() > CRASH_MAX_RANGE:
+		target = Vector3(global_position.x, target.y, global_position.z) + h_offset.normalized() * CRASH_MAX_RANGE
+	crash_target_pos = target
+	global_position.x = target.x
+	global_position.z = target.z
 	velocity.y = -CRASH_SPEED
+	if crash_visual:
+		crash_visual.top_level = true
+		crash_visual.global_position = Vector3(target.x, target.y + 0.15, target.z)
+		crash_visual.visible = true
 
 func _execute_crash_impact() -> void:
 	is_crashing_down = false
 	is_wall_launched = false
+	wall_launch_air_time = 0.0
 	velocity = Vector3.ZERO
-	var players_container = get_tree().root.get_node_or_null("Main/Players")
-	if players_container and is_server_authoritative():
-		for player in players_container.get_children():
-			if player is Node3D and player.name != str(peer_id) and not player.get("is_dead") and is_enemy(player):
+	if crash_visual:
+		crash_visual.visible = false
+	if is_server_authoritative():
+		var candidates: Array = []
+		var players_container = get_tree().root.get_node_or_null("Main/Players")
+		if players_container:
+			candidates.append_array(players_container.get_children())
+		for p in get_tree().get_nodes_in_group("players"):
+			if not candidates.has(p):
+				candidates.append(p)
+		if get_parent():
+			for c in get_parent().get_children():
+				if c is BasePlayer and not candidates.has(c):
+					candidates.append(c)
+
+		for player in candidates:
+			if player is Node3D and player != self and str(player.name) != str(peer_id) and not player.get("is_dead") and is_enemy(player):
 				var diff = player.global_position - global_position
 				diff.y = 0.0
 				if diff.length() <= CRASH_RADIUS:
@@ -225,3 +278,12 @@ func get_status_text() -> String:
 	elif dive_marks_count > 0:
 		return "✦ RUPTURE MARKS: %d/%d ✦" % [dive_marks_count, DIVE_MARK_MAX]
 	return ""
+
+func die() -> void:
+	super.die()
+	is_wall_launched = false
+	is_crashing_down = false
+	wall_launch_air_time = 0.0
+	if crash_visual:
+		crash_visual.visible = false
+

@@ -150,7 +150,24 @@ func get_mouse_ground_intersection():
 	var mouse_pos = viewport.get_mouse_position()
 	var ray_origin = cam.project_ray_origin(mouse_pos)
 	var ray_dir = cam.project_ray_normal(mouse_pos)
-	var ground_plane = Plane(Vector3.UP, global_position.y)
+
+	# Raycast against environment (layer 1) to find actual ground surface
+	var space = get_world_3d().direct_space_state if is_inside_tree() and get_world_3d() else null
+	if space:
+		var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0, 1)
+		var hit = space.intersect_ray(query)
+		if not hit.is_empty():
+			return hit.position
+
+	# Fallback plane: if on floor use current elevation, otherwise ground level (0.0)
+	var ground_y = global_position.y if is_on_floor() else 0.0
+	if not is_on_floor() and space:
+		var down_query = PhysicsRayQueryParameters3D.create(global_position, global_position + Vector3.DOWN * 200.0, 1)
+		var down_hit = space.intersect_ray(down_query)
+		if not down_hit.is_empty():
+			ground_y = down_hit.position.y
+
+	var ground_plane = Plane(Vector3.UP, ground_y)
 	return ground_plane.intersects_ray(ray_origin, ray_dir)
 
 func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:

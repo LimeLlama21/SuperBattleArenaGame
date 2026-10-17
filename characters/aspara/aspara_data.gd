@@ -20,7 +20,7 @@ static func create() -> CharacterData:
 	data.jump_velocity = 13.0
 	data.jump_horizontal_impulse = 2.0
 	data.passive_data = {
-		"wall_bounce_ratio": 0.55,
+		"wall_bounce_ratio": 1.65,
 		"rupture_mark_duration": 3.5,
 		"rupture_mark_max": 5,
 		"rupture_damage_per_mark": 18.0,
