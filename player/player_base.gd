@@ -1227,7 +1227,29 @@ func respawn(target_spawn_pos: Vector3 = Vector3.ZERO) -> void:
 	var in_training = (main_node and main_node.get("is_training_mode") == true) if main_node else false
 
 	if spawn_pos == Vector3.ZERO:
-		if main_node and main_node.has_method("get_respawn_position"):
+		if in_training:
+			var training_map_id = main_node.get("training_selected_map") if main_node else -1
+			if training_map_id != null and training_map_id != -1:
+				if main_node and main_node.has_method("get_respawn_position"):
+					spawn_pos = main_node.get_respawn_position(self)
+				else:
+					var t1_spawns = get_tree().root.get_node_or_null("Main/SpawnPoints/Team1_Spawns")
+					if t1_spawns:
+						var sp_center = t1_spawns.get_node_or_null("Spawn3")
+						if sp_center:
+							spawn_pos = sp_center.global_position
+						elif t1_spawns.get_child_count() > 0:
+							spawn_pos = t1_spawns.get_child(0).global_position
+						else:
+							spawn_pos = Vector3(-24.0, 0.1, 0.0)
+					else:
+						spawn_pos = Vector3(-24.0, 0.1, 0.0)
+			else:
+				if main_node and main_node.has_method("get_respawn_position"):
+					spawn_pos = main_node.get_respawn_position(self)
+				else:
+					spawn_pos = Vector3(-8.0, 0.1, 0.0)
+		elif main_node and main_node.has_method("get_respawn_position"):
 			spawn_pos = main_node.get_respawn_position(self)
 		elif not in_training:
 			var spawn_points = get_tree().root.get_node_or_null("Main/SpawnPoints")
@@ -1241,20 +1263,18 @@ func respawn(target_spawn_pos: Vector3 = Vector3.ZERO) -> void:
 				spawn_pos = candidate_spawns[randi() % candidate_spawns.size()]
 			else:
 				spawn_pos = Vector3(-24.0, 0.1, 0.0)
-		elif main_node and main_node.get("training_selected_map") != null and main_node.get("training_selected_map") != -1:
-			var t1_spawns = get_tree().root.get_node_or_null("Main/SpawnPoints/Team1_Spawns")
-			if t1_spawns:
-				var sp_center = t1_spawns.get_node_or_null("Spawn3")
-				if sp_center:
-					spawn_pos = sp_center.global_position
-				elif t1_spawns.get_child_count() > 0:
-					spawn_pos = t1_spawns.get_child(0).global_position
-				else:
-					spawn_pos = Vector3(-24.0, 0.1, 0.0)
-			else:
-				spawn_pos = Vector3(-24.0, 0.1, 0.0)
 		else:
 			spawn_pos = Vector3(-8.0, 0.1, 0.0)
+
+	# Safety check: on the standard training map, ensure respawn is on the left of center, but still on the platform
+	if in_training:
+		var active_training_map = main_node.get("training_selected_map") if main_node else -1
+		if active_training_map == null or active_training_map == -1:
+			var dist_from_center = Vector2(spawn_pos.x, spawn_pos.z).length()
+			# Platform is a cylinder with radius 16.0 at (0, 0).
+			# "Left of center" requires X < 0; "on platform" requires distance < 16.0.
+			if spawn_pos.x >= 0.0 or dist_from_center > 15.0 or dist_from_center < 1.0:
+				spawn_pos = Vector3(-8.0, 0.1, 0.0)
 
 	if is_multiplayer_match() and multiplayer.is_server():
 		sync_respawn.rpc(spawn_pos)

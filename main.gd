@@ -1831,6 +1831,25 @@ func get_all_spawn_positions() -> Array[Vector3]:
 	return result
 
 func get_respawn_position(player_node: Node) -> Vector3:
+	var is_training_map_active = is_training_mode and (training_selected_map == -1 or current_map_id == -1)
+	if is_training_map_active:
+		if player_node and (player_node.name == "TrainingDummy" or (player_node is BasePlayer and player_node.get("id") == "dummy")):
+			var dummy_home = player_node.get("home_position")
+			if dummy_home is Vector3 and dummy_home != Vector3.ZERO:
+				return dummy_home
+			return Vector3(0.0, 0.1, 0.0)
+		# Standard Training Map: spawn on the left side of center, safely on the circular platform
+		if training_map:
+			var p_spawn = training_map.get_node_or_null("PlayerSpawn")
+			if p_spawn and p_spawn is Node3D:
+				return p_spawn.global_position
+		return Vector3(-8.0, 0.1, 0.0)
+	elif is_training_mode and player_node and (player_node.name == "TrainingDummy" or (player_node is BasePlayer and player_node.get("id") == "dummy")):
+		var dummy_home = player_node.get("home_position")
+		if dummy_home is Vector3 and dummy_home != Vector3.ZERO:
+			return dummy_home
+		return Vector3(24.0, 0.1, 0.0)
+
 	var mode = GameModes.get_mode(game_mode)
 	var spawns: Array[Vector3] = []
 	if mode and not mode.is_team_based:

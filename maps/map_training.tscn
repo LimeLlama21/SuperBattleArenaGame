@@ -27,3 +27,9 @@ shape = SubResource("CylinderShape3D_training_floor")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="TrainingFloor"]
 mesh = SubResource("CylinderMesh_training_floor")
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.1, 0)
+
+[node name="DummySpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
