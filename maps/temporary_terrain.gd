@@ -15,6 +15,8 @@ var _start_y: float = 0.0
 
 func _ready() -> void:
 	sync_to_physics = false
+	set_collision_layer_value(1, false)
+	set_collision_layer_value(3, true)
 	_apply_terrain_size()
 	if is_wall:
 		set_as_wall(true)

@@ -631,7 +631,7 @@ func can_see_target(target: Node) -> bool:
 	if space:
 		var from_eye = global_position + Vector3(0, 1.25, 0)
 		var to_target = target.global_position + Vector3(0, 1.0, 0)
-		var query = PhysicsRayQueryParameters3D.create(from_eye, to_target, 1) # Layer 1 = terrain/walls
+		var query = PhysicsRayQueryParameters3D.create(from_eye, to_target, 5) # Layer 1 (Ground) + Layer 3 (Terrain)
 		var excludes = [get_rid()]
 		if target.has_method("get_rid"):
 			excludes.append(target.get_rid())

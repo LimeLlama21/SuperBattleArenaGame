@@ -189,6 +189,7 @@ mesh = SubResource("Mesh_Bridge")
 
 [node name="Wall_W_FarN" type="StaticBody3D" parent="." unique_id=300000001]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -15.0, 4, -33.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_FarN" unique_id=300100001]
@@ -199,6 +200,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_N_Corner1" type="StaticBody3D" parent="." unique_id=300000002]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.75, 4, -32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_N_Corner1" unique_id=300100002]
@@ -209,6 +211,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_N_Corner2" type="StaticBody3D" parent="." unique_id=300000003]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 4, -32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_N_Corner2" unique_id=300100003]
@@ -219,6 +222,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_NorthJagged_N1" type="StaticBody3D" parent="." unique_id=300000004]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, -30.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_NorthJagged_N1" unique_id=300100004]
@@ -229,6 +233,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_NorthJagged_N2" type="StaticBody3D" parent="." unique_id=300000005]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, -26.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_NorthJagged_N2" unique_id=300100005]
@@ -239,6 +244,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_NorthJagged_S1" type="StaticBody3D" parent="." unique_id=300000006]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, -15.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_NorthJagged_S1" unique_id=300100006]
@@ -249,6 +255,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_NorthJagged_S2" type="StaticBody3D" parent="." unique_id=300000007]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, -12.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_NorthJagged_S2" unique_id=300100007]
@@ -259,6 +266,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_N_Recess1" type="StaticBody3D" parent="." unique_id=300000008]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 4, -12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_N_Recess1" unique_id=300100008]
@@ -269,6 +277,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_N_Recess2" type="StaticBody3D" parent="." unique_id=300000009]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.75, 4, -12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_N_Recess2" unique_id=300100009]
@@ -279,6 +288,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_N_BaseEdge" type="StaticBody3D" parent="." unique_id=300000010]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -15.0, 4, -9.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_N_BaseEdge" unique_id=300100010]
@@ -289,6 +299,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_N_Step1" type="StaticBody3D" parent="." unique_id=300000011]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.0, 4, -7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_N_Step1" unique_id=300100011]
@@ -299,6 +310,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_N_Step2" type="StaticBody3D" parent="." unique_id=300000012]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 4, -7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_N_Step2" unique_id=300100012]
@@ -309,6 +321,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_N_Step3" type="StaticBody3D" parent="." unique_id=300000013]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.0, 4, -7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_N_Step3" unique_id=300100013]
@@ -319,6 +332,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_N" type="StaticBody3D" parent="." unique_id=300000014]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.0, 4, -5.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_N" unique_id=300100014]
@@ -329,6 +343,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_S" type="StaticBody3D" parent="." unique_id=300000015]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -3.0, 4, 5.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_S" unique_id=300100015]
@@ -339,6 +354,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_S_Step1" type="StaticBody3D" parent="." unique_id=300000016]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.0, 4, 7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_S_Step1" unique_id=300100016]
@@ -349,6 +365,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_S_Step2" type="StaticBody3D" parent="." unique_id=300000017]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 4, 7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_S_Step2" unique_id=300100017]
@@ -359,6 +376,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_Mid_S_Step3" type="StaticBody3D" parent="." unique_id=300000018]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.0, 4, 7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_Mid_S_Step3" unique_id=300100018]
@@ -369,6 +387,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_S_BaseEdge" type="StaticBody3D" parent="." unique_id=300000019]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -15.0, 4, 9.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_S_BaseEdge" unique_id=300100019]
@@ -379,6 +398,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_S_Recess1" type="StaticBody3D" parent="." unique_id=300000020]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.75, 4, 12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_S_Recess1" unique_id=300100020]
@@ -389,6 +409,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_S_Recess2" type="StaticBody3D" parent="." unique_id=300000021]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 4, 12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_S_Recess2" unique_id=300100021]
@@ -399,6 +420,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_SouthJagged_N1" type="StaticBody3D" parent="." unique_id=300000022]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, 12.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_SouthJagged_N1" unique_id=300100022]
@@ -409,6 +431,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_SouthJagged_N2" type="StaticBody3D" parent="." unique_id=300000023]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, 15.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_SouthJagged_N2" unique_id=300100023]
@@ -419,6 +442,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_SouthJagged_S1" type="StaticBody3D" parent="." unique_id=300000024]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, 26.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_SouthJagged_S1" unique_id=300100024]
@@ -429,6 +453,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_SouthJagged_S2" type="StaticBody3D" parent="." unique_id=300000025]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -6.0, 4, 30.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_SouthJagged_S2" unique_id=300100025]
@@ -439,6 +464,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_S_Corner1" type="StaticBody3D" parent="." unique_id=300000026]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 4, 32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_S_Corner1" unique_id=300100026]
@@ -449,6 +475,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_S_Corner2" type="StaticBody3D" parent="." unique_id=300000027]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.75, 4, 32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_S_Corner2" unique_id=300100027]
@@ -459,6 +486,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_W_FarS" type="StaticBody3D" parent="." unique_id=300000028]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -15.0, 4, 33.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_W_FarS" unique_id=300100028]
@@ -469,6 +497,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_FarN" type="StaticBody3D" parent="." unique_id=300000029]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 15.0, 4, -33.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_FarN" unique_id=300100029]
@@ -479,6 +508,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_N_Corner1" type="StaticBody3D" parent="." unique_id=300000030]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.75, 4, -32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_N_Corner1" unique_id=300100030]
@@ -489,6 +519,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_N_Corner2" type="StaticBody3D" parent="." unique_id=300000031]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 4, -32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_N_Corner2" unique_id=300100031]
@@ -499,6 +530,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_NorthJagged_N1" type="StaticBody3D" parent="." unique_id=300000032]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, -30.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_NorthJagged_N1" unique_id=300100032]
@@ -509,6 +541,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_NorthJagged_N2" type="StaticBody3D" parent="." unique_id=300000033]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, -28.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_NorthJagged_N2" unique_id=300100033]
@@ -519,6 +552,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_NorthJagged_S1" type="StaticBody3D" parent="." unique_id=300000034]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, -18.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_NorthJagged_S1" unique_id=300100034]
@@ -529,6 +563,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_NorthJagged_S2" type="StaticBody3D" parent="." unique_id=300000035]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, -14.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_NorthJagged_S2" unique_id=300100035]
@@ -539,6 +574,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_N_Recess1" type="StaticBody3D" parent="." unique_id=300000036]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 4, -12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_N_Recess1" unique_id=300100036]
@@ -549,6 +585,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_N_Recess2" type="StaticBody3D" parent="." unique_id=300000037]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.75, 4, -12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_N_Recess2" unique_id=300100037]
@@ -559,6 +596,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_N_BaseEdge" type="StaticBody3D" parent="." unique_id=300000038]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 15.0, 4, -9.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_N_BaseEdge" unique_id=300100038]
@@ -569,6 +607,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_N_Step1" type="StaticBody3D" parent="." unique_id=300000039]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.0, 4, -7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_N_Step1" unique_id=300100039]
@@ -579,6 +618,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_N_Step2" type="StaticBody3D" parent="." unique_id=300000040]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.0, 4, -7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_N_Step2" unique_id=300100040]
@@ -589,6 +629,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_N_Step3" type="StaticBody3D" parent="." unique_id=300000041]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0, 4, -7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_N_Step3" unique_id=300100041]
@@ -599,6 +640,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_N" type="StaticBody3D" parent="." unique_id=300000042]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 3.0, 4, -5.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_N" unique_id=300100042]
@@ -609,6 +651,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_S" type="StaticBody3D" parent="." unique_id=300000043]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 3.0, 4, 5.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_S" unique_id=300100043]
@@ -619,6 +662,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_S_Step1" type="StaticBody3D" parent="." unique_id=300000044]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0, 4, 7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_S_Step1" unique_id=300100044]
@@ -629,6 +673,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_S_Step2" type="StaticBody3D" parent="." unique_id=300000045]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.0, 4, 7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_S_Step2" unique_id=300100045]
@@ -639,6 +684,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_Mid_S_Step3" type="StaticBody3D" parent="." unique_id=300000046]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.0, 4, 7.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_Mid_S_Step3" unique_id=300100046]
@@ -649,6 +695,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_S_BaseEdge" type="StaticBody3D" parent="." unique_id=300000047]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 15.0, 4, 9.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_S_BaseEdge" unique_id=300100047]
@@ -659,6 +706,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_S_Recess1" type="StaticBody3D" parent="." unique_id=300000048]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.75, 4, 12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_S_Recess1" unique_id=300100048]
@@ -669,6 +717,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_S_Recess2" type="StaticBody3D" parent="." unique_id=300000049]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 4, 12.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_S_Recess2" unique_id=300100049]
@@ -679,6 +728,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_SouthJagged_N1" type="StaticBody3D" parent="." unique_id=300000050]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, 14.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_SouthJagged_N1" unique_id=300100050]
@@ -689,6 +739,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_SouthJagged_N2" type="StaticBody3D" parent="." unique_id=300000051]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, 18.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_SouthJagged_N2" unique_id=300100051]
@@ -699,6 +750,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_SouthJagged_S1" type="StaticBody3D" parent="." unique_id=300000052]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, 28.5)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_SouthJagged_S1" unique_id=300100052]
@@ -709,6 +761,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_SouthJagged_S2" type="StaticBody3D" parent="." unique_id=300000053]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6.0, 4, 30.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_SouthJagged_S2" unique_id=300100053]
@@ -719,6 +772,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_S_Corner1" type="StaticBody3D" parent="." unique_id=300000054]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 4, 32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_S_Corner1" unique_id=300100054]
@@ -729,6 +783,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_S_Corner2" type="StaticBody3D" parent="." unique_id=300000055]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.75, 4, 32.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_S_Corner2" unique_id=300100055]
@@ -739,6 +794,7 @@ mesh = SubResource("Mesh_Wall")
 
 [node name="Wall_E_FarS" type="StaticBody3D" parent="." unique_id=300000056]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 15.0, 4, 33.0)
+collision_layer = 4
 collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Wall_E_FarS" unique_id=300100056]

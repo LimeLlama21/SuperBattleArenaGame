@@ -1,5 +1,18 @@
 class_name PlayerVision
-extends PlayerPhysics
+extends Node
+
+## PlayerVision - Sibling component handling vision geometry, elevation scaling,
+## Fog of War vision raycasting, and opponent visibility.
+
+var player: CharacterBody3D = null
+
+func _get_player() -> CharacterBody3D:
+	if is_instance_valid(player):
+		return player
+	var parent = get_parent()
+	if parent is CharacterBody3D:
+		return parent as CharacterBody3D
+	return null
 
 # Vision Geometry & Calculation Constants
 const CLOSE_RADIUS_M: float = 5.5
@@ -15,8 +28,10 @@ static func get_height_vision_multiplier(pos_y: float) -> float:
 	return clamp(1.0 + (height * HEIGHT_SCALE_FACTOR), 1.0, MAX_HEIGHT_MULT)
 
 func get_custom_cone_radius() -> float:
-	if (has_method("is_nearsighted") and is_nearsighted()) or (has_method("is_blinded") and is_blinded()):
-		return 0.0
+	var p = _get_player()
+	if p:
+		if (p.has_method("is_nearsighted") and p.is_nearsighted()) or (p.has_method("is_blinded") and p.is_blinded()):
+			return 0.0
 	return CONE_RADIUS_M
 
 func get_custom_cone_half_angle_deg() -> float:
@@ -24,29 +39,40 @@ func get_custom_cone_half_angle_deg() -> float:
 
 # Velocity-lead predicted eye position
 func get_predicted_vision_origin(eye_height: float = 1.25) -> Vector3:
-	var lead_offset = velocity * VELOCITY_LEAD_TIME
+	var p = _get_player()
+	var vel = p.velocity if p else Vector3.ZERO
+	var gpos = p.global_position if p else Vector3.ZERO
+	var lead_offset = vel * VELOCITY_LEAD_TIME
 	lead_offset.y = 0.0 # Keep height grounded to actual player elevation
-	var pred_pos = global_position + lead_offset
-	pred_pos.y = global_position.y + eye_height
+	var pred_pos = gpos + lead_offset
+	pred_pos.y = gpos.y + eye_height
 	return pred_pos
 
 func get_facing_direction_3d() -> Vector3:
-	var fwd = -global_transform.basis.z.normalized()
+	var p = _get_player()
+	if not p:
+		return Vector3.FORWARD
+	var fwd = -p.global_transform.basis.z.normalized()
 	fwd.y = 0.0
 	if fwd.length_squared() < 0.0001:
 		fwd = Vector3.FORWARD
 	return fwd.normalized()
 
 func set_opponent_visible(is_vis: bool) -> void:
-	var my_id = multiplayer.get_unique_id() if (multiplayer and multiplayer.has_multiplayer_peer()) else 1
-	if name.to_int() == my_id or name == "1":
-		visible = not get("is_dead")
+	var p = _get_player()
+	if not p:
 		return
-	if get("is_dead"):
-		visible = false
+	var mp = p.multiplayer if p else multiplayer
+	var my_id = mp.get_unique_id() if (mp and mp.has_multiplayer_peer()) else 1
+	var p_name = p.name
+	if p_name.to_int() == my_id or p_name == "1":
+		p.visible = not p.get("is_dead")
 		return
-	visible = is_vis
-	var sprite_3d_node = get_node_or_null("HealthBarSprite")
+	if p.get("is_dead"):
+		p.visible = false
+		return
+	p.visible = is_vis
+	var sprite_3d_node = p.get_node_or_null("HealthBarSprite")
 	if sprite_3d_node:
 		sprite_3d_node.visible = is_vis
 

@@ -523,7 +523,7 @@ func _tick_fire_breath_damage(radius: float, angle_deg: float) -> void:
 		
 		# Terrain line of sight check: must stop on terrain
 		if space:
-			var los_query = PhysicsRayQueryParameters3D.create(origin, enemy_pos, 1)
+			var los_query = PhysicsRayQueryParameters3D.create(origin, enemy_pos, 5) # Ground + Terrain
 			los_query.exclude = [get_rid()]
 			if enemy.has_method("get_rid"):
 				los_query.exclude.append(enemy.get_rid())

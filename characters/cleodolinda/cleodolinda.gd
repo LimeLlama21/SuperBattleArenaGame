@@ -468,7 +468,7 @@ func _get_enemies_in_suction_cone() -> Array[Node]:
 		if space:
 			var from_p = origin + Vector3.UP * 0.9
 			var to_p = enemy_pos + Vector3.UP * 0.9
-			var los_query = PhysicsRayQueryParameters3D.create(from_p, to_p, 1) # Layer 1 = Environment
+			var los_query = PhysicsRayQueryParameters3D.create(from_p, to_p, 5) # Layer 1 (Ground) + Layer 3 (Terrain)
 			los_query.exclude = [get_rid()]
 			if enemy.has_method("get_rid"):
 				los_query.exclude.append(enemy.get_rid())

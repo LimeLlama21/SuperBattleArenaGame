@@ -1,5 +1,18 @@
 class_name PlayerPhysics
-extends PlayerStatus
+extends Node
+
+## PlayerPhysics - Sibling component handling movement parameters,
+## acceleration, drag, knockback, wall collisions, and impulse physics.
+
+var player: CharacterBody3D = null
+
+func _get_player() -> CharacterBody3D:
+	if is_instance_valid(player):
+		return player
+	var parent = get_parent()
+	if parent is CharacterBody3D:
+		return parent as CharacterBody3D
+	return null
 
 # --- Movement Parameters ---
 @export var max_move_speed: float = 6.0
@@ -33,33 +46,126 @@ func modify_incoming_damage(amount: float, _attacker_id: int, _action_type: int)
 	return amount
 
 func get_effective_max_speed(current_calculated_speed: float) -> float:
+	var p = _get_player()
+	if p and p != self and p.has_method("get_effective_max_speed"):
+		return p.get_effective_max_speed(current_calculated_speed)
 	return current_calculated_speed
 
 func get_effective_acceleration(current_calculated_accel: float) -> float:
+	var p = _get_player()
+	if p and p != self and p.has_method("get_effective_acceleration"):
+		return p.get_effective_acceleration(current_calculated_accel)
 	return current_calculated_accel
 
 func has_custom_movement_control() -> bool:
+	var p = _get_player()
+	if p and p != self and p.has_method("has_custom_movement_control"):
+		return p.has_custom_movement_control()
 	return false
 
 func is_in_move_lockout() -> bool:
+	var p = _get_player()
+	if p and p.has_method("is_in_move_lockout"):
+		return p.is_in_move_lockout()
 	return false
 
 func is_sliding_down_slope() -> bool:
-	if not is_on_floor():
+	var p = _get_player()
+	if not p or not p.is_on_floor():
 		return false
-	var floor_angle = get_floor_angle()
-	if floor_angle > floor_max_angle:
-		var floor_normal = get_floor_normal()
-		if velocity.dot(floor_normal) < 0.1 and velocity.length_squared() > 0.2:
+	var floor_angle = p.get_floor_angle()
+	if floor_angle > p.floor_max_angle:
+		var floor_normal = p.get_floor_normal()
+		if p.velocity.dot(floor_normal) < 0.1 and p.velocity.length_squared() > 0.2:
 			return true
 	return false
 
 func is_enemy(_other: Node) -> bool:
 	return true
 
+# --- Helper Status Accessors ---
+
+func _get_status() -> PlayerStatus:
+	var p = _get_player()
+	if p and "status_comp" in p and p.status_comp:
+		return p.status_comp
+	return null
+
+func is_cc_immune() -> bool:
+	var s = _get_status()
+	return s.is_cc_immune if s else false
+
+func is_displacement_immune() -> bool:
+	var s = _get_status()
+	return s.is_displacement_immune() if s else false
+
+func is_invulnerable() -> bool:
+	var s = _get_status()
+	return s.is_invulnerable() if s else false
+
+func is_bound() -> bool:
+	var s = _get_status()
+	return s.is_bound() if s else false
+
+func is_stunned() -> bool:
+	var s = _get_status()
+	return s.is_stunned() if s else false
+
+func is_rooted() -> bool:
+	var s = _get_status()
+	return s.is_rooted() if s else false
+
+func is_grounded() -> bool:
+	var s = _get_status()
+	return s.is_grounded() if s else false
+
+func is_ethereal_active() -> bool:
+	var s = _get_status()
+	return s.is_ethereal_active() if s else false
+
+func is_phasing_walls() -> bool:
+	var s = _get_status()
+	return s.is_phasing_walls() if s else false
+
+func get_slow_multiplier() -> float:
+	var s = _get_status()
+	return s.get_slow_multiplier() if s else 1.0
+
+func apply_stun(duration: float) -> void:
+	var s = _get_status()
+	if s: s.apply_stun(duration)
+
+func is_multiplayer_match() -> bool:
+	var p = _get_player()
+	if p and p.has_method("is_multiplayer_match"):
+		return p.is_multiplayer_match()
+	return multiplayer and multiplayer.has_multiplayer_peer() and multiplayer.get_peers().size() > 0
+
+func is_server_authoritative() -> bool:
+	var p = _get_player()
+	if p and p.has_method("is_server_authoritative"):
+		return p.is_server_authoritative()
+	if not is_multiplayer_match():
+		return true
+	return multiplayer.is_server()
+
+func is_local_player() -> bool:
+	var p = _get_player()
+	if p and p.has_method("is_local_player"):
+		return p.is_local_player()
+	return true
+
+func _is_sender_host() -> bool:
+	if not is_multiplayer_match():
+		return true
+	if multiplayer.is_server():
+		return true
+	return multiplayer.get_remote_sender_id() == 1
+
 # --- Knockback & Impulse Application ---
+
 func apply_knockback(impulse_vec: Vector3, _is_external: bool = true, wall_stun: float = 0.0) -> void:
-	if is_cc_immune or is_displacement_immune() or is_invulnerable() or is_bound():
+	if is_cc_immune() or is_displacement_immune() or is_invulnerable() or is_bound():
 		return
 	if is_multiplayer_match():
 		if not is_server_authoritative():
@@ -75,94 +181,108 @@ func sync_knockback(impulse_vec: Vector3, _is_external: bool = true, wall_stun: 
 	_process_apply_knockback(impulse_vec, wall_stun)
 
 func _process_apply_knockback(impulse_vec: Vector3, wall_stun: float = 0.0) -> void:
-	velocity += impulse_vec
+	var p = _get_player()
+	if p:
+		p.velocity += impulse_vec
 	knockback_velocity += impulse_vec
 	if wall_stun > knockback_wall_stun:
 		knockback_wall_stun = wall_stun
 
 func apply_velocity_impulse(impulse_vec: Vector3, is_intentional: bool = true) -> void:
-	velocity.x = impulse_vec.x
-	velocity.z = impulse_vec.z
-	if impulse_vec.y != 0.0:
-		velocity.y = impulse_vec.y
+	var p = _get_player()
+	if p:
+		p.velocity.x = impulse_vec.x
+		p.velocity.z = impulse_vec.z
+		if impulse_vec.y != 0.0:
+			p.velocity.y = impulse_vec.y
 	if is_intentional:
 		is_intentional_movement = true
 
-# --- External Acceleration (Continuous forces like suction or wind) ---
 func apply_external_acceleration(accel_vec: Vector3, delta: float = 0.0) -> void:
-	if is_cc_immune or is_displacement_immune() or is_invulnerable() or is_bound():
+	if is_cc_immune() or is_displacement_immune() or is_invulnerable() or is_bound():
 		return
 	var dt = delta if delta > 0.0 else get_physics_process_delta_time()
-	external_velocity += accel_vec * dt
-	var max_ext_speed = max(12.0, accel_vec.length() * 1.5)
-	if external_velocity.length() > max_ext_speed:
-		external_velocity = external_velocity.normalized() * max_ext_speed
+	var s = _get_status()
+	if s:
+		s.external_velocity += accel_vec * dt
+		var max_ext_speed = max(12.0, accel_vec.length() * 1.5)
+		if s.external_velocity.length() > max_ext_speed:
+			s.external_velocity = s.external_velocity.normalized() * max_ext_speed
 
 func get_facing_direction_3d() -> Vector3:
-	var fwd = -global_transform.basis.z.normalized()
+	var p = _get_player()
+	if not p:
+		return Vector3.FORWARD
+	var fwd = -p.global_transform.basis.z.normalized()
 	fwd.y = 0.0
 	if fwd.length_squared() < 0.0001:
 		fwd = Vector3.FORWARD
 	return fwd.normalized()
 
 # --- Aiming & Targeting Helpers ---
+
 func aim_at_mouse() -> void:
+	var p = _get_player()
+	if not p:
+		return
 	if is_mouse_hijacked:
 		return
-	if is_taunted():
-		var taunter = get_taunt_target()
+	var s = _get_status()
+	if s and s.is_taunted():
+		var taunter = s.get_taunt_target()
 		if is_instance_valid(taunter):
-			var target := Vector3(taunter.global_position.x, global_position.y, taunter.global_position.z)
-			if global_position.distance_squared_to(target) > 0.3:
-				look_at(target, Vector3.UP)
-				rotation.x = 0.0
-				rotation.z = 0.0
+			var target: Vector3 = Vector3(taunter.global_position.x, p.global_position.y, taunter.global_position.z)
+			if p.global_position.distance_squared_to(target) > 0.3:
+				p.look_at(target, Vector3.UP)
+				p.rotation.x = 0.0
+				p.rotation.z = 0.0
 		return
-	if has_method("is_feared") and is_feared():
-		var fear_source = get_fear_source_node() if has_method("get_fear_source_node") else null
+	if s and s.is_feared():
+		var fear_source = s.get_fear_source_node()
 		var away_dir := Vector3.ZERO
 		if is_instance_valid(fear_source):
-			away_dir = global_position - fear_source.global_position
-		elif "fear_source_pos" in self and fear_source_pos != Vector3.ZERO:
-			away_dir = global_position - fear_source_pos
+			away_dir = p.global_position - fear_source.global_position
+		elif s.fear_source_pos != Vector3.ZERO:
+			away_dir = p.global_position - s.fear_source_pos
 		else:
 			away_dir = -get_facing_direction_3d()
 		away_dir.y = 0.0
 		if away_dir.length_squared() > 0.01:
-			var target := global_position + away_dir.normalized() * 5.0
-			look_at(target, Vector3.UP)
-			rotation.x = 0.0
-			rotation.z = 0.0
+			var target: Vector3 = p.global_position + away_dir.normalized() * 5.0
+			p.look_at(target, Vector3.UP)
+			p.rotation.x = 0.0
+			p.rotation.z = 0.0
 		return
 	var hit_pos = get_mouse_ground_intersection()
 	if hit_pos != null:
-		var target := Vector3(hit_pos.x, global_position.y, hit_pos.z)
-		if global_position.distance_squared_to(target) > 0.3:
-			look_at(target, Vector3.UP)
-			rotation.x = 0.0
-			rotation.z = 0.0
+		var target: Vector3 = Vector3(hit_pos.x, p.global_position.y, hit_pos.z)
+		if p.global_position.distance_squared_to(target) > 0.3:
+			p.look_at(target, Vector3.UP)
+			p.rotation.x = 0.0
+			p.rotation.z = 0.0
 
 func get_mouse_ground_intersection():
-	var viewport = get_viewport()
-	var cam = get_viewport().get_camera_3d() if viewport else null
+	var p = _get_player()
+	if not p:
+		return null
+	var viewport = p.get_viewport()
+	var cam = viewport.get_camera_3d() if viewport else null
 	if not viewport or not cam:
 		return null
 	var mouse_pos = viewport.get_mouse_position()
 	var ray_origin = cam.project_ray_origin(mouse_pos)
 	var ray_dir = cam.project_ray_normal(mouse_pos)
 
-	# Raycast against environment (layer 1) to find actual ground surface
-	var space = get_world_3d().direct_space_state if is_inside_tree() and get_world_3d() else null
+	var space = p.get_world_3d().direct_space_state if p.is_inside_tree() and p.get_world_3d() else null
 	if space:
 		var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_dir * 500.0, 1)
 		var hit = space.intersect_ray(query)
 		if not hit.is_empty():
 			return hit.position
 
-	# Fallback plane: if on floor use current elevation, otherwise ground level (0.0)
-	var ground_y = global_position.y if is_on_floor() else 0.0
-	if not is_on_floor() and space:
-		var down_query = PhysicsRayQueryParameters3D.create(global_position, global_position + Vector3.DOWN * 200.0, 1)
+	var ground_y = p.global_position.y if p.is_on_floor() else 0.0
+	if not p.is_on_floor() and space:
+		var down_query = PhysicsRayQueryParameters3D.create(p.global_position, p.global_position + Vector3.DOWN * 200.0, 1)
 		var down_hit = space.intersect_ray(down_query)
 		if not down_hit.is_empty():
 			ground_y = down_hit.position.y
@@ -171,24 +291,21 @@ func get_mouse_ground_intersection():
 	return ground_plane.intersects_ray(ray_origin, ray_dir)
 
 func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:
-	var default_fwd = -global_transform.basis.z.normalized()
-	default_fwd.y = 0.0
-	if default_fwd.length_squared() < 0.0001:
-		default_fwd = Vector3.FORWARD
-	default_fwd = default_fwd.normalized()
-	
+	var p = _get_player()
+	var default_fwd = get_facing_direction_3d()
 	if not is_local_player():
 		return default_fwd
-	
-	if is_taunted():
-		var taunter = get_taunt_target()
+
+	var s = _get_status()
+	if s and s.is_taunted():
+		var taunter = s.get_taunt_target()
 		if is_instance_valid(taunter):
 			var dir = (taunter.global_position - spawn_pos)
 			dir.y = 0.0
 			if dir.length_squared() > 0.0001:
 				return dir.normalized()
 		return default_fwd
-	
+
 	var hit_pos = get_mouse_ground_intersection()
 	if hit_pos != null:
 		var target_pos = Vector3(hit_pos.x, spawn_pos.y, hit_pos.z)
@@ -196,32 +313,33 @@ func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:
 		shoot_dir.y = 0.0
 		if shoot_dir.length_squared() > 0.0001:
 			return shoot_dir.normalized()
-	
+
 	return default_fwd
 
 func get_dash_direction() -> Vector3:
+	var p = _get_player()
 	var input_dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var move_dir = Vector3(input_dir.x, 0, input_dir.y).normalized()
-	
+
 	var mouse_dir = Vector3.ZERO
 	var mouse_pos = get_mouse_ground_intersection()
-	if mouse_pos != null:
-		mouse_dir = mouse_pos - global_position
+	if mouse_pos != null and p:
+		mouse_dir = mouse_pos - p.global_position
 		mouse_dir.y = 0.0
 		if mouse_dir.length_squared() > 0.001:
 			mouse_dir = mouse_dir.normalized()
-	if mouse_dir == Vector3.ZERO:
-		mouse_dir = -global_transform.basis.z
+	if mouse_dir == Vector3.ZERO and p:
+		mouse_dir = -p.global_transform.basis.z
 		mouse_dir.y = 0.0
 		mouse_dir = mouse_dir.normalized()
 		if mouse_dir == Vector3.ZERO:
 			mouse_dir = Vector3.FORWARD
-	
+
 	var mode = "smart"
 	var sm = get_node_or_null("/root/SettingsManager")
 	if sm and sm.has_method("get_dash_direction_mode"):
 		mode = sm.get_dash_direction_mode()
-	
+
 	match mode:
 		"mouse":
 			return mouse_dir
@@ -248,14 +366,19 @@ func is_cast_on_release(action: String) -> bool:
 	return not is_cast_on_press(action)
 
 # --- Process Timers & Movement Physics ---
+
 func _process_physics_timers(delta: float) -> void:
-	_process_status_timers(delta)
+	var s = _get_status()
+	if s:
+		s.process_status_effects(delta)
+	_update_terrain_phasing_collision(delta)
 
 	if wall_impact_cooldown_timer > 0.0:
 		wall_impact_cooldown_timer = max(0.0, wall_impact_cooldown_timer - delta)
 
 	if knockback_velocity != Vector3.ZERO:
-		var on_floor_check = is_on_floor()
+		var p = _get_player()
+		var on_floor_check = p.is_on_floor() if p else false
 		var drag_rate = ground_deceleration if on_floor_check else air_drag
 		knockback_velocity = knockback_velocity.move_toward(Vector3.ZERO, drag_rate * delta)
 		if knockback_velocity.length_squared() <= 0.001 or knockback_velocity.is_zero_approx():
@@ -265,40 +388,53 @@ func _process_physics_timers(delta: float) -> void:
 		knockback_wall_stun = 0.0
 
 func _process_bound_physics(_delta: float) -> void:
-	if not is_instance_valid(bound_caster_node) or (bound_caster_node.get("is_dead") == true):
-		bound_timer = 0.0
-		bound_caster_node = null
-		bound_relative_offset = Vector3.ZERO
+	var s = _get_status()
+	if not s:
+		return
+	if not is_instance_valid(s.bound_caster_node) or (s.bound_caster_node.get("is_dead") == true):
+		s.remove_status("bound")
+		s.bound_caster_node = null
+		s.bound_relative_offset = Vector3.ZERO
 		return
 	knockback_velocity = Vector3.ZERO
-	var target_pos = bound_caster_node.global_position + bound_relative_offset
-	global_position = target_pos
-	velocity = Vector3.ZERO
+	var p = _get_player()
+	if p:
+		var target_pos = s.bound_caster_node.global_position + s.bound_relative_offset
+		p.global_position = target_pos
+		p.velocity = Vector3.ZERO
 
 func _process_dummy_physics(delta: float) -> void:
+	var p = _get_player()
+	if not p:
+		return
 	if is_bound():
 		_process_bound_physics(delta)
 		return
-	if external_velocity.length_squared() > 0.001:
-		external_velocity = external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
-	var on_floor_dummy = is_on_floor()
+	var s = _get_status()
+	var ext_vel = s.external_velocity if s else Vector3.ZERO
+	if ext_vel.length_squared() > 0.001 and s:
+		s.external_velocity = s.external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+		ext_vel = s.external_velocity
+	var on_floor_dummy = p.is_on_floor()
 	if not on_floor_dummy:
-		# Gravity applied as continuous acceleration: a * delta
-		velocity.y -= gravity * delta
-		velocity.x = move_toward(velocity.x, 0.0, air_drag * delta)
-		velocity.z = move_toward(velocity.z, 0.0, air_drag * delta)
+		p.velocity.y -= gravity * delta
+		p.velocity.x = move_toward(p.velocity.x, 0.0, air_drag * delta)
+		p.velocity.z = move_toward(p.velocity.z, 0.0, air_drag * delta)
 	else:
-		if velocity.y < 0.0:
-			velocity.y = 0.0
-		velocity.x = move_toward(velocity.x, 0.0, ground_deceleration * delta)
-		velocity.z = move_toward(velocity.z, 0.0, ground_deceleration * delta)
-	velocity.x += external_velocity.x
-	velocity.z += external_velocity.z
-	var pre_move_vel_dummy = velocity
-	move_and_slide()
+		if p.velocity.y < 0.0:
+			p.velocity.y = 0.0
+		p.velocity.x = move_toward(p.velocity.x, 0.0, ground_deceleration * delta)
+		p.velocity.z = move_toward(p.velocity.z, 0.0, ground_deceleration * delta)
+	p.velocity.x += ext_vel.x
+	p.velocity.z += ext_vel.z
+	var pre_move_vel_dummy = p.velocity
+	p.move_and_slide()
 	_check_wall_impact(pre_move_vel_dummy)
 
 func _process_player_movement_physics(delta: float, is_channeling_active: bool) -> void:
+	var p = _get_player()
+	if not p:
+		return
 	if is_bound():
 		_process_bound_physics(delta)
 		return
@@ -306,23 +442,24 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 		_process_phasing_movement_physics(delta)
 		return
 	if has_custom_movement_control():
-		var pre_move_vel = velocity
-		move_and_slide()
+		var pre_move_vel = p.velocity
+		p.move_and_slide()
 		_check_wall_impact(pre_move_vel)
 		return
 
-	var on_floor = is_on_floor()
+	var s = _get_status()
+	var on_floor = p.is_on_floor()
 	if not on_floor:
-		# Gravity applied as continuous acceleration: a * delta
-		var effective_gravity = gravity * (current_gravity_mult if is_floating else 1.0)
-		velocity.y -= effective_gravity * delta
+		var mult = s.current_gravity_mult if (s and s.is_floating) else 1.0
+		var effective_gravity = gravity * mult
+		p.velocity.y -= effective_gravity * delta
 	else:
-		if velocity.y < 0.0:
-			velocity.y = 0.0
-		if is_floating and float_timer > 0.4:
-			is_floating = false
-			float_timer = 0.0
-			current_gravity_mult = 1.0
+		if p.velocity.y < 0.0:
+			p.velocity.y = 0.0
+		if s and s.is_floating and s.float_timer > 0.4:
+			s.is_floating = false
+			s.float_timer = 0.0
+			s.current_gravity_mult = 1.0
 
 	var stunned = is_stunned()
 	var rooted = is_rooted()
@@ -332,43 +469,41 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	# Jump
 	if not stunned and not rooted and not grounded and not is_channeling_active and not is_in_move_lockout():
 		if Input.is_action_just_pressed("jump") and on_floor:
-			velocity.y = jump_velocity
-			
+			p.velocity.y = jump_velocity
 			var jump_input = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 			var jump_h_dir := Vector3.ZERO
 			if jump_input.length_squared() > 0.001:
 				jump_h_dir = Vector3(jump_input.x, 0.0, jump_input.y).normalized()
-			elif Vector2(velocity.x, velocity.z).length_squared() > 0.001:
-				jump_h_dir = Vector3(velocity.x, 0.0, velocity.z).normalized()
+			elif Vector2(p.velocity.x, p.velocity.z).length_squared() > 0.001:
+				jump_h_dir = Vector3(p.velocity.x, 0.0, p.velocity.z).normalized()
 			else:
-				jump_h_dir = -global_transform.basis.z
+				jump_h_dir = -p.global_transform.basis.z
 				jump_h_dir.y = 0.0
 				if jump_h_dir.length_squared() > 0.001:
 					jump_h_dir = jump_h_dir.normalized()
 				else:
 					jump_h_dir = Vector3.FORWARD
-			
-			velocity.x += jump_h_dir.x * jump_horizontal_impulse
-			velocity.z += jump_h_dir.z * jump_horizontal_impulse
+			p.velocity.x += jump_h_dir.x * jump_horizontal_impulse
+			p.velocity.z += jump_h_dir.z * jump_horizontal_impulse
 
-	# Movement Vector: natural movement works under any circumstance unless immobilized (rooted) or stunned
+	# Movement Vector
 	var input_dir := Vector2.ZERO
 	if not stunned and not rooted and not is_in_move_lockout():
-		if is_taunted():
-			var taunter = get_taunt_target()
+		if s and s.is_taunted():
+			var taunter = s.get_taunt_target()
 			if is_instance_valid(taunter):
-				var to_taunter = taunter.global_position - global_position
+				var to_taunter = taunter.global_position - p.global_position
 				to_taunter.y = 0.0
 				if to_taunter.length_squared() > 0.01:
 					var norm = to_taunter.normalized()
 					input_dir = Vector2(norm.x, norm.z)
-		elif has_method("is_feared") and is_feared():
-			var fear_source = get_fear_source_node() if has_method("get_fear_source_node") else null
+		elif s and s.is_feared():
+			var fear_source = s.get_fear_source_node()
 			var away := Vector3.ZERO
 			if is_instance_valid(fear_source):
-				away = global_position - fear_source.global_position
-			elif "fear_source_pos" in self and fear_source_pos != Vector3.ZERO:
-				away = global_position - fear_source_pos
+				away = p.global_position - fear_source.global_position
+			elif s.fear_source_pos != Vector3.ZERO:
+				away = p.global_position - s.fear_source_pos
 			else:
 				away = -get_facing_direction_3d()
 			away.y = 0.0
@@ -380,18 +515,18 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 	var target_dir := Vector3(input_dir.x, 0, input_dir.y).normalized()
 
 	var effective_max_speed = max_move_speed * slow_mult
-	if speed_boost_timer > 0.0:
-		effective_max_speed *= (1.0 + speed_boost_percent)
+	if s and s.speed_boost_timer > 0.0:
+		effective_max_speed *= (1.0 + s.speed_boost_percent)
 	effective_max_speed = get_effective_max_speed(effective_max_speed)
 
-	# Directional Acceleration Handling
-	if external_velocity.length_squared() > 0.001:
-		external_velocity = external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+	var ext_vel = s.external_velocity if s else Vector3.ZERO
+	if ext_vel.length_squared() > 0.001 and s:
+		s.external_velocity = s.external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+		ext_vel = s.external_velocity
 
-	var current_horizontal = Vector2(velocity.x - external_velocity.x, velocity.z - external_velocity.z)
+	var current_horizontal = Vector2(p.velocity.x - ext_vel.x, p.velocity.z - ext_vel.z)
 	var cur_speed = current_horizontal.length()
 
-	# Intentional movement friction resets once speed drops to or below max movement speed
 	if is_intentional_movement and cur_speed <= effective_max_speed:
 		is_intentional_movement = false
 
@@ -401,14 +536,11 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 		wish_dir = wish_dir.normalized()
 		var accel_rate = ground_acceleration if on_floor else air_acceleration
 		accel_rate = get_effective_acceleration(accel_rate)
-		# Apply acceleration along wish direction whenever input is made
 		current_horizontal += wish_dir * accel_rate * delta
 
 		var cur_speed_after_accel = current_horizontal.length()
 		var speed_cap = effective_max_speed
 
-		# When steering on ground or in air with an intentional impulse (e.g. dash),
-		# bleed excess speed smoothly rather than hard-clamping to max speed
 		if is_intentional_movement and cur_speed_after_accel > speed_cap:
 			var drag_rate = intentional_movement_friction if on_floor else air_drag
 			var excess_bleed = min(drag_rate * delta, cur_speed_after_accel - speed_cap)
@@ -418,7 +550,6 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 		elif cur_speed_after_accel > speed_cap:
 			current_horizontal = current_horizontal.normalized() * speed_cap
 	else:
-		# No input: artificial deceleration towards 0 when no movement keys are pressed
 		if on_floor:
 			var decel_rate = intentional_movement_friction if (is_intentional_movement and cur_speed > effective_max_speed) else ground_deceleration
 			current_horizontal = current_horizontal.move_toward(Vector2.ZERO, decel_rate * delta)
@@ -429,18 +560,20 @@ func _process_player_movement_physics(delta: float, is_channeling_active: bool) 
 			if current_horizontal.length() <= effective_max_speed:
 				is_intentional_movement = false
 
-	velocity.x = current_horizontal.x + external_velocity.x
-	velocity.z = current_horizontal.y + external_velocity.z
+	p.velocity.x = current_horizontal.x + ext_vel.x
+	p.velocity.z = current_horizontal.y + ext_vel.z
 
-	var pre_move_vel = velocity
-	move_and_slide()
+	var pre_move_vel = p.velocity
+	p.move_and_slide()
 	_check_wall_impact(pre_move_vel)
 
 func _check_wall_impact(pre_move_velocity: Vector3) -> void:
+	var p = _get_player()
+	if not p:
+		return
 	if wall_impact_cooldown_timer > 0.0:
 		return
-
-	if get_slide_collision_count() == 0:
+	if p.get_slide_collision_count() == 0:
 		return
 
 	var kb_speed = knockback_velocity.length()
@@ -450,12 +583,11 @@ func _check_wall_impact(pre_move_velocity: Vector3) -> void:
 	var is_violent_impact = false
 	var max_impact_speed = 0.0
 
-	for i in range(get_slide_collision_count()):
-		var collision = get_slide_collision(i)
+	for i in range(p.get_slide_collision_count()):
+		var collision = p.get_slide_collision(i)
 		var normal = collision.get_normal()
-		if normal.y > 0.7: # Floor/slopes do not trigger wall slams
+		if normal.y > 0.7:
 			continue
-
 		var impact_speed = -pre_move_velocity.dot(normal)
 		if impact_speed >= WALL_IMPACT_MIN_SPEED:
 			is_violent_impact = true
@@ -468,10 +600,10 @@ func _check_wall_impact(pre_move_velocity: Vector3) -> void:
 			apply_stun(knockback_wall_stun)
 		knockback_velocity = Vector3.ZERO
 		knockback_wall_stun = 0.0
-		velocity = Vector3.ZERO
+		p.velocity = Vector3.ZERO
 		if is_server_authoritative():
-			if has_method("take_damage"):
-				call("take_damage", impact_dmg, 0, 2) # ActionType.ENVIRONMENT
+			if p.has_method("take_damage"):
+				p.take_damage(impact_dmg, 0, 2) # ActionType.ENVIRONMENT
 		else:
 			request_wall_impact_damage.rpc_id(1, impact_dmg)
 
@@ -479,49 +611,109 @@ func _check_wall_impact(pre_move_velocity: Vector3) -> void:
 func request_wall_impact_damage(amount: float) -> void:
 	if not multiplayer.is_server():
 		return
+	var p = _get_player()
 	var sender_id = multiplayer.get_remote_sender_id()
-	if str(sender_id) == name:
-		if has_method("take_damage"):
-			call("take_damage", amount, 0, 2) # ActionType.ENVIRONMENT
+	if p and str(sender_id) == p.name:
+		if p.has_method("take_damage"):
+			p.take_damage(amount, 0, 2)
 
 func _process_phasing_movement_physics(delta: float) -> void:
-	if external_velocity.length_squared() > 0.001:
-		external_velocity = external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+	var p = _get_player()
+	if not p:
+		return
+	var s = _get_status()
+	var ext_vel = s.external_velocity if s else Vector3.ZERO
+	if ext_vel.length_squared() > 0.001 and s:
+		s.external_velocity = s.external_velocity.move_toward(Vector3.ZERO, ground_deceleration * delta)
+		ext_vel = s.external_velocity
 
-	# Horizontal movement travels through walls directly without wall collisions
-	global_position.x += (velocity.x + external_velocity.x) * delta
-	global_position.z += (velocity.z + external_velocity.z) * delta
+	p.global_position.x += (p.velocity.x + ext_vel.x) * delta
+	p.global_position.z += (p.velocity.z + ext_vel.z) * delta
 
-	# Downward raycast ensures the character stays firmly supported on ground/platforms and never falls through!
-	var space = get_world_3d().direct_space_state if get_world_3d() else null
+	var space = p.get_world_3d().direct_space_state if p.get_world_3d() else null
 	var floor_y = 0.0
 	var found_floor = false
 	if space:
-		var ray_from = Vector3(global_position.x, global_position.y + 1.5, global_position.z)
-		var ray_to = Vector3(global_position.x, global_position.y - 15.0, global_position.z)
-		var query = PhysicsRayQueryParameters3D.create(ray_from, ray_to, 1) # Layer 1 = ground/world
-		query.exclude = [get_rid()]
+		var ray_from = Vector3(p.global_position.x, p.global_position.y + 1.5, p.global_position.z)
+		var ray_to = Vector3(p.global_position.x, p.global_position.y - 15.0, p.global_position.z)
+		var query = PhysicsRayQueryParameters3D.create(ray_from, ray_to, 1)
+		query.exclude = [p.get_rid()]
 		var hit = space.intersect_ray(query)
 		if hit:
 			floor_y = hit.position.y
 			found_floor = true
 
-	# Base world ground fallback ensures character never falls into the void below y = 0.0
-	if not found_floor and global_position.y >= -0.5:
+	if not found_floor and p.global_position.y >= -0.5:
 		floor_y = 0.0
 		found_floor = true
 
 	if found_floor:
-		if global_position.y <= floor_y + 0.1:
-			global_position.y = floor_y
-			if velocity.y < 0.0:
-				velocity.y = 0.0
+		if p.global_position.y <= floor_y + 0.1:
+			p.global_position.y = floor_y
+			if p.velocity.y < 0.0:
+				p.velocity.y = 0.0
 		else:
-			velocity.y -= gravity * delta
-			global_position.y += velocity.y * delta
-			if global_position.y <= floor_y:
-				global_position.y = floor_y
-				velocity.y = 0.0
+			p.velocity.y -= gravity * delta
+			p.global_position.y += p.velocity.y * delta
+			if p.global_position.y <= floor_y:
+				p.global_position.y = floor_y
+				p.velocity.y = 0.0
 	else:
-		velocity.y -= gravity * delta
-		global_position.y += velocity.y * delta
+		p.velocity.y -= gravity * delta
+		p.global_position.y += p.velocity.y * delta
+
+func _update_terrain_phasing_collision(delta: float) -> void:
+	var p = _get_player()
+	if not p:
+		return
+	if not p.get_collision_layer_value(2):
+		p.set_collision_layer_value(2, true)
+	if not p.get_collision_mask_value(1):
+		p.set_collision_mask_value(1, true)
+
+	var can_phase = is_ethereal_active() or is_phasing_walls()
+	var overlapping_terrain = _is_overlapping_terrain()
+	var s = _get_status()
+
+	if p.is_on_floor() and not overlapping_terrain and s:
+		s.last_safe_ground_pos = p.global_position
+
+	if can_phase:
+		if p.get_collision_mask_value(3):
+			p.set_collision_mask_value(3, false)
+		if s: s.ethereal_terrain_grace_timer = 0.0
+	else:
+		if overlapping_terrain:
+			if s:
+				if s.ethereal_terrain_grace_timer <= 0.0:
+					s.ethereal_terrain_grace_timer = 1.5
+				else:
+					s.ethereal_terrain_grace_timer = max(0.0, s.ethereal_terrain_grace_timer - delta)
+					if s.ethereal_terrain_grace_timer <= 0.0:
+						if s.last_safe_ground_pos != Vector3.ZERO:
+							p.global_position = s.last_safe_ground_pos
+							p.velocity = Vector3.ZERO
+			if p.get_collision_mask_value(3):
+				p.set_collision_mask_value(3, false)
+		else:
+			if s: s.ethereal_terrain_grace_timer = 0.0
+			if not p.get_collision_mask_value(3):
+				p.set_collision_mask_value(3, true)
+
+func _is_overlapping_terrain() -> bool:
+	var p = _get_player()
+	if not p:
+		return false
+	var space = p.get_world_3d().direct_space_state if p.is_inside_tree() and p.get_world_3d() else null
+	if not space:
+		return false
+	var col_shape = p.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if not col_shape or not col_shape.shape:
+		return false
+	var query = PhysicsShapeQueryParameters3D.new()
+	query.shape = col_shape.shape
+	query.transform = col_shape.global_transform
+	query.collision_mask = 4 # Layer 3 (Terrain / Walls)
+	query.exclude = [p.get_rid()]
+	var hits = space.intersect_shape(query, 1)
+	return not hits.is_empty()

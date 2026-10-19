@@ -18,7 +18,7 @@ height = 0.7
 
 [node name="Projectile" type="Area3D"]
 collision_layer = 4
-collision_mask = 3
+collision_mask = 7
 script = ExtResource("1_proj")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]

@@ -44,6 +44,31 @@ const EmpowerRiderClass = preload("res://ability/riders/empower_rider.gd")
 const BoundRiderClass = preload("res://ability/riders/bound_rider.gd")
 const HealRiderClass = preload("res://ability/riders/heal_rider.gd")
 
+static func build_from_definition(def: AbilityPipeline.AbilityDefinition) -> Ability:
+	if not def:
+		return null
+	var cfg = {
+		"id": def.id,
+		"name": def.name,
+		"slot_key": def.slot_key,
+		"description": def.description,
+		"icon": def.icon,
+		"cooldown": def.cooldown,
+		"charges": def.charges,
+		"recharge_time": def.recharge_time,
+		"is_lockout": def.is_lockout,
+		"lockout_duration": def.lockout_duration,
+		"can_cast_while_stunned": def.can_cast_while_stunned,
+		"can_cast_while_silenced": def.can_cast_while_silenced,
+		"can_crit": def.can_crit,
+		"crit_multiplier": def.crit_multiplier,
+		"crit_chance": def.crit_chance,
+	}
+	var ab = build_ability(cfg)
+	if def.ui_modal:
+		ab.ui_modal = def.ui_modal
+	return ab
+
 static func build_ability(cfg: Dictionary) -> Ability:
 	var ab = AbilityScene.instantiate() as Ability
 	ab.ability_id = cfg.get("id", "")

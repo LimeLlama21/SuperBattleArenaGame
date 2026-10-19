@@ -1,5 +1,676 @@
 class_name BasePlayer
-extends PlayerVision
+extends CharacterBody3D
+
+# --- Sibling Components (Replaces 6-Layer Vertical Inheritance Hierarchy) ---
+var authority_comp: PlayerAuthority = null
+var status_comp: PlayerStatus = null
+var physics_comp: PlayerPhysics = null
+var vision_comp: PlayerVision = null
+
+func _setup_sibling_components() -> void:
+	if not authority_comp:
+		authority_comp = get_node_or_null("Authority") as PlayerAuthority
+		if not authority_comp:
+			authority_comp = PlayerAuthority.new()
+			authority_comp.name = "Authority"
+			add_child(authority_comp)
+		authority_comp.player = self
+
+	if not status_comp:
+		status_comp = get_node_or_null("StatusManager") as PlayerStatus
+		if not status_comp:
+			status_comp = PlayerStatus.new()
+			status_comp.name = "StatusManager"
+			add_child(status_comp)
+		status_comp.player = self
+
+	if not physics_comp:
+		physics_comp = get_node_or_null("Physics") as PlayerPhysics
+		if not physics_comp:
+			physics_comp = PlayerPhysics.new()
+			physics_comp.name = "Physics"
+			add_child(physics_comp)
+		physics_comp.player = self
+
+	if not vision_comp:
+		vision_comp = get_node_or_null("Vision") as PlayerVision
+		if not vision_comp:
+			vision_comp = PlayerVision.new()
+			vision_comp.name = "Vision"
+			add_child(vision_comp)
+		vision_comp.player = self
+
+# --- Authority Queries Delegation ---
+func is_multiplayer_match() -> bool:
+	_setup_sibling_components()
+	return authority_comp.is_multiplayer_match()
+
+func get_my_player_id() -> int:
+	_setup_sibling_components()
+	return authority_comp.get_my_player_id()
+
+func is_server_authoritative() -> bool:
+	_setup_sibling_components()
+	return authority_comp.is_server_authoritative()
+
+func is_local_player() -> bool:
+	_setup_sibling_components()
+	return authority_comp.is_local_player()
+
+func _setup_synchronizer() -> void:
+	_setup_sibling_components()
+	authority_comp._setup_synchronizer()
+
+func _add_sync_property(config: SceneReplicationConfig, prop_path: NodePath, mode: int) -> void:
+	_setup_sibling_components()
+	authority_comp._add_sync_property(config, prop_path, mode)
+
+# --- Status Effect Delegation ---
+func apply_status_effect(effect: StatusEffect) -> void:
+	_setup_sibling_components()
+	status_comp.apply_status_effect(effect)
+
+func apply_status_by_name(status_id: String, duration: float, intensity: float = 0.0, applier: Node = null, params: Dictionary = {}) -> StatusEffect:
+	_setup_sibling_components()
+	return status_comp.apply_status_by_name(status_id, duration, intensity, applier, params)
+
+func has_status(status_id: String) -> bool:
+	_setup_sibling_components()
+	return status_comp.has_status(status_id)
+
+func get_status(status_id: String) -> StatusEffect:
+	_setup_sibling_components()
+	return status_comp.get_status(status_id)
+
+func remove_status(status_id: String) -> void:
+	_setup_sibling_components()
+	status_comp.remove_status(status_id)
+
+func clear_statuses() -> void:
+	_setup_sibling_components()
+	status_comp.clear_statuses()
+
+func is_stunned() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_stunned()
+
+func is_bound() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_bound()
+
+func get_bound_caster() -> Node:
+	_setup_sibling_components()
+	return status_comp.get_bound_caster()
+
+func is_slowed() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_slowed()
+
+func is_silenced() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_silenced()
+
+func is_rooted() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_rooted()
+
+func is_grounded() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_grounded()
+
+func is_crippled() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_crippled()
+
+func is_ethereal_active() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_ethereal_active()
+
+func is_invisible() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_invisible()
+
+func is_taunted() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_taunted()
+
+func is_feared() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_feared()
+
+func get_fear_source_node() -> Node:
+	_setup_sibling_components()
+	return status_comp.get_fear_source_node()
+
+func is_bleeding() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_bleeding()
+
+func is_blinded() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_blinded()
+
+func is_nearsighted() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_nearsighted()
+
+func is_invulnerable() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_invulnerable()
+
+func is_displacement_immune() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_displacement_immune()
+
+func is_ground_hazard_immune_active() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_ground_hazard_immune_active()
+
+func is_ground_hazard_immune() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_ground_hazard_immune()
+
+func is_phasing_walls() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_phasing_walls()
+
+func is_unit_transformed() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_unit_transformed()
+
+func is_inked() -> bool:
+	_setup_sibling_components()
+	return status_comp.is_inked()
+
+func get_slow_multiplier() -> float:
+	_setup_sibling_components()
+	return status_comp.get_slow_multiplier()
+
+func get_hitbox_radius() -> float:
+	_setup_sibling_components()
+	return status_comp.get_hitbox_radius()
+
+func get_taunt_target() -> Node:
+	_setup_sibling_components()
+	return status_comp.get_taunt_target()
+
+func get_taunt_damage_multiplier() -> float:
+	_setup_sibling_components()
+	return status_comp.get_taunt_damage_multiplier()
+
+func get_embedded_feathers_count() -> int:
+	_setup_sibling_components()
+	return status_comp.get_embedded_feathers_count()
+
+func start_channel(duration: float, on_complete: Callable) -> void:
+	_setup_sibling_components()
+	status_comp.start_channel(duration, on_complete)
+
+func cancel_channel() -> void:
+	_setup_sibling_components()
+	status_comp.cancel_channel()
+
+func apply_stun(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_stun(duration)
+
+func apply_bound(caster: Node, duration: float, custom_relocate_pos: Variant = null, buffer_offset: float = 0.2) -> void:
+	_setup_sibling_components()
+	status_comp.apply_bound(caster, duration, custom_relocate_pos, buffer_offset)
+
+func apply_slow(duration: float, percent: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_slow(duration, percent)
+
+func apply_silence(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_silence(duration)
+
+func apply_root(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_root(duration)
+
+func apply_grounded(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_grounded(duration)
+
+func apply_cripple(duration: float, intensity: float = 0.35) -> void:
+	_setup_sibling_components()
+	status_comp.apply_cripple(duration, intensity)
+
+func apply_ethereal(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_ethereal(duration)
+
+func remove_ethereal() -> void:
+	_setup_sibling_components()
+	status_comp.remove_ethereal()
+
+func _process_status_timers(delta: float) -> void:
+	_setup_sibling_components()
+	status_comp._process_status_timers(delta)
+
+func apply_blind(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_blind(duration)
+
+func apply_taunt(caster: Node, duration: float, damage_reduction: float = 0.35) -> void:
+	_setup_sibling_components()
+	status_comp.apply_taunt(caster, duration, damage_reduction)
+
+func apply_fear(arg1: Variant = 1.0, arg2: Variant = null, arg3: Variant = null) -> void:
+	_setup_sibling_components()
+	status_comp.apply_fear(arg1, arg2, arg3)
+
+func apply_bleed(arg1: Variant = 0.0, arg2: Variant = 5.0, arg3: Variant = 0) -> void:
+	_setup_sibling_components()
+	status_comp.apply_bleed(arg1, arg2, arg3)
+
+func apply_speed_boost(duration: float, percent: float, decaying: bool = false) -> void:
+	_setup_sibling_components()
+	status_comp.apply_speed_boost(duration, percent, decaying)
+
+func apply_float(duration: float = 2.2) -> void:
+	_setup_sibling_components()
+	status_comp.apply_float(duration)
+
+func start_float_state(duration: float = 2.2) -> void:
+	_setup_sibling_components()
+	status_comp.start_float_state(duration)
+
+func end_float_state() -> void:
+	_setup_sibling_components()
+	status_comp.end_float_state()
+
+func cleanse_cc() -> void:
+	_setup_sibling_components()
+	status_comp.cleanse_cc()
+
+func apply_invisibility(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_invisibility(duration)
+
+func apply_transformation(prop_type: String, properties: Dictionary = {}) -> void:
+	_setup_sibling_components()
+	status_comp.apply_transformation(prop_type, properties)
+
+func break_transformation() -> void:
+	_setup_sibling_components()
+	status_comp.break_transformation()
+
+func apply_invulnerability(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_invulnerability(duration)
+
+func apply_displacement_immunity(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_displacement_immunity(duration)
+
+func apply_ground_hazard_immunity(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_ground_hazard_immunity(duration)
+
+func apply_phasing(duration: float) -> void:
+	_setup_sibling_components()
+	status_comp.apply_phasing(duration)
+
+func apply_rupture_mark(attacker_id: int) -> void:
+	_setup_sibling_components()
+	status_comp.apply_rupture_mark(attacker_id)
+
+func detonate_dive_marks(attacker: Node = null) -> int:
+	_setup_sibling_components()
+	return status_comp.detonate_dive_marks(attacker)
+
+func apply_ink(duration: float, slow_pct: float = 0.20, source_id: int = 0) -> void:
+	_setup_sibling_components()
+	status_comp.apply_ink(duration, slow_pct, source_id)
+
+func apply_embedded_feather(duration: float = 5.0) -> void:
+	_setup_sibling_components()
+	status_comp.apply_embedded_feather(duration)
+
+# Status legacy property accessors
+var stun_timer: float:
+	get: _setup_sibling_components(); return status_comp.stun_timer
+	set(v): _setup_sibling_components(); status_comp.stun_timer = v
+
+var bound_timer: float:
+	get: _setup_sibling_components(); return status_comp.bound_timer
+	set(v): _setup_sibling_components(); status_comp.bound_timer = v
+
+var slow_timer: float:
+	get: _setup_sibling_components(); return status_comp.slow_timer
+	set(v): _setup_sibling_components(); status_comp.slow_timer = v
+
+var slow_percent: float:
+	get: _setup_sibling_components(); return status_comp.slow_percent
+	set(v): _setup_sibling_components(); status_comp.slow_percent = v
+
+var silence_timer: float:
+	get: _setup_sibling_components(); return status_comp.silence_timer
+	set(v): _setup_sibling_components(); status_comp.silence_timer = v
+
+var root_timer: float:
+	get: _setup_sibling_components(); return status_comp.root_timer
+	set(v): _setup_sibling_components(); status_comp.root_timer = v
+
+var grounded_timer: float:
+	get: _setup_sibling_components(); return status_comp.grounded_timer
+	set(v): _setup_sibling_components(); status_comp.grounded_timer = v
+
+var cripple_timer: float:
+	get: _setup_sibling_components(); return status_comp.cripple_timer
+	set(v): _setup_sibling_components(); status_comp.cripple_timer = v
+
+var cripple_intensity: float:
+	get: _setup_sibling_components(); return status_comp.cripple_intensity
+	set(v): _setup_sibling_components(); status_comp.cripple_intensity = v
+
+var ethereal_timer: float:
+	get: _setup_sibling_components(); return status_comp.ethereal_timer
+	set(v): _setup_sibling_components(); status_comp.ethereal_timer = v
+
+var blind_timer: float:
+	get: _setup_sibling_components(); return status_comp.blind_timer
+	set(v): _setup_sibling_components(); status_comp.blind_timer = v
+
+var invisibility_timer: float:
+	get: _setup_sibling_components(); return status_comp.invisibility_timer
+	set(v): _setup_sibling_components(); status_comp.invisibility_timer = v
+
+var taunt_timer: float:
+	get: _setup_sibling_components(); return status_comp.taunt_timer
+	set(v): _setup_sibling_components(); status_comp.taunt_timer = v
+
+var fear_timer: float:
+	get: _setup_sibling_components(); return status_comp.fear_timer
+	set(v): _setup_sibling_components(); status_comp.fear_timer = v
+
+var bleed_timer: float:
+	get: _setup_sibling_components(); return status_comp.bleed_timer
+	set(v): _setup_sibling_components(); status_comp.bleed_timer = v
+
+var invulnerable_timer: float:
+	get: _setup_sibling_components(); return status_comp.invulnerable_timer
+	set(v): _setup_sibling_components(); status_comp.invulnerable_timer = v
+
+var displacement_immune_timer: float:
+	get: _setup_sibling_components(); return status_comp.displacement_immune_timer
+	set(v): _setup_sibling_components(); status_comp.displacement_immune_timer = v
+
+var ground_hazard_immunity_timer: float:
+	get: _setup_sibling_components(); return status_comp.ground_hazard_immunity_timer
+	set(v): _setup_sibling_components(); status_comp.ground_hazard_immunity_timer = v
+
+var phasing_walls_timer: float:
+	get: _setup_sibling_components(); return status_comp.phasing_walls_timer
+	set(v): _setup_sibling_components(); status_comp.phasing_walls_timer = v
+
+var speed_boost_timer: float:
+	get: _setup_sibling_components(); return status_comp.speed_boost_timer
+	set(v): _setup_sibling_components(); status_comp.speed_boost_timer = v
+
+var speed_boost_percent: float:
+	get: _setup_sibling_components(); return status_comp.speed_boost_percent
+	set(v): _setup_sibling_components(); status_comp.speed_boost_percent = v
+
+var is_cc_immune: bool:
+	get: _setup_sibling_components(); return status_comp.is_cc_immune
+	set(v): _setup_sibling_components(); status_comp.is_cc_immune = v
+
+var ground_hazard_immune: bool:
+	get: _setup_sibling_components(); return status_comp.ground_hazard_immune
+	set(v): _setup_sibling_components(); status_comp.ground_hazard_immune = v
+
+var can_pass_through_walls: bool:
+	get: _setup_sibling_components(); return status_comp.can_pass_through_walls
+	set(v): _setup_sibling_components(); status_comp.can_pass_through_walls = v
+
+var external_velocity: Vector3:
+	get: _setup_sibling_components(); return status_comp.external_velocity
+	set(v): _setup_sibling_components(); status_comp.external_velocity = v
+
+var is_floating: bool:
+	get: _setup_sibling_components(); return status_comp.is_floating
+	set(v): _setup_sibling_components(); status_comp.is_floating = v
+
+var float_timer: float:
+	get: _setup_sibling_components(); return status_comp.float_timer
+	set(v): _setup_sibling_components(); status_comp.float_timer = v
+
+var current_gravity_mult: float:
+	get: _setup_sibling_components(); return status_comp.current_gravity_mult
+	set(v): _setup_sibling_components(); status_comp.current_gravity_mult = v
+
+var is_channeling: bool:
+	get: _setup_sibling_components(); return status_comp.is_channeling
+	set(v): _setup_sibling_components(); status_comp.is_channeling = v
+
+var channel_timer: float:
+	get: _setup_sibling_components(); return status_comp.channel_timer
+	set(v): _setup_sibling_components(); status_comp.channel_timer = v
+
+var ability_buffer: AbilityBuffer:
+	get: _setup_sibling_components(); return status_comp.ability_buffer
+	set(v): _setup_sibling_components(); status_comp.ability_buffer = v
+
+var is_transformed: bool:
+	get: _setup_sibling_components(); return status_comp.is_transformed
+	set(v): _setup_sibling_components(); status_comp.is_transformed = v
+
+var transformed_prop_type: String:
+	get: _setup_sibling_components(); return status_comp.transformed_prop_type
+	set(v): _setup_sibling_components(); status_comp.transformed_prop_type = v
+
+var transformation_properties: Dictionary:
+	get: _setup_sibling_components(); return status_comp.transformation_properties
+	set(v): _setup_sibling_components(); status_comp.transformation_properties = v
+
+# --- Vision Delegation ---
+func get_predicted_vision_origin(eye_height: float = 1.25) -> Vector3:
+	_setup_sibling_components()
+	return vision_comp.get_predicted_vision_origin(eye_height)
+
+func get_facing_direction_3d() -> Vector3:
+	_setup_sibling_components()
+	return vision_comp.get_facing_direction_3d()
+
+# --- Physics Delegation ---
+var _max_move_speed: float = 6.0
+@export var max_move_speed: float = 6.0:
+	get: return physics_comp.max_move_speed if physics_comp else _max_move_speed
+	set(v): _max_move_speed = v; if physics_comp: physics_comp.max_move_speed = v
+
+var _ground_acceleration: float = 25.0
+@export var ground_acceleration: float = 25.0:
+	get: return physics_comp.ground_acceleration if physics_comp else _ground_acceleration
+	set(v): _ground_acceleration = v; if physics_comp: physics_comp.ground_acceleration = v
+
+var _ground_deceleration: float = 40.0
+@export var ground_deceleration: float = 40.0:
+	get: return physics_comp.ground_deceleration if physics_comp else _ground_deceleration
+	set(v): _ground_deceleration = v; if physics_comp: physics_comp.ground_deceleration = v
+
+var _intentional_movement_friction: float = 75.0
+@export var intentional_movement_friction: float = 75.0:
+	get: return physics_comp.intentional_movement_friction if physics_comp else _intentional_movement_friction
+	set(v): _intentional_movement_friction = v; if physics_comp: physics_comp.intentional_movement_friction = v
+
+func _is_sender_host() -> bool:
+	if not is_multiplayer_match():
+		return true
+	if multiplayer.is_server():
+		return true
+	return multiplayer.get_remote_sender_id() == 1
+
+func has_buffered_ability() -> bool:
+	_setup_sibling_components()
+	return status_comp.has_buffered_ability() if status_comp else false
+
+func clear_buffered_ability() -> void:
+	_setup_sibling_components()
+	if status_comp: status_comp.clear_buffered_ability()
+
+func break_invisibility() -> void:
+	_setup_sibling_components()
+	if is_invisible():
+		remove_status("invisibility")
+		_on_invisibility_changed(false)
+
+# Virtual hooks for character subclass overrides
+func has_custom_movement_control() -> bool:
+	return false
+
+func get_effective_acceleration(current_calculated_accel: float) -> float:
+	return current_calculated_accel
+
+const DIVE_MARK_MAX: int = 5
+var dive_marks_count: int:
+	get: _setup_sibling_components(); return status_comp.dive_marks_count
+	set(v): _setup_sibling_components(); status_comp.dive_marks_count = v
+
+var dive_mark_timer: float:
+	get: _setup_sibling_components(); return status_comp.dive_mark_timer
+	set(v): _setup_sibling_components(); status_comp.dive_mark_timer = v
+
+var ink_slow_percent: float:
+	get: _setup_sibling_components(); return status_comp.ink_slow_percent
+	set(v): _setup_sibling_components(); status_comp.ink_slow_percent = v
+
+var last_safe_ground_pos: Vector3:
+	get: _setup_sibling_components(); return status_comp.last_safe_ground_pos if status_comp else Vector3.ZERO
+	set(v): _setup_sibling_components(); if status_comp: status_comp.last_safe_ground_pos = v
+
+var ethereal_terrain_grace_timer: float:
+	get: _setup_sibling_components(); return status_comp.ethereal_terrain_grace_timer if status_comp else 0.0
+	set(v): _setup_sibling_components(); if status_comp: status_comp.ethereal_terrain_grace_timer = v
+
+
+
+var air_acceleration: float:
+	get: _setup_sibling_components(); return physics_comp.air_acceleration if physics_comp else 7.5
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.air_acceleration = v
+
+var air_max_speed_mult: float:
+	get: _setup_sibling_components(); return physics_comp.air_max_speed_mult if physics_comp else 0.3
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.air_max_speed_mult = v
+
+var air_drag: float:
+	get: _setup_sibling_components(); return physics_comp.air_drag if physics_comp else 16.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.air_drag = v
+
+var jump_velocity: float:
+	get: _setup_sibling_components(); return physics_comp.jump_velocity if physics_comp else 13.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.jump_velocity = v
+
+var jump_horizontal_impulse: float:
+	get: _setup_sibling_components(); return physics_comp.jump_horizontal_impulse if physics_comp else 2.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.jump_horizontal_impulse = v
+
+var is_mouse_hijacked: bool:
+	get: _setup_sibling_components(); return physics_comp.is_mouse_hijacked if physics_comp else false
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.is_mouse_hijacked = v
+
+var ground_friction: float:
+	get: _setup_sibling_components(); return physics_comp.ground_friction if physics_comp else 40.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.ground_friction = v
+
+var is_intentional_movement: bool:
+	get: _setup_sibling_components(); return physics_comp.is_intentional_movement if physics_comp else false
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.is_intentional_movement = v
+
+var gravity: float:
+	get: _setup_sibling_components(); return physics_comp.gravity if physics_comp else 28.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.gravity = v
+
+var knockback_velocity: Vector3:
+	get: _setup_sibling_components(); return physics_comp.knockback_velocity if physics_comp else Vector3.ZERO
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.knockback_velocity = v
+
+var knockback_wall_stun: float:
+	get: _setup_sibling_components(); return physics_comp.knockback_wall_stun if physics_comp else 0.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.knockback_wall_stun = v
+
+var wall_impact_cooldown_timer: float:
+	get: _setup_sibling_components(); return physics_comp.wall_impact_cooldown_timer if physics_comp else 0.0
+	set(v): _setup_sibling_components(); if physics_comp: physics_comp.wall_impact_cooldown_timer = v
+
+func apply_knockback(impulse_vec: Vector3, _is_external: bool = true, wall_stun: float = 0.0) -> void:
+	_setup_sibling_components()
+	physics_comp.apply_knockback(impulse_vec, _is_external, wall_stun)
+
+func apply_velocity_impulse(impulse_vec: Vector3, is_intentional: bool = true) -> void:
+	_setup_sibling_components()
+	physics_comp.apply_velocity_impulse(impulse_vec, is_intentional)
+
+func apply_external_acceleration(accel_vec: Vector3, delta: float = 0.0) -> void:
+	_setup_sibling_components()
+	physics_comp.apply_external_acceleration(accel_vec, delta)
+
+func aim_at_mouse() -> void:
+	_setup_sibling_components()
+	physics_comp.aim_at_mouse()
+
+func get_mouse_ground_intersection():
+	_setup_sibling_components()
+	return physics_comp.get_mouse_ground_intersection()
+
+func get_ranged_aim_direction(spawn_pos: Vector3) -> Vector3:
+	_setup_sibling_components()
+	return physics_comp.get_ranged_aim_direction(spawn_pos)
+
+func get_dash_direction() -> Vector3:
+	_setup_sibling_components()
+	return physics_comp.get_dash_direction()
+
+func get_effective_dash_impulse(base_impulse: float) -> float:
+	_setup_sibling_components()
+	return physics_comp.get_effective_dash_impulse(base_impulse)
+
+func is_cast_on_press(action: String) -> bool:
+	_setup_sibling_components()
+	return physics_comp.is_cast_on_press(action)
+
+func is_cast_on_release(action: String) -> bool:
+	_setup_sibling_components()
+	return physics_comp.is_cast_on_release(action)
+
+func _process_physics_timers(delta: float) -> void:
+	_setup_sibling_components()
+	physics_comp._process_physics_timers(delta)
+
+func _process_bound_physics(delta: float) -> void:
+	_setup_sibling_components()
+	physics_comp._process_bound_physics(delta)
+
+func _process_dummy_physics(delta: float) -> void:
+	_setup_sibling_components()
+	physics_comp._process_dummy_physics(delta)
+
+func _process_player_movement_physics(delta: float, is_channeling_active: bool) -> void:
+	_setup_sibling_components()
+	physics_comp._process_player_movement_physics(delta, is_channeling_active)
+
+func _check_wall_impact(pre_move_velocity: Vector3) -> void:
+	_setup_sibling_components()
+	physics_comp._check_wall_impact(pre_move_velocity)
+
+func _process_phasing_movement_physics(delta: float) -> void:
+	_setup_sibling_components()
+	physics_comp._process_phasing_movement_physics(delta)
+
+func _update_terrain_phasing_collision(delta: float) -> void:
+	_setup_sibling_components()
+	physics_comp._update_terrain_phasing_collision(delta)
+
+func _is_overlapping_terrain() -> bool:
+	_setup_sibling_components()
+	return physics_comp._is_overlapping_terrain()
+
+func is_sliding_down_slope() -> bool:
+	_setup_sibling_components()
+	return physics_comp.is_sliding_down_slope()
 
 enum ActionType {
 	ATTACK = 0,      # Primary / Basic Attack
@@ -254,6 +925,7 @@ func _setup_shared_takedown_effects() -> void:
 		register_takedown_effect(PlayerSharedEffects.heal_missing_hp_on_takedown)
 
 func _init() -> void:
+	_setup_sibling_components()
 	_setup_shared_takedown_effects()
 
 # --- Ability Registers & Lockout State ---
@@ -378,10 +1050,15 @@ func get_custom_cone_half_angle_deg() -> float:
 
 # --- Lifecycle Initialization ---
 func _enter_tree() -> void:
+	_setup_sibling_components()
 	_setup_synchronizer()
 
 func _ready() -> void:
+	_setup_sibling_components()
 	add_to_group("players")
+	set_collision_layer_value(2, true)
+	set_collision_mask_value(1, true)
+	set_collision_mask_value(3, true)
 	_setup_synchronizer()
 
 	var is_local = is_local_player()
@@ -767,8 +1444,10 @@ func modify_incoming_damage(amount: float, attacker_id: int, _action_type: int) 
 		if attacker:
 			if attacker.has_method("get_taunt_damage_multiplier"):
 				amount *= attacker.get_taunt_damage_multiplier()
-			# Ink passive: increase spell damage dealt by Artist to inked targets
-			if is_inked() and attacker.has_method("is_valid_spell_damage") and attacker.is_valid_spell_damage(_action_type):
+			# Generic attacker damage hook (decouples character-specific damage modifications)
+			if attacker.has_method("modify_outgoing_damage"):
+				amount = attacker.modify_outgoing_damage(self, amount, _action_type)
+			elif is_inked() and attacker.has_method("is_valid_spell_damage") and attacker.is_valid_spell_damage(_action_type):
 				var boost = attacker.get("ink_damage_boost_percent") if ("ink_damage_boost_percent" in attacker) else 0.20
 				amount *= (1.0 + boost)
 	var dmg_reduction = get_item_stat("damage_reduction") + get_item_stat("armor")
@@ -2506,6 +3185,19 @@ func _exit_tree() -> void:
 			ab.active_indicator.queue_free()
 
 # --- Universal Ability System & Lightweight RPCs ---
+
+func register_ability_definition(def: AbilityPipeline.AbilityDefinition) -> AbilityClass:
+	var ab = AbilityBuilder.build_from_definition(def)
+	if ab:
+		var slot_key = def.slot_key
+		var abs_node = get_node_or_null("Abilities")
+		if abs_node:
+			abs_node.add_child(ab)
+		else:
+			add_child(ab)
+		abilities[slot_key] = ab
+		ab.setup()
+	return ab
 
 func _setup_abilities() -> void:
 	var prop_slots = {

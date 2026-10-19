@@ -313,7 +313,7 @@ func _on_area_entered(area: Area3D) -> void:
 func _on_body_entered(body: Node) -> void:
 	if not is_server_authority():
 		return
-	if body is StaticBody3D:
+	if body is StaticBody3D or body is AnimatableBody3D:
 		_process_terrain_hit(body)
 	elif body.has_method("take_damage"):
 		_process_target_hit(body)
@@ -374,7 +374,7 @@ func _process_target_hit(body: Node) -> void:
 			_trigger_death_effects()
 			queue_free()
 
-func _process_terrain_hit(body: StaticBody3D) -> void:
+func _process_terrain_hit(body: Node3D) -> void:
 	var body_name = body.name.to_lower()
 	if body_name.contains("floor"):
 		return

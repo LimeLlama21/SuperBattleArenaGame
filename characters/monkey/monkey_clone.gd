@@ -123,7 +123,7 @@ var health_bar_sprite: Sprite3D = null
 func _ready() -> void:
 	add_to_group("players")
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 5
 
 	_setup_nodes()
 	_last_known_max_health = max_health
