@@ -29,7 +29,7 @@ func is_multiplayer_match() -> bool:
 		if main_node.has_method("is_multiplayer_match"):
 			return main_node.is_multiplayer_match()
 		if "connected_players" in main_node and main_node.connected_players is Dictionary:
-			return main_node.connected_players.size() > 1
+			return main_node.connected_players.size() >= 1
 	return mp.get_peers().size() > 0
 
 func get_my_player_id() -> int:

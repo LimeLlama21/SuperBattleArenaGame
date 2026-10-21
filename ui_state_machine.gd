@@ -79,8 +79,6 @@ static func get_instance() -> UIStateMachine:
 # ==============================================================================
 
 func transition_to(new_state: State) -> void:
-	if current_state == new_state:
-		return
 	var old_state = current_state
 	previous_state = old_state
 	current_state = new_state
@@ -89,11 +87,14 @@ func transition_to(new_state: State) -> void:
 	if new_state != State.IN_MATCH and new_state != State.PAUSED:
 		active_overlays["scoreboard"] = false
 		active_overlays["shop"] = false
+		active_overlays["settings"] = false
+		active_overlays["escape"] = false
 		active_overlays["ability_modal"] = false
 		active_overlays["upgrade_menu"] = false
 		
 	_apply_state(new_state)
-	state_changed.emit(old_state, new_state)
+	if old_state != new_state:
+		state_changed.emit(old_state, new_state)
 
 func get_current_state() -> State:
 	return current_state
@@ -190,6 +191,10 @@ func _enforce_element_state(node: Node, category: int, allowed_states: Array, st
 	if "visible" in node:
 		node.visible = should_be_visible
 		
+	if "process_mode" in node and category == UICategory.NON_DIEGETIC:
+		if not allowed_states.is_empty() and not allowed_states.has(State.IN_MATCH):
+			node.process_mode = Node.PROCESS_MODE_INHERIT if should_be_visible else Node.PROCESS_MODE_DISABLED
+
 	# Call hook methods if implemented
 	if node.has_method("on_ui_state_changed"):
 		node.call("on_ui_state_changed", state, should_be_visible)

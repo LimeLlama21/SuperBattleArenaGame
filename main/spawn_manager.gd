@@ -67,10 +67,18 @@ func get_respawn_position(player_node: Node) -> Vector3:
 		if "slot_index" in player_node:
 			slot_idx = player_node.slot_index
 
+	var active_sp_root = spawn_points
+	if main_game and "current_map_id" in main_game and "arena_maps" in main_game:
+		var c_id = main_game.current_map_id
+		if c_id >= 0 and c_id < main_game.arena_maps.size():
+			var curr_m = main_game.arena_maps[c_id]
+			if curr_m and curr_m.has_node("SpawnPoints"):
+				active_sp_root = curr_m.get_node("SpawnPoints")
+
 	var team_spawns_name = "Team%d_Spawns" % team_id
 	var team_spawns = null
-	if spawn_points and is_instance_valid(spawn_points):
-		team_spawns = spawn_points.get_node_or_null(team_spawns_name)
+	if active_sp_root and is_instance_valid(active_sp_root):
+		team_spawns = active_sp_root.get_node_or_null(team_spawns_name)
 
 	if team_spawns and team_spawns.get_child_count() > 0:
 		var spawn_child = team_spawns.get_child(slot_idx % team_spawns.get_child_count()) as Marker3D

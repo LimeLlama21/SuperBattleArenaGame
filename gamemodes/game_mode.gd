@@ -51,36 +51,22 @@ func _init() -> void:
 	pass
 
 ## Check whether there is an insufficient player count to continue or start the match.
-## Returns true if a deficit exists (e.g. fewer than 2 players in FFA, or any required team empty).
+## Returns true if a deficit exists (fewer than 1 active player connected).
 func check_player_deficits(connected_players: Dictionary, is_peer_pending_disconnect_callable: Callable) -> bool:
 	if not is_team_based:
 		var active_count = 0
 		for pid in connected_players.keys():
 			if not is_peer_pending_disconnect_callable.call(int(pid)):
 				active_count += 1
-		if OS.is_debug_build() and active_count >= 1:
-			return false
-		return active_count < 2
+		return active_count < 1
 	
-	var team_counts = {1: 0, 2: 0, 3: 0}
 	var total_active = 0
 	for pid in connected_players.keys():
 		if is_peer_pending_disconnect_callable.call(int(pid)):
 			continue
-		var p = connected_players[pid]
-		var t = int(p.get("team", 1))
-		if team_counts.has(t):
-			team_counts[t] += 1
-		else:
-			team_counts[t] = 1
 		total_active += 1
 	
-	if OS.is_debug_build() and total_active >= 1:
-		return false
-	
-	if team_count >= 3:
-		return (team_counts.get(1, 0) == 0 or team_counts.get(2, 0) == 0 or team_counts.get(3, 0) == 0)
-	return (team_counts.get(1, 0) == 0 or team_counts.get(2, 0) == 0)
+	return total_active < 1
 
 ## Evaluate match/round status from player entities.
 ## Returns Dictionary with:

@@ -286,4 +286,3 @@ func die() -> void:
 	wall_launch_air_time = 0.0
 	if crash_visual:
 		crash_visual.visible = false
-

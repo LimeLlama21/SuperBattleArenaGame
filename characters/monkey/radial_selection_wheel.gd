@@ -100,11 +100,11 @@ func get_option_center(index: int, total: int) -> Vector2:
 func _process(_delta: float) -> void:
 	if not is_wheel_open or not container:
 		return
-
+	
 	var mouse_pos = container.get_global_mouse_position()
 	var to_mouse = mouse_pos - wheel_center
 	var dist = to_mouse.length()
-
+		
 	var prev_hover = current_hovered_option
 	if dist <= deadzone_radius:
 		current_hovered_option = "cancel"
@@ -124,33 +124,33 @@ func _process(_delta: float) -> void:
 			current_hovered_option = best_opt
 		else:
 			current_hovered_option = "cancel"
-
+		
 	if prev_hover != current_hovered_option:
 		container.queue_redraw()
 	else:
 		container.queue_redraw()
-
+		
 func _on_container_draw() -> void:
 	if not is_wheel_open or not container:
 		return
-
+		
 	var font: Font = null
 	if container.has_theme_font("font"):
 		font = container.get_theme_font("font")
 	if not font:
 		font = ThemeDB.fallback_font
-
+		
 	# Background outer circle
 	container.draw_circle(wheel_center, outer_radius, Color(0.06, 0.07, 0.10, 0.88))
 	container.draw_arc(wheel_center, outer_radius, 0, TAU, 64, Color(0.95, 0.80, 0.20, 0.65), 3.0)
-
+		
 	# Connecting Line from Center to Cursor
 	var mouse_pos = container.get_global_mouse_position()
 	var to_mouse = (mouse_pos - wheel_center)
 	if to_mouse.length() > 5.0:
 		var line_end = wheel_center + to_mouse.limit_length(outer_radius)
 		container.draw_line(wheel_center, line_end, Color(1, 1, 1, 0.45), 2.5)
-
+		
 	# Center Cancel circle ('✕')
 	var cancel_active = (current_hovered_option == "cancel")
 	var cancel_col = Color(0.85, 0.22, 0.22, 0.95) if cancel_active else Color(0.24, 0.25, 0.30, 0.75)
@@ -168,15 +168,15 @@ func _on_container_draw() -> void:
 		var opt_label = str(opt.get("label", opt_id.capitalize()))
 		var is_active = (current_hovered_option == opt_id)
 		var opt_center = get_option_center(i, num_opts)
-
+		
 		var base_col = opt.get("color", Color(0.25, 0.45, 0.85, 0.95))
 		var inactive_col = opt.get("inactive_color", Color(base_col.r * 0.4, base_col.g * 0.4, base_col.b * 0.4, 0.70))
 		var arc_col = opt.get("arc_color", Color(base_col.r * 1.3, base_col.g * 1.3, base_col.b * 1.3, 1.0))
-
+		
 		var bg_col = base_col if is_active else inactive_col
 		container.draw_circle(opt_center, option_radius, bg_col)
 		container.draw_arc(opt_center, option_radius, 0, TAU, 32, arc_col if is_active else Color(0.5, 0.5, 0.5, 0.4), 3.5 if is_active else 1.5)
-
+		
 		if font:
 			# Center text horizontally & vertically
 			var string_size = font.get_string_size(opt_label, HORIZONTAL_ALIGNMENT_CENTER, -1, 14)

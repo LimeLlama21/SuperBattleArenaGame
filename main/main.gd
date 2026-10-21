@@ -50,6 +50,7 @@ const PORT: int = 7000
 const CharacterRegistry = preload("res://characters/character_registry.gd")
 const CharacterData = preload("res://characters/character_data.gd")
 const EnabledCharacters = preload("res://characters/enabled_characters.gd")
+const EnabledModes = preload("res://gamemodes/enabled_modes.gd")
 const LevelBadgeClass = preload("res://characters/leveling/level_badge.gd")
 
 const CHARACTERS: Dictionary = {
@@ -111,6 +112,9 @@ static func get_character_display_name(char_key: String) -> String:
 @onready var match_over_panel: PanelContainer = $UI/MatchOverPanel
 @onready var winner_label: Label = $UI/MatchOverPanel/VBox/WinnerLabel
 @onready var match_over_sub_label: Label = get_node_or_null("UI/MatchOverPanel/VBox/SubLabel")
+@onready var match_over_countdown_label: Label = get_node_or_null("UI/MatchOverPanel/VBox/CountdownLabel")
+
+var _match_over_sequence_id: int = 0
 
 @onready var host_button: Button = $UI/MainMenu/VBox/HostButton
 @onready var join_button: Button = $UI/MainMenu/VBox/JoinButton
@@ -185,6 +189,7 @@ var select_cleo_button: Button = null
 @onready var switch_map_expanse: Button = get_node_or_null("UI/EscapeMenu/VBox/EscapeTabContainer/Switch Map/SwitchMapExpanse")
 
 @onready var settings_panel: PanelContainer = $UI/SettingsMenu
+var _settings_source_menu: String = ""
 
 @onready var t1_slots: Array[Button] = [
 	$UI/LobbyRoom/VBox/TeamSection/HBoxTeams/VBoxTeam1/T1Slot0,
@@ -345,13 +350,22 @@ const MAP_COLOSSEUM_SCENE: PackedScene = MapRegistry.MAP_COLOSSEUM_SCENE
 const MAP_CHASM_SCENE: PackedScene = MapRegistry.MAP_CHASM_SCENE
 const MAP_ISLANDS_SCENE: PackedScene = MapRegistry.MAP_ISLANDS_SCENE
 const MAP_EXPANSE_SCENE: PackedScene = MapRegistry.MAP_EXPANSE_SCENE
+const MAP_TRAINS_SCENE: PackedScene = MapRegistry.MAP_TRAINS_SCENE
+const MapTrainsClass = preload("res://maps/map_trains.gd")
 const MAP_NAMES: Array[String] = MapRegistry.MAP_NAMES
 
 var arena_maps: Array[Node3D] = []
 var current_map_id: int = -1
-var training_selected_map: int = -1 # -1: Standard Training Map, 0: Colosseum, 1: The Jagged Chasm, 2: Shattered Archipelago, 3: The Great Expanse
+var training_selected_map: int = -1 # -1: Standard Training Map, 0: Colosseum, 1: The Jagged Chasm, 2: Shattered Archipelago, 3: The Great Expanse, 4: Iron Triangle (Trains)
 var selected_custom_map: int = -1 # -1: Random Map, 0: Colosseum, etc.
 var map_banner_label: Label = null
+
+# --- Trains Game Mode Variables ---
+var trains_area_timer: float = 120.0
+var trains_transit_timer: float = 30.0
+var trains_is_in_transit: bool = false
+var trains_area_order: Array = [0, 1, 2]
+var trains_current_order_idx: int = 0
 
 # --- Shop UI & Item System Variables ---
 var shop_panel: PanelContainer = null
@@ -387,10 +401,14 @@ func _ready() -> void:
 	_setup_dm_timer_ui()
 	_setup_map_banner_ui()
 	_setup_arena_maps()
+	if not EnabledModes.is_mode_enabled(game_mode):
+		var en = EnabledModes.get_enabled_modes()
+		if not en.is_empty():
+			game_mode = en[0]
+		else:
+			game_mode = GameModes.DEFAULT_MODE
 	if game_mode_option:
-		game_mode_option.clear()
-		for opt in GameModes.get_ui_options():
-			game_mode_option.add_item(opt["label"], opt["index"])
+		_refresh_game_mode_options()
 		game_mode_option.item_selected.connect(_on_game_mode_selected)
 	host_button.pressed.connect(_on_host_pressed)
 	join_button.pressed.connect(_on_join_pressed)
@@ -428,7 +446,7 @@ func _ready() -> void:
 	lobby_back_button.pressed.connect(_on_lobby_back_pressed)
 	start_match_button.pressed.connect(_on_start_match_pressed)
 	
-	resume_button.pressed.connect(func(): escape_panel.hide())
+	resume_button.pressed.connect(_close_escape_menu)
 	escape_settings_button.pressed.connect(_open_settings_menu)
 	exit_match_button.pressed.connect(_on_exit_match_pressed)
 	leave_match_button.pressed.connect(_on_leave_match_pressed)
@@ -519,8 +537,6 @@ func _ready() -> void:
 		uism.register_element(lobby_panel, uism.UICategory.NON_DIEGETIC, [uism.State.LOBBY])
 		uism.register_element(match_over_panel, uism.UICategory.NON_DIEGETIC, [uism.State.MATCH_OVER])
 		uism.register_element(escape_panel, uism.UICategory.NON_DIEGETIC, [uism.State.PAUSED])
-		if settings_panel:
-			uism.register_element(settings_panel, uism.UICategory.NON_DIEGETIC, [uism.State.PAUSED])
 		var fow_canvas = get_node_or_null("FogOfWarCanvas")
 		if fow_canvas:
 			uism.register_element(fow_canvas, uism.UICategory.NON_DIEGETIC, [uism.State.IN_MATCH])
@@ -531,8 +547,9 @@ func _ready() -> void:
 		join_dialog.hide()
 		match_over_panel.hide()
 		escape_panel.hide()
-		if settings_panel:
-			settings_panel.hide()
+	if settings_panel:
+		settings_panel.hide()
+		settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
 	_refresh_character_selection_ui()
 	var default_char = "poke"
 	if not EnabledCharacters.is_character_enabled(default_char):
@@ -783,13 +800,45 @@ func _select_character(char_key: String) -> void:
 	elif lobby_panel.visible:
 		_refresh_lobby_ui()
 
+func _refresh_game_mode_options() -> void:
+	if not game_mode_option:
+		return
+	game_mode_option.clear()
+	var opts = GameModes.get_ui_options()
+	for opt in opts:
+		game_mode_option.add_item(opt["label"], opt["index"])
+	if not EnabledModes.is_mode_enabled(game_mode):
+		var en = EnabledModes.get_enabled_modes()
+		if not en.is_empty():
+			game_mode = en[0]
+		else:
+			game_mode = GameModes.DEFAULT_MODE
+	var sel_idx = GameModes.get_index_from_mode_id(game_mode)
+	if game_mode_option.item_count > 0:
+		if sel_idx >= 0 and sel_idx < game_mode_option.item_count:
+			game_mode_option.select(sel_idx)
+		else:
+			game_mode_option.select(0)
+
 func _on_game_mode_selected(idx: int) -> void:
 	if not _is_network_active() or not multiplayer.is_server():
 		return
 	var mode_str = GameModes.get_mode_id_from_index(idx)
+	if not EnabledModes.is_mode_enabled(mode_str):
+		var en = EnabledModes.get_enabled_modes()
+		if not en.is_empty():
+			mode_str = en[0]
+		else:
+			mode_str = GameModes.DEFAULT_MODE
 	set_game_mode(mode_str)
 
 func set_game_mode(mode_str: String) -> void:
+	if not EnabledModes.is_mode_enabled(mode_str):
+		var en = EnabledModes.get_enabled_modes()
+		if not en.is_empty():
+			mode_str = en[0]
+		else:
+			mode_str = GameModes.DEFAULT_MODE
 	game_mode = mode_str
 	bo5_score_t1 = 0
 	bo5_score_t2 = 0
@@ -1106,9 +1155,13 @@ func _connect_client_to_host(target_ip: String, target_port: int, fallback_ip: S
 	)
 
 func _on_connected_to_server() -> void:
-	join_dialog.hide()
-	menu_panel.hide()
-	lobby_panel.show()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.LOBBY)
+	else:
+		join_dialog.hide()
+		menu_panel.hide()
+		lobby_panel.show()
 	confirm_join_button.disabled = false
 	if copy_code_button:
 		copy_code_button.visible = not current_room_code.is_empty()
@@ -1119,9 +1172,13 @@ func _on_connected_to_server() -> void:
 	request_lobby_sync.rpc_id(1)
 
 func _on_connection_failed() -> void:
-	lobby_panel.hide()
-	menu_panel.show()
-	join_dialog.show()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.JOIN_DIALOG)
+	else:
+		lobby_panel.hide()
+		menu_panel.show()
+		join_dialog.show()
 	confirm_join_button.disabled = false
 	multiplayer.multiplayer_peer = null
 	if join_status_label:
@@ -1295,8 +1352,18 @@ func sync_lobby_state(players_dict: Dictionary, mode_str: String = "tdm") -> voi
 	if not _is_network_active():
 		return
 	connected_players = players_dict
-	game_mode = mode_str
+	if EnabledModes.is_mode_enabled(mode_str):
+		game_mode = mode_str
+	else:
+		var en = EnabledModes.get_enabled_modes()
+		if not en.is_empty():
+			game_mode = en[0]
+		else:
+			game_mode = GameModes.DEFAULT_MODE
 	if not match_in_progress:
+		var uism = get_node_or_null("/root/UIStateMachine")
+		if uism:
+			uism.transition_to(uism.State.LOBBY)
 		menu_panel.hide()
 		lobby_panel.show()
 		_refresh_lobby_ui()
@@ -1310,8 +1377,7 @@ func _refresh_lobby_ui() -> void:
 
 	if game_mode_option:
 		game_mode_option.disabled = not is_server or is_training_mode
-		var sel_idx = GameModes.get_index_from_mode_id(game_mode)
-		game_mode_option.select(sel_idx)
+		_refresh_game_mode_options()
 
 	if map_option:
 		map_option.clear()
@@ -1396,12 +1462,12 @@ func _refresh_lobby_ui() -> void:
 				btn3.text = "[ Fighter %d : Open ]" % (idx3 + 1)
 
 		if is_server:
-			var can_start = connected_players.size() >= 2 or (connected_players.size() >= 1 and OS.is_debug_build())
+			var can_start = connected_players.size() >= 1
 			start_match_button.disabled = not can_start
 			if can_start:
-				start_match_button.text = "START DEATHMATCH (%d Fighters)" % connected_players.size()
+				start_match_button.text = "START DEATHMATCH (%d Fighter%s)" % [connected_players.size(), "" if connected_players.size() == 1 else "s"]
 			else:
-				start_match_button.text = "CANNOT START (Need 2+ players for Deathmatch)"
+				start_match_button.text = "CANNOT START (Need 1+ players for Deathmatch)"
 		return
 	
 	# TDM / Bo5 Mode (3v3v3)
@@ -1484,7 +1550,7 @@ func _refresh_lobby_ui() -> void:
 			btn.text = "[ + Slot %d : Join Team 3 ]" % (s + 1)
 
 	if is_server:
-		var can_start = (t1_count >= 1 and t2_count >= 1 and t3_count >= 1) or (OS.is_debug_build() and (t1_count + t2_count + t3_count) >= 1)
+		var can_start = (t1_count + t2_count + t3_count) >= 1
 		start_match_button.disabled = not can_start
 		if can_start:
 			if game_mode == "bo5":
@@ -1492,7 +1558,7 @@ func _refresh_lobby_ui() -> void:
 			else:
 				start_match_button.text = "START MATCH (%d vs %d vs %d)" % [t1_count, t2_count, t3_count]
 		else:
-			start_match_button.text = "CANNOT START (Need 1+ player on each team)"
+			start_match_button.text = "CANNOT START (Select a team slot)"
 
 func _on_map_option_selected(index: int) -> void:
 	if not map_option:
@@ -1523,7 +1589,7 @@ func _on_start_match_pressed() -> void:
 	if not multiplayer.is_server():
 		return
 	if game_mode == "dm":
-		var can_start_dm = connected_players.size() >= 2 or (connected_players.size() >= 1 and OS.is_debug_build())
+		var can_start_dm = connected_players.size() >= 1
 		if not can_start_dm:
 			return
 		for k in connected_players.keys():
@@ -1549,8 +1615,6 @@ func _on_start_match_pressed() -> void:
 			t2_count += 1
 		elif t == 3:
 			t3_count += 1
-	if not OS.is_debug_build() and (t1_count < 1 or t2_count < 1 or t3_count < 1):
-		return
 	if (t1_count + t2_count + t3_count) < 1:
 		return
 	if game_mode == "bo5":
@@ -1572,7 +1636,7 @@ func is_multiplayer_match() -> bool:
 		return false
 	if is_training_mode:
 		return multiplayer.get_peers().size() > 0
-	return connected_players.size() > 1 or multiplayer.get_peers().size() > 0 or (connected_players.size() >= 1 and (OS.is_debug_build() or game_mode == "dm"))
+	return connected_players.size() >= 1 or multiplayer.get_peers().size() > 0
 
 func get_player_team(peer_id: int) -> int:
 	for k in connected_players.keys():
@@ -1588,14 +1652,23 @@ func start_game() -> void:
 	if not _is_sender_host():
 		return
 	match_in_progress = true
+	_match_over_sequence_id += 1
 	var uism = get_node_or_null("/root/UIStateMachine")
 	if uism:
 		uism.transition_to(uism.State.IN_MATCH)
-	else:
-		lobby_panel.hide()
-		match_over_panel.hide()
-		escape_panel.hide()
-		settings_panel.hide()
+	menu_panel.hide()
+	lobby_panel.hide()
+	match_over_panel.hide()
+	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	settings_panel.hide()
+	settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
+	join_dialog.hide()
+	if scoreboard_panel:
+		scoreboard_panel.hide()
+	if shop_panel:
+		shop_panel.hide()
 	
 	if not is_multiplayer_match() or multiplayer.is_server():
 		_process_pending_disconnects()
@@ -1605,12 +1678,27 @@ func start_game() -> void:
 		
 		if not is_training_mode:
 			var next_map = _pick_next_random_map()
+			if game_mode == "trains":
+				next_map = MapRegistry.ID_TRAINS
 			if is_multiplayer_match() and multiplayer.has_multiplayer_peer():
 				sync_active_map.rpc(next_map)
 			else:
 				sync_active_map(next_map)
 		else:
 			sync_active_map(training_selected_map)
+		
+		if game_mode == "trains" or training_selected_map == MapRegistry.ID_TRAINS or current_map_id == MapRegistry.ID_TRAINS:
+			var area_seq = [0, 1, 2]
+			area_seq.shuffle()
+			trains_area_timer = 120.0
+			trains_transit_timer = 30.0
+			trains_is_in_transit = false
+			trains_area_order = area_seq
+			trains_current_order_idx = 0
+			if is_multiplayer_match() and multiplayer.has_multiplayer_peer():
+				sync_trains_setup.rpc(area_seq)
+			else:
+				sync_trains_setup(area_seq)
 	
 	if not is_multiplayer_match() or multiplayer.is_server():
 		# For Best of Five, compute round progression: 1 level per round, capped at 4 (round 5 doesn't change anything)
@@ -1751,22 +1839,28 @@ func start_game() -> void:
 				
 				var spawn_pos = Vector3.ZERO
 				var rot_facing = 0.0
+				var active_sp_root = spawn_points
+				if current_map_id >= 0 and current_map_id < arena_maps.size():
+					var curr_m = arena_maps[current_map_id]
+					if curr_m and curr_m.has_node("SpawnPoints"):
+						active_sp_root = curr_m.get_node("SpawnPoints")
+
 				if p_team == 1:
-					var t1_spawns = spawn_points.get_node_or_null("Team1_Spawns")
+					var t1_spawns = active_sp_root.get_node_or_null("Team1_Spawns") if active_sp_root else null
 					if t1_spawns and t1_spawns.get_child_count() > p_slot:
 						spawn_pos = t1_spawns.get_child(p_slot).global_position
 					else:
 						spawn_pos = Vector3(-24.0, 0.1, (p_slot - 1.0) * 5.0)
 					rot_facing = 0.0
 				elif p_team == 2:
-					var t2_spawns = spawn_points.get_node_or_null("Team2_Spawns")
+					var t2_spawns = active_sp_root.get_node_or_null("Team2_Spawns") if active_sp_root else null
 					if t2_spawns and t2_spawns.get_child_count() > p_slot:
 						spawn_pos = t2_spawns.get_child(p_slot).global_position
 					else:
 						spawn_pos = Vector3(24.0, 0.1, (p_slot - 1.0) * 5.0)
 					rot_facing = PI
 				else:
-					var t3_spawns = spawn_points.get_node_or_null("Team3_Spawns")
+					var t3_spawns = active_sp_root.get_node_or_null("Team3_Spawns") if active_sp_root else null
 					if t3_spawns and t3_spawns.get_child_count() > p_slot:
 						spawn_pos = t3_spawns.get_child(p_slot).global_position
 					else:
@@ -1850,12 +1944,17 @@ func _refresh_all_player_team_visuals() -> void:
 
 func get_all_spawn_positions() -> Array[Vector3]:
 	var result: Array[Vector3] = []
-	if not spawn_points:
-		spawn_points = get_node_or_null("SpawnPoints")
-	if spawn_points:
-		var t1 = spawn_points.get_node_or_null("Team1_Spawns")
-		var t2 = spawn_points.get_node_or_null("Team2_Spawns")
-		var t3 = spawn_points.get_node_or_null("Team3_Spawns")
+	var sp_root = spawn_points
+	if not sp_root:
+		sp_root = get_node_or_null("SpawnPoints")
+	if current_map_id >= 0 and current_map_id < arena_maps.size():
+		var curr_m = arena_maps[current_map_id]
+		if curr_m and curr_m.has_node("SpawnPoints"):
+			sp_root = curr_m.get_node("SpawnPoints")
+	if sp_root:
+		var t1 = sp_root.get_node_or_null("Team1_Spawns")
+		var t2 = sp_root.get_node_or_null("Team2_Spawns")
+		var t3 = sp_root.get_node_or_null("Team3_Spawns")
 		if t1:
 			for sp in t1.get_children():
 				if sp is Node3D:
@@ -1896,6 +1995,12 @@ func get_respawn_position(player_node: Node) -> Vector3:
 			return dummy_home
 		return Vector3(24.0, 0.1, 0.0)
 
+	var active_sp_root = spawn_points
+	if current_map_id >= 0 and current_map_id < arena_maps.size():
+		var curr_m = arena_maps[current_map_id]
+		if curr_m and curr_m.has_node("SpawnPoints"):
+			active_sp_root = curr_m.get_node("SpawnPoints")
+
 	var mode = GameModes.get_mode(game_mode)
 	var spawns: Array[Vector3] = []
 	if mode and not mode.is_team_based:
@@ -1905,7 +2010,7 @@ func get_respawn_position(player_node: Node) -> Vector3:
 		# Team-based: pick team spawns
 		var p_team = int(player_node.get("team_id")) if player_node and player_node.get("team_id") != null else 1
 		var team_container_name = "Team1_Spawns" if p_team == 1 else ("Team2_Spawns" if p_team == 2 else "Team3_Spawns")
-		var t_spawns = spawn_points.get_node_or_null(team_container_name) if spawn_points else null
+		var t_spawns = active_sp_root.get_node_or_null(team_container_name) if active_sp_root else null
 		if t_spawns:
 			for sp in t_spawns.get_children():
 				if sp is Node3D:
@@ -2106,7 +2211,14 @@ func end_round(round_winner: String, score1: int, score2: int, score3: int = 0) 
 		if match_over_sub_label:
 			match_over_sub_label.text = "Score: Team 1 [%d] - [%d] Team 2 - [%d] Team 3\nNext round starting in 3 seconds..." % [score1, score2, score3]
 	
-	match_over_panel.show()
+	if match_over_countdown_label:
+		match_over_countdown_label.hide()
+	
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.MATCH_OVER)
+	else:
+		match_over_panel.show()
 	
 	await get_tree().create_timer(3.0).timeout
 	
@@ -2181,32 +2293,47 @@ func display_damage_number(amount: float, pos: Vector3, action_type: int = 0) ->
 	tween.tween_property(dmg_lbl, "modulate:a", 0.0, 0.35).set_delay(0.2)
 	tween.chain().tween_callback(dmg_lbl.queue_free)
 
+func _update_match_over_countdown(count: int) -> void:
+	if match_over_sub_label:
+		match_over_sub_label.text = "Returning to Lobby in:"
+	if match_over_countdown_label:
+		match_over_countdown_label.text = str(count)
+		match_over_countdown_label.show()
+	elif match_over_sub_label:
+		match_over_sub_label.text = "Returning to Lobby in:\n%d" % count
+
 @rpc("any_peer", "call_local", "reliable")
 func end_match(winner_name: String) -> void:
 	if not _is_sender_host():
 		return
 	match_in_progress = false
 	_bo5_round_transition_active = false
-	var mode = GameModes.get_mode(game_mode)
-	if mode.has_rounds and winner_name != "DRAW":
-		winner_label.text = "%s OVER!\n%s WINS THE MATCH!" % [mode.display_name.to_upper(), winner_name.to_upper()]
-		if match_over_sub_label:
-			match_over_sub_label.text = "Final Score: Team 1 [%d] - [%d] Team 2\nReturning to lobby in 3 seconds..." % [bo5_score_t1, bo5_score_t2]
-	elif winner_name == "DRAW":
-		winner_label.text = "MATCH OVER!\nDRAW!"
-		if match_over_sub_label:
-			match_over_sub_label.text = "Returning to lobby in 3 seconds..."
-	else:
-		winner_label.text = "MATCH OVER!\n%s WINS!" % winner_name.to_upper()
-		if match_over_sub_label:
-			match_over_sub_label.text = "Returning to lobby in 3 seconds..."
+	
+	winner_label.text = "GAME OVER!"
+	_update_match_over_countdown(3)
+	
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.MATCH_OVER)
 	match_over_panel.show()
 	
-	await get_tree().create_timer(3.0).timeout
+	_match_over_sequence_id += 1
+	var seq = _match_over_sequence_id
 	
+	for count in [3, 2, 1]:
+		_update_match_over_countdown(count)
+		await get_tree().create_timer(1.0).timeout
+		if seq != _match_over_sequence_id or not is_inside_tree() or not match_over_panel.visible:
+			return
+	
+	if uism:
+		uism.transition_to(uism.State.LOBBY)
 	match_over_panel.hide()
 	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
 	settings_panel.hide()
+	settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
 	if scoreboard_panel:
 		scoreboard_panel.hide()
 	lobby_panel.show()
@@ -2250,16 +2377,31 @@ func terminate_match(reason: String = "A team has no remaining players.") -> voi
 	if scoreboard_panel and scoreboard_panel.visible:
 		scoreboard_panel.hide()
 	
-	winner_label.text = "MATCH TERMINATED!"
-	if match_over_sub_label:
-		match_over_sub_label.text = reason + "\nReturning to lobby in 3 seconds..."
+	winner_label.text = "GAME OVER!"
+	_update_match_over_countdown(3)
+	
+	var uism_term = get_node_or_null("/root/UIStateMachine")
+	if uism_term:
+		uism_term.transition_to(uism_term.State.MATCH_OVER)
 	match_over_panel.show()
 	
-	await get_tree().create_timer(3.0).timeout
+	_match_over_sequence_id += 1
+	var seq = _match_over_sequence_id
 	
+	for count in [3, 2, 1]:
+		_update_match_over_countdown(count)
+		await get_tree().create_timer(1.0).timeout
+		if seq != _match_over_sequence_id or not is_inside_tree() or not match_over_panel.visible:
+			return
+	
+	if uism_term:
+		uism_term.transition_to(uism_term.State.LOBBY)
 	match_over_panel.hide()
 	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
 	settings_panel.hide()
+	settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
 	if scoreboard_panel:
 		scoreboard_panel.hide()
 	lobby_panel.show()
@@ -2635,6 +2777,8 @@ func spawn_battle_royale_zone(pos: Vector3 = Vector3.ZERO, radius: float = 35.0,
 	return hazard_spawner.spawn(data)
 
 func _refresh_battle_royale_zones_for_mode() -> void:
+	if not is_inside_tree():
+		return
 	var mode = GameModes.get_mode(game_mode)
 	var mode_has_zone = (mode.has_zone if "has_zone" in mode else mode.has_battle_royale_zone) if mode else false
 	var is_main_mode = (mode_has_zone and not is_training_mode)
@@ -2748,6 +2892,49 @@ func _process(delta: float) -> void:
 			match_in_progress = false
 			var top_winner = active_mode.evaluate_timed_winner(connected_players)
 			end_match.rpc(top_winner)
+	elif match_in_progress and game_mode == "trains":
+		if not trains_is_in_transit:
+			trains_area_timer -= delta
+			var curr_area_id = trains_area_order[trains_current_order_idx] if trains_current_order_idx < trains_area_order.size() else 0
+			var curr_area_name = MapTrainsClass.AREA_NAMES[curr_area_id] if curr_area_id < MapTrainsClass.AREA_NAMES.size() else "Area"
+			if current_map_id >= 0 and current_map_id < arena_maps.size():
+				var curr_m = arena_maps[current_map_id]
+				if curr_m and curr_m.has_method("get_current_area_name"):
+					curr_area_name = curr_m.get_current_area_name()
+
+			var timer_str = active_mode.format_area_timer(curr_area_name, trains_area_timer) if active_mode.has_method("format_area_timer") else ("🚂 %s | ⏱ DEPARTURE IN: %02d:%02d" % [curr_area_name.to_upper(), int(max(0.0, trains_area_timer)) / 60, int(max(0.0, trains_area_timer)) % 60])
+			if dm_timer_label:
+				dm_timer_label.text = timer_str
+				dm_timer_label.show()
+			var uism = get_node_or_null("/root/UIStateMachine")
+			if uism:
+				uism.update_match_status(timer_str, Color(0.35, 0.85, 1.0))
+			
+			if (not is_multiplayer_match() or multiplayer.is_server()) and trains_area_timer <= 0.0:
+				if is_multiplayer_match() and multiplayer.has_multiplayer_peer():
+					sync_trains_departure.rpc()
+				else:
+					sync_trains_departure()
+		else:
+			trains_transit_timer -= delta
+			var next_idx = (trains_current_order_idx + 1) % trains_area_order.size()
+			var next_area_id = trains_area_order[next_idx]
+			var next_area_name = MapTrainsClass.AREA_NAMES[next_area_id] if next_area_id < MapTrainsClass.AREA_NAMES.size() else "Next Map"
+			var timer_str = active_mode.format_transit_timer(next_area_name, trains_transit_timer) if active_mode.has_method("format_transit_timer") else ("🚂 IN TRANSIT | ⏱ NEXT MAP: %02d:%02d" % [int(max(0.0, trains_transit_timer)) / 60, int(max(0.0, trains_transit_timer)) % 60])
+			if dm_timer_label:
+				dm_timer_label.text = timer_str
+				dm_timer_label.show()
+			var uism = get_node_or_null("/root/UIStateMachine")
+			if uism:
+				uism.update_match_status(timer_str, Color(1.0, 0.85, 0.35))
+
+			if (not is_multiplayer_match() or multiplayer.is_server()) and trains_transit_timer <= 0.0:
+				trains_current_order_idx = next_idx
+				var arrive_id = trains_area_order[trains_current_order_idx]
+				if is_multiplayer_match() and multiplayer.has_multiplayer_peer():
+					sync_trains_arrival.rpc(arrive_id)
+				else:
+					sync_trains_arrival(arrive_id)
 	elif dm_timer_label and dm_timer_label.visible and not (active_mode and ("has_zone" in active_mode and active_mode.has_zone)):
 		dm_timer_label.hide()
 
@@ -3732,6 +3919,13 @@ func _setup_arena_maps() -> void:
 	arena_node.add_child(expanse)
 	arena_maps.append(expanse)
 
+	var trains = MAP_TRAINS_SCENE.instantiate()
+	trains.name = "MapTrains"
+	trains.visible = false
+	trains.process_mode = Node.PROCESS_MODE_DISABLED
+	arena_node.add_child(trains)
+	arena_maps.append(trains)
+
 	configure_arena_terrain_layers(arena_node)
 
 func configure_arena_terrain_layers(node: Node) -> void:
@@ -3744,9 +3938,59 @@ func configure_arena_terrain_layers(node: Node) -> void:
 			if n_lower.begins_with("wall") or n_lower.contains("wall") or n_lower.begins_with("rock") or n_lower.contains("obstacle") or n_lower.contains("pillar") or n_lower.contains("barrier") or n_lower.contains("fence") or n_lower.contains("terrain"):
 				child.set_collision_layer_value(1, false)
 				child.set_collision_layer_value(3, true)
-			elif n_lower.contains("floor") or n_lower.contains("ground") or n_lower.contains("island") or n_lower.contains("bridge") or n_lower.contains("step") or n_lower.contains("base"):
+			elif n_lower.contains("floor") or n_lower.contains("ground") or n_lower.contains("island") or n_lower.contains("bridge") or n_lower.contains("step") or n_lower.contains("base") or n_lower.contains("car") or n_lower.contains("coupler") or n_lower.contains("junction") or n_lower.contains("platform"):
 				child.set_collision_layer_value(1, true)
 				child.set_collision_layer_value(3, false)
+
+@rpc("authority", "call_local", "reliable")
+func sync_trains_setup(area_sequence: Array) -> void:
+	trains_area_order = area_sequence
+	trains_current_order_idx = 0
+	trains_area_timer = 120.0
+	trains_transit_timer = 30.0
+	trains_is_in_transit = false
+	for m in arena_maps:
+		if m and m.has_method("set_area_sequence"):
+			m.set_area_sequence(area_sequence)
+
+@rpc("authority", "call_local", "reliable")
+func sync_trains_departure() -> void:
+	trains_is_in_transit = true
+	trains_transit_timer = 30.0
+	for m in arena_maps:
+		if m and m.has_method("depart_current_triangle"):
+			m.depart_current_triangle()
+	if map_banner_label:
+		map_banner_label.text = "⚠️ TRAIN DEPARTING! LEFT BEHIND DIE! ⚠️"
+		map_banner_label.modulate = Color(1.0, 0.35, 0.25, 1.0)
+		map_banner_label.visible = true
+		var tween = create_tween()
+		tween.tween_interval(3.0)
+		tween.tween_property(map_banner_label, "modulate:a", 0.0, 0.8)
+		tween.tween_callback(func(): if map_banner_label: map_banner_label.visible = false)
+
+@rpc("authority", "call_local", "reliable")
+func sync_trains_arrival(next_area_id: int) -> void:
+	trains_is_in_transit = false
+	trains_area_timer = 120.0
+	for m in arena_maps:
+		if m and m.has_method("arrive_at_triangle"):
+			m.arrive_at_triangle(next_area_id)
+		elif m and m.has_method("transition_to_area"):
+			m.transition_to_area(next_area_id)
+	var area_name = MapTrainsClass.AREA_NAMES[next_area_id] if next_area_id < MapTrainsClass.AREA_NAMES.size() else "New Area"
+	if map_banner_label:
+		map_banner_label.text = "🚂 ARRIVED AT: %s 🚂" % area_name.to_upper()
+		map_banner_label.modulate = Color(0.35, 1.0, 0.5, 1.0)
+		map_banner_label.visible = true
+		var tween = create_tween()
+		tween.tween_interval(3.0)
+		tween.tween_property(map_banner_label, "modulate:a", 0.0, 0.8)
+		tween.tween_callback(func(): if map_banner_label: map_banner_label.visible = false)
+
+@rpc("authority", "call_local", "reliable")
+func sync_trains_transition(next_area_id: int) -> void:
+	sync_trains_arrival(next_area_id)
 
 func _pick_next_random_map() -> int:
 	if selected_custom_map >= 0 and selected_custom_map < arena_maps.size():
@@ -4154,22 +4398,51 @@ func _input(event: InputEvent) -> void:
 			_show_shop(false)
 			get_viewport().set_input_as_handled()
 			return
-		elif settings_panel.visible:
-			settings_panel.hide()
-			_on_settings_closed()
+		elif settings_panel and settings_panel.visible:
+			_close_settings_menu()
 			get_viewport().set_input_as_handled()
-		elif escape_panel.visible:
-			escape_panel.hide()
+			return
+		elif escape_panel and escape_panel.visible:
+			_close_escape_menu()
 			get_viewport().set_input_as_handled()
+			return
 		elif match_in_progress:
 			_open_escape_menu()
 			get_viewport().set_input_as_handled()
-		elif lobby_panel.visible:
+			return
+		elif join_dialog and join_dialog.visible:
+			var uism_join = get_node_or_null("/root/UIStateMachine")
+			if uism_join:
+				uism_join.transition_to(uism_join.State.MAIN_MENU)
+			else:
+				join_dialog.hide()
+			get_viewport().set_input_as_handled()
+			return
+		elif lobby_panel and lobby_panel.visible:
 			_on_lobby_back_pressed()
 			get_viewport().set_input_as_handled()
+			return
 
 func _open_escape_menu() -> void:
+	if not match_in_progress:
+		return
+	if settings_panel:
+		settings_panel.hide()
+		settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	if scoreboard_panel:
+		scoreboard_panel.hide()
+	if shop_panel:
+		shop_panel.hide()
+	_settings_source_menu = ""
+
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.set_overlay("settings", false)
+		uism.set_overlay("escape", true)
+		uism.transition_to(uism.State.PAUSED)
+
 	escape_panel.show()
+	escape_panel.process_mode = Node.PROCESS_MODE_INHERIT
 	if escape_tab_container:
 		escape_tab_container.set_tab_hidden(1, not is_training_mode)
 		escape_tab_container.set_tab_hidden(2, not is_training_mode)
@@ -4178,6 +4451,25 @@ func _open_escape_menu() -> void:
 		escape_title_label.text = "TRAINING SESSION"
 	else:
 		escape_title_label.text = "MATCH PAUSED"
+
+func _close_escape_menu() -> void:
+	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	if settings_panel:
+		settings_panel.hide()
+		settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
+
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.set_overlay("escape", false)
+		uism.set_overlay("settings", false)
+		if match_in_progress:
+			uism.transition_to(uism.State.IN_MATCH)
+		elif lobby_panel and lobby_panel.visible:
+			uism.transition_to(uism.State.LOBBY)
+		else:
+			uism.transition_to(uism.State.MAIN_MENU)
 
 func _switch_training_character(new_char_key: String) -> void:
 	if not is_training_mode:
@@ -4222,7 +4514,7 @@ func _switch_training_character(new_char_key: String) -> void:
 	
 	cleanup_player_entities(1)
 	
-	escape_panel.hide()
+	_close_escape_menu()
 	display_damage_number(0, current_pos + Vector3(0, 0.5, 0), 1)
 
 func _switch_training_map(new_map_id: int) -> void:
@@ -4279,7 +4571,7 @@ func _switch_training_map(new_map_id: int) -> void:
 		player_node.velocity = Vector3.ZERO
 		player_node.knockback_velocity = Vector3.ZERO
 
-	escape_panel.hide()
+	_close_escape_menu()
 
 func _on_training_lobby_toggle_pressed() -> void:
 	if not is_training_mode:
@@ -4433,30 +4725,81 @@ func client_start_training_match() -> void:
 	var uism = get_node_or_null("/root/UIStateMachine")
 	if uism:
 		uism.transition_to(uism.State.IN_MATCH)
-	else:
-		lobby_panel.hide()
-		menu_panel.hide()
-		join_dialog.hide()
-		match_over_panel.hide()
-		escape_panel.hide()
-		if settings_panel:
-			settings_panel.hide()
+	lobby_panel.hide()
+	menu_panel.hide()
+	join_dialog.hide()
+	match_over_panel.hide()
+	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	if settings_panel:
+		settings_panel.hide()
+		settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
+	if scoreboard_panel:
+		scoreboard_panel.hide()
+	if shop_panel:
+		shop_panel.hide()
 
 func _open_settings_menu() -> void:
-	if escape_panel:
+	# Track source menu
+	if escape_panel and escape_panel.visible:
+		_settings_source_menu = "escape"
 		escape_panel.hide()
+		escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	elif lobby_panel and lobby_panel.visible:
+		_settings_source_menu = "lobby"
+		lobby_panel.hide()
+		lobby_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	elif match_in_progress:
+		_settings_source_menu = "escape"
+		if escape_panel:
+			escape_panel.hide()
+			escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	else:
+		_settings_source_menu = "main_menu"
+		if menu_panel:
+			menu_panel.hide()
+			menu_panel.process_mode = Node.PROCESS_MODE_DISABLED
+
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.set_overlay("settings", true)
+
 	if settings_panel:
 		settings_panel.show()
+		settings_panel.process_mode = Node.PROCESS_MODE_INHERIT
 		if settings_panel.has_method("_refresh_ui_from_settings"):
 			settings_panel._refresh_ui_from_settings()
 
-func _on_settings_closed() -> void:
-	if match_in_progress:
-		escape_panel.show()
-	elif lobby_panel.visible:
-		lobby_panel.show()
+func _close_settings_menu() -> void:
+	if settings_panel:
+		settings_panel.hide()
+		settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.set_overlay("settings", false)
+
+	var source = _settings_source_menu
+	_settings_source_menu = ""
+
+	if source == "escape" or (match_in_progress and source != "main_menu"):
+		_open_escape_menu()
+	elif source == "lobby":
+		if uism:
+			uism.transition_to(uism.State.LOBBY)
+		if lobby_panel:
+			lobby_panel.show()
+			lobby_panel.process_mode = Node.PROCESS_MODE_INHERIT
 	else:
-		menu_panel.show()
+		if uism:
+			uism.transition_to(uism.State.MAIN_MENU)
+		if menu_panel:
+			menu_panel.show()
+			menu_panel.process_mode = Node.PROCESS_MODE_INHERIT
+
+func _on_settings_closed() -> void:
+	_close_settings_menu()
 
 func _on_lobby_back_pressed() -> void:
 	_leave_to_main_menu()
@@ -4483,6 +4826,7 @@ func request_return_to_lobby() -> void:
 func return_to_lobby() -> void:
 	if not _is_sender_host():
 		return
+	_match_over_sequence_id += 1
 	match_in_progress = false
 	_bo5_round_transition_active = false
 	bo5_score_t1 = 0
@@ -4493,8 +4837,14 @@ func return_to_lobby() -> void:
 	_show_shop(false)
 	if dm_timer_label:
 		dm_timer_label.hide()
+	var uism = get_node_or_null("/root/UIStateMachine")
+	if uism:
+		uism.transition_to(uism.State.LOBBY)
 	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
 	settings_panel.hide()
+	settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
 	match_over_panel.hide()
 	lobby_panel.show()
 	_refresh_lobby_ui()
@@ -4535,6 +4885,7 @@ func host_ended_session() -> void:
 	_leave_to_main_menu()
 
 func _leave_to_main_menu() -> void:
+	_match_over_sequence_id += 1
 	_cleanup_upnp()
 	if http_request_host:
 		http_request_host.cancel_request()
@@ -4554,13 +4905,15 @@ func _leave_to_main_menu() -> void:
 	var uism = get_node_or_null("/root/UIStateMachine")
 	if uism:
 		uism.transition_to(uism.State.MAIN_MENU)
-	else:
-		escape_panel.hide()
-		join_dialog.hide()
-		settings_panel.hide()
-		match_over_panel.hide()
-		lobby_panel.hide()
-		menu_panel.show()
+	escape_panel.hide()
+	escape_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	join_dialog.hide()
+	settings_panel.hide()
+	settings_panel.process_mode = Node.PROCESS_MODE_DISABLED
+	_settings_source_menu = ""
+	match_over_panel.hide()
+	lobby_panel.hide()
+	menu_panel.show()
 	if join_status_label:
 		join_status_label.hide()
 	

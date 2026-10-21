@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dmtrains01"]
+
+[ext_resource type="Script" path="res://maps/map_trains.gd" id="1_trains_script"]
+
+[node name="MapTrains" type="Node3D"]
+script = ExtResource("1_trains_script")

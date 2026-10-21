@@ -1007,6 +1007,8 @@ const CAMERA_OFFSET: Vector3 = Vector3(0, 19.0, 5.09) # 15 degrees from vertical
 const VOID_DEATH_Y: float = -8.0
 var spectate_target: Node3D = null
 var spectate_index: int = 0
+var follow_train_target: Node3D = null
+var is_following_train: bool = false
 
 # --- UI & Node References ---
 @onready var camera: Camera3D = get_node_or_null("Camera3D")
@@ -1218,8 +1220,13 @@ func _physics_process(delta: float) -> void:
 		_process_dummy_physics(delta)
 		return
 
-	# If dead, process Spectator camera & inputs (skip spectator in training mode)
+	# If dead, process Spectator camera & inputs (skip spectator in training mode unless following train)
 	if is_dead:
+		if is_following_train and follow_train_target and is_instance_valid(follow_train_target) and camera:
+			var target_pos = follow_train_target.global_position
+			camera.global_position = camera.global_position.lerp(target_pos + CAMERA_OFFSET, clamp(delta * 5.0, 0.0, 1.0))
+			camera.look_at(target_pos, Vector3.UP)
+			return
 		var main_node = get_tree().root.get_node_or_null("Main")
 		if main_node and main_node.get("is_training_mode") == true:
 			if camera and is_instance_valid(camera) and camera.is_inside_tree():
@@ -1982,6 +1989,8 @@ func sync_respawn(spawn_pos: Vector3) -> void:
 	external_velocity = Vector3.ZERO
 	spectate_target = null
 	spectate_index = 0
+	follow_train_target = null
+	is_following_train = false
 	respawn_countdown = 0.0
 	
 	reset_physics_interpolation()
@@ -2007,9 +2016,48 @@ func _process_camera(_delta: float) -> void:
 	camera.global_position = global_position + CAMERA_OFFSET
 	camera.look_at(global_position, Vector3.UP)
 
+func direct_camera_to_train(train_node: Node3D) -> void:
+	follow_train_target = train_node
+	is_following_train = true
+	spectate_target = null
+	if camera and is_instance_valid(camera) and train_node and is_instance_valid(train_node):
+		var target_pos = train_node.global_position
+		camera.global_position = target_pos + CAMERA_OFFSET
+		camera.look_at(target_pos, Vector3.UP)
+
+@rpc("authority", "call_local", "reliable")
+func sync_direct_camera_to_train(train_team: int) -> void:
+	var train_node: Node3D = null
+	var main_node = get_tree().root.get_node_or_null("Main")
+	if main_node and "arena_maps" in main_node:
+		for m in main_node.arena_maps:
+			if m and m.has_method("get_train_for_team"):
+				train_node = m.get_train_for_team(train_team)
+				break
+	if not train_node:
+		var trains_root = get_tree().root.find_child("Trains", true, false)
+		if trains_root:
+			train_node = trains_root.get_node_or_null("Train%d_Team%d" % [train_team, train_team]) as Node3D
+	if train_node:
+		direct_camera_to_train(train_node)
+
 func _process_spectator(delta: float) -> void:
 	if respawn_countdown > 0.0:
 		respawn_countdown = max(0.0, respawn_countdown - delta)
+
+	if is_following_train:
+		if Input.is_action_just_pressed("spectate_next") or Input.is_action_just_pressed("spectate_prev"):
+			is_following_train = false
+		elif follow_train_target and is_instance_valid(follow_train_target) and camera:
+			var target_pos = follow_train_target.global_position
+			camera.global_position = camera.global_position.lerp(target_pos + CAMERA_OFFSET, clamp(delta * 5.0, 0.0, 1.0))
+			camera.look_at(target_pos, Vector3.UP)
+			if spectator_label:
+				var header_text = ""
+				if respawn_countdown > 0.0:
+					header_text = "⚔ RESPAWNING IN %.1fs ⚔\n" % respawn_countdown
+				spectator_label.text = "%s🚂 LEFT BEHIND! FOLLOWING YOUR TRAIN 🚂\n[LMB / RMB to Spectate Players]" % header_text
+			return
 
 	if Input.is_action_just_pressed("spectate_next"):
 		_cycle_spectate(1)
@@ -3666,7 +3714,7 @@ func is_xp_enabled() -> bool:
 		return true
 	var gm = main_node.get("game_mode")
 	# In all game modes that aren't the primary ("tdm"), XP is disabled for now
-	return gm == "tdm" or gm == GameModes.MODE_TDM
+	return gm == "tdm" or gm == GameModes.MODE_TDM or gm == "trains" or gm == GameModes.MODE_TRAINS
 
 func add_xp(amount: float) -> void:
 	if not is_server_authoritative():
