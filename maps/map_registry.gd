@@ -51,3 +51,19 @@ static func get_map_scene(map_id: int) -> PackedScene:
 
 static func get_arena_count() -> int:
 	return ARENA_SCENES.size()
+
+## --- Map Pools Integration ---
+const MapPoolsClass = preload("res://maps/map_pools.gd")
+
+static func get_map_pool_for_mode(mode_id: String) -> Array[int]:
+	return MapPoolsClass.get_pool_for_mode(mode_id)
+
+static func is_map_valid_for_mode(map_id: int, mode_id: String) -> bool:
+	return MapPoolsClass.is_map_valid_for_mode(map_id, mode_id)
+
+static func get_pool_name_for_mode(mode_id: String) -> String:
+	return MapPoolsClass.get_pool_name_for_mode(mode_id)
+
+static func reload_map_pools() -> void:
+	MapPoolsClass.reload()
+

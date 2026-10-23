@@ -1,6 +1,9 @@
 class_name MapTrains
 extends Node3D
 
+const NeutralEntityClass = preload("res://maps/neutral_entity.gd")
+const NeutralRegistryClass = preload("res://maps/neutral_registry.gd")
+
 ## MapTrains - High-speed combat map featuring three sectioned team trains framing a triangle.
 ## The trains remain completely static framing the triangle arena.
 ## Every two minutes, the active triangle departs (moves away).
@@ -33,27 +36,35 @@ const AREA_DESCRIPTIONS: Array[String] = [
 ]
 
 # Triangle Geometry Configuration (Equilateral triangle side = 36m, center at origin)
+const ROCK_PLATFORM_HEIGHT: float = 2.895
+
 const TRIANGLE_SIDE: float = 36.0
-const VERTEX_RADIUS: float = 20.7846 # 36 / sqrt(3)
-const APOTHEM: float = 10.3923       # 36 / (2 * sqrt(3))
+const VERTEX_RADIUS: float = 20.78461 # 36 / sqrt(3)
+const APOTHEM: float = 10.392305       # 36 / (2 * sqrt(3))
 
-# Vertices of the outer equilateral triangle (Train centerlines):
-# VA (North-West): (-18.0, 0, -10.3923)
-# VB (North-East): (+18.0, 0, -10.3923)
-# VC (South):      (  0.0, 0, +20.7846)
-const VERTEX_NW: Vector3 = Vector3(-18.0, 0.0, -10.3923)
-const VERTEX_NE: Vector3 = Vector3(18.0, 0.0, -10.3923)
-const VERTEX_SOUTH: Vector3 = Vector3(0.0, 0.0, 20.7846)
+# Vertices of the inner equilateral triangle map (Docked platform framed by the trains):
+# Map North edge: (-18.0, 0, -10.392305) to (+18.0, 0, -10.392305)
+# Map South apex: (0.0, 0, +20.78461)
+const MAP_NW: Vector3 = Vector3(-18.0, 0.0, -10.392305)
+const MAP_NE: Vector3 = Vector3(18.0, 0.0, -10.392305)
+const MAP_SOUTH: Vector3 = Vector3(0.0, 0.0, 20.78461)
 
-# Inner Triangle Map Vertices (Docked platform framed by the trains):
-# Apothem r = 8.6m, vertex radius = 17.2m
-const MAP_NW: Vector3 = Vector3(-14.8956, 0.0, -8.6)
-const MAP_NE: Vector3 = Vector3(14.8956, 0.0, -8.6)
-const MAP_SOUTH: Vector3 = Vector3(0.0, 0.0, 17.2)
+# Outer Train Triangle Geometry:
+# Trains directly border the equilateral triangle map with zero gap.
+# Train car width = 4.8m -> centerline is offset outward by CAR_WIDTH * 0.5 = 2.4m.
+# APOTHEM_TRAIN = APOTHEM + 2.4 = 12.792305
+# VERTEX_RADIUS_TRAIN = APOTHEM_TRAIN * 2 = 25.58461
+const APOTHEM_TRAIN: float = 12.792305
+const VERTEX_RADIUS_TRAIN: float = 25.58461
+
+# Corner Junctions of the bordering train circuit:
+const VERTEX_NW: Vector3 = Vector3(-22.15693, 0.0, -12.792305)
+const VERTEX_NE: Vector3 = Vector3(22.15693, 0.0, -12.792305)
+const VERTEX_SOUTH: Vector3 = Vector3(0.0, 0.0, 25.58461)
 
 # Car Dimensions
 const NUM_CARS_PER_TRAIN: int = 4
-const CAR_LENGTH: float = 7.2
+const CAR_LENGTH: float = 8.5
 const CAR_WIDTH: float = 4.8
 const CAR_HEIGHT: float = 0.8
 const COUPLER_LENGTH: float = 1.0
@@ -117,25 +128,26 @@ func _build_trains_structure() -> void:
 	trains_container.name = "Trains"
 	add_child(trains_container)
 
-	# Build 3 Trains:
-	# Train 3 (North): Team 3's train, connecting NW to NE (along X axis at Z = -APOTHEM)
+	# Build 3 Trains directly bordering the triangular arena at ROCK_PLATFORM_HEIGHT:
+	# Train 3 (North): Team 3's train, parallel to X axis at Z = -APOTHEM_TRAIN
+	# Inner edge is at Z = -APOTHEM_TRAIN + (CAR_WIDTH * 0.5) = -10.392305, directly touching the map North edge!
 	var train3 = _create_train_edge("Train3_Team3", Color(0.25, 0.85, 0.45))
-	train3.position = Vector3(0.0, 0.0, -APOTHEM)
+	train3.position = Vector3(0.0, ROCK_PLATFORM_HEIGHT, -APOTHEM_TRAIN)
 	train3.rotation.y = 0.0
 	trains_container.add_child(train3)
 
-	# Train 1 (West): Team 1's train, connecting South to NW
-	# Center is at (-9.0, 0, 5.196) and rotated +30 degrees
+	# Train 1 (West): Team 1's train, bordering West edge from South to NW
+	# Center is at (-11.07846, ROCK_PLATFORM_HEIGHT, 6.39615) and rotated +120 degrees
 	var train1 = _create_train_edge("Train1_Team1", Color(0.25, 0.60, 0.98))
-	train1.position = Vector3(-9.0, 0.0, APOTHEM * 0.5)
-	train1.rotation.y = deg_to_rad(30.0)
+	train1.position = Vector3(-APOTHEM_TRAIN * 0.8660254, ROCK_PLATFORM_HEIGHT, APOTHEM_TRAIN * 0.5)
+	train1.rotation.y = deg_to_rad(120.0)
 	trains_container.add_child(train1)
 
-	# Train 2 (East): Team 2's train, connecting NE to South
-	# Center is at (+9.0, 0, 5.196) and rotated -30 degrees
+	# Train 2 (East): Team 2's train, bordering East edge from NE to South
+	# Center is at (+11.07846, ROCK_PLATFORM_HEIGHT, 6.39615) and rotated -120 degrees
 	var train2 = _create_train_edge("Train2_Team2", Color(0.95, 0.35, 0.25))
-	train2.position = Vector3(9.0, 0.0, APOTHEM * 0.5)
-	train2.rotation.y = deg_to_rad(-30.0)
+	train2.position = Vector3(APOTHEM_TRAIN * 0.8660254, ROCK_PLATFORM_HEIGHT, APOTHEM_TRAIN * 0.5)
+	train2.rotation.y = deg_to_rad(-120.0)
 	trains_container.add_child(train2)
 
 	# Store references for team lookup
@@ -143,15 +155,10 @@ func _build_trains_structure() -> void:
 	team_trains[2] = train2
 	team_trains[3] = train3
 
-	# Corner Junctions: Platforms bridging the ends of trains into a continuous circuit
-	_create_corner_junction("Corner_NW", VERTEX_NW)
-	_create_corner_junction("Corner_NE", VERTEX_NE)
-	_create_corner_junction("Corner_South", VERTEX_SOUTH)
-
-	# Small walkway gangways extending slightly inwards from trains to ensure smooth stepping onto triangle
-	_create_train_gangway("Gangway_Train3", Vector3(0.0, 0.0, -APOTHEM + 2.4 + 0.6), Vector3(12.0, CAR_HEIGHT, 1.4))
-	_create_train_gangway_rotated("Gangway_Train1", Vector3(-9.0, 0.0, APOTHEM * 0.5) + Vector3(0.6 * sin(deg_to_rad(30.0)), 0.0, -0.6 * cos(deg_to_rad(30.0))), deg_to_rad(30.0), Vector3(12.0, CAR_HEIGHT, 1.4))
-	_create_train_gangway_rotated("Gangway_Train2", Vector3(9.0, 0.0, APOTHEM * 0.5) + Vector3(-0.6 * sin(deg_to_rad(-30.0)), 0.0, -0.6 * cos(deg_to_rad(-30.0))), deg_to_rad(-30.0), Vector3(12.0, CAR_HEIGHT, 1.4))
+	# Corner Junctions: Platforms bridging the ends of trains into a continuous circuit at rock platform height
+	_create_corner_junction("Corner_NW", Vector3(VERTEX_NW.x, ROCK_PLATFORM_HEIGHT, VERTEX_NW.z))
+	_create_corner_junction("Corner_NE", Vector3(VERTEX_NE.x, ROCK_PLATFORM_HEIGHT, VERTEX_NE.z))
+	_create_corner_junction("Corner_South", Vector3(VERTEX_SOUTH.x, ROCK_PLATFORM_HEIGHT, VERTEX_SOUTH.z))
 
 func _create_train_edge(train_name: String, team_accent_color: Color) -> Node3D:
 	var edge = Node3D.new()
@@ -201,7 +208,7 @@ func _create_train_car(car_index: int, pos: Vector3, accent_mat: StandardMateria
 
 	# Bogies & Wheels under the deck (aesthetic)
 	var bogie_mesh = BoxMesh.new()
-	bogie_mesh.size = Vector3(1.6, 0.6, CAR_WIDTH * 0.85)
+	bogie_mesh.size = Vector3(1.8, 0.6, CAR_WIDTH * 0.85)
 	bogie_mesh.material = mat_train_dark
 
 	for bx in [-CAR_LENGTH * 0.3, CAR_LENGTH * 0.3]:
@@ -209,6 +216,24 @@ func _create_train_car(car_index: int, pos: Vector3, accent_mat: StandardMateria
 		bogie.mesh = bogie_mesh
 		bogie.position = Vector3(bx, -CAR_HEIGHT - 0.3, 0.0)
 		car.add_child(bogie)
+
+		# Elevated Railway Trestle Pylons / Piers grounding the train down to world Y = 0
+		var trestle = MeshInstance3D.new()
+		var trestle_mesh = BoxMesh.new()
+		trestle_mesh.size = Vector3(0.8, ROCK_PLATFORM_HEIGHT, 1.4)
+		trestle_mesh.material = mat_train_dark
+		trestle.mesh = trestle_mesh
+		trestle.position = Vector3(bx, -CAR_HEIGHT - (ROCK_PLATFORM_HEIGHT - CAR_HEIGHT) * 0.5, 0.0)
+		car.add_child(trestle)
+
+	# Elevated Track Guide Rails underneath the train cars
+	var rail_mesh = BoxMesh.new()
+	rail_mesh.size = Vector3(CAR_LENGTH, 0.25, CAR_WIDTH * 0.5)
+	rail_mesh.material = mat_train_dark
+	var rail = MeshInstance3D.new()
+	rail.mesh = rail_mesh
+	rail.position = Vector3(0.0, -CAR_HEIGHT - 0.15, 0.0)
+	car.add_child(rail)
 
 	# Team Accent Trim along inner edge facing the triangle
 	var trim_mesh = BoxMesh.new()
@@ -253,6 +278,15 @@ func _create_coupler(idx: int, pos: Vector3) -> StaticBody3D:
 	mesh_inst.position = col.position
 	coupler.add_child(mesh_inst)
 
+	# Elevated Track Support under coupler
+	var c_support = MeshInstance3D.new()
+	var cs_mesh = BoxMesh.new()
+	cs_mesh.size = Vector3(COUPLER_LENGTH, 0.2, COUPLER_WIDTH * 0.8)
+	cs_mesh.material = mat_train_dark
+	c_support.mesh = cs_mesh
+	c_support.position = Vector3(0.0, -COUPLER_HEIGHT - 0.1, 0.0)
+	coupler.add_child(c_support)
+
 	return coupler
 
 func _create_corner_junction(j_name: String, pos: Vector3) -> StaticBody3D:
@@ -264,7 +298,7 @@ func _create_corner_junction(j_name: String, pos: Vector3) -> StaticBody3D:
 
 	var col = CollisionShape3D.new()
 	var box_shape = BoxShape3D.new()
-	box_shape.size = Vector3(5.5, CAR_HEIGHT, 5.5)
+	box_shape.size = Vector3(8.0, CAR_HEIGHT, 8.0)
 	col.shape = box_shape
 	col.position = Vector3(0.0, -CAR_HEIGHT * 0.5, 0.0)
 	junction.add_child(col)
@@ -277,46 +311,17 @@ func _create_corner_junction(j_name: String, pos: Vector3) -> StaticBody3D:
 	mesh_inst.position = col.position
 	junction.add_child(mesh_inst)
 
-	var support = MeshInstance3D.new()
-	var s_mesh = BoxMesh.new()
-	s_mesh.size = Vector3(3.2, 0.8, 3.2)
-	s_mesh.material = mat_train_dark
-	support.mesh = s_mesh
-	support.position = Vector3(0.0, -CAR_HEIGHT - 0.4, 0.0)
-	junction.add_child(support)
+	# Concrete / Steel foundation pier extending from corner junction to ground Y = 0
+	var pier = MeshInstance3D.new()
+	var p_mesh = BoxMesh.new()
+	p_mesh.size = Vector3(4.8, ROCK_PLATFORM_HEIGHT, 4.8)
+	p_mesh.material = mat_train_dark
+	pier.mesh = p_mesh
+	pier.position = Vector3(0.0, -CAR_HEIGHT - (ROCK_PLATFORM_HEIGHT - CAR_HEIGHT) * 0.5, 0.0)
+	junction.add_child(pier)
 
 	trains_container.add_child(junction)
 	return junction
-
-func _create_train_gangway(g_name: String, pos: Vector3, size: Vector3) -> StaticBody3D:
-	var gangway = StaticBody3D.new()
-	gangway.name = g_name
-	gangway.position = pos
-	gangway.collision_layer = 1
-	gangway.collision_mask = 0
-
-	var col = CollisionShape3D.new()
-	var box = BoxShape3D.new()
-	box.size = size
-	col.shape = box
-	col.position = Vector3(0.0, -size.y * 0.5, 0.0)
-	gangway.add_child(col)
-
-	var mesh_inst = MeshInstance3D.new()
-	var box_m = BoxMesh.new()
-	box_m.size = size
-	box_m.material = mat_coupler
-	mesh_inst.mesh = box_m
-	mesh_inst.position = col.position
-	gangway.add_child(mesh_inst)
-
-	trains_container.add_child(gangway)
-	return gangway
-
-func _create_train_gangway_rotated(g_name: String, pos: Vector3, rot_y: float, size: Vector3) -> StaticBody3D:
-	var g = _create_train_gangway(g_name, pos, size)
-	g.rotation.y = rot_y
-	return g
 
 func get_train_for_team(team: int) -> Node3D:
 	if team_trains.has(team):
@@ -335,25 +340,33 @@ func _build_spawn_points() -> void:
 	var t3_spawns = Node3D.new()
 	t3_spawns.name = "Team3_Spawns"
 	spawn_points_container.add_child(t3_spawns)
-	_add_spawn_marker(t3_spawns, "Spawn1", Vector3(-6.0, 0.1, -APOTHEM))
-	_add_spawn_marker(t3_spawns, "Spawn2", Vector3(0.0, 0.1, -APOTHEM))
-	_add_spawn_marker(t3_spawns, "Spawn3", Vector3(6.0, 0.1, -APOTHEM))
+	_add_spawn_marker(t3_spawns, "Spawn1", Vector3(-8.0, ROCK_PLATFORM_HEIGHT + 0.1, -APOTHEM_TRAIN))
+	_add_spawn_marker(t3_spawns, "Spawn2", Vector3(0.0, ROCK_PLATFORM_HEIGHT + 0.1, -APOTHEM_TRAIN))
+	_add_spawn_marker(t3_spawns, "Spawn3", Vector3(8.0, ROCK_PLATFORM_HEIGHT + 0.1, -APOTHEM_TRAIN))
 
-	# Team 1 Spawns on Train 1 (West - rotated +30 deg)
+	# Team 1 Spawns on Train 1 (West - rotated +120 deg)
+	# Center is at (-11.07846, ROCK_PLATFORM_HEIGHT + 0.1, 6.39615)
+	# Train line unit vector from South (0, 25.58) to NW (-22.16, -12.79)
 	var t1_spawns = Node3D.new()
 	t1_spawns.name = "Team1_Spawns"
 	spawn_points_container.add_child(t1_spawns)
-	_add_spawn_marker(t1_spawns, "Spawn1", Vector3(-9.0, 0.1, APOTHEM * 0.5) + Vector3(-6.0 * cos(deg_to_rad(30.0)), 0.0, 6.0 * sin(deg_to_rad(30.0))))
-	_add_spawn_marker(t1_spawns, "Spawn2", Vector3(-9.0, 0.1, APOTHEM * 0.5))
-	_add_spawn_marker(t1_spawns, "Spawn3", Vector3(-9.0, 0.1, APOTHEM * 0.5) + Vector3(6.0 * cos(deg_to_rad(30.0)), 0.0, -6.0 * sin(deg_to_rad(30.0))))
+	var t1_center = Vector3(-APOTHEM_TRAIN * 0.8660254, ROCK_PLATFORM_HEIGHT + 0.1, APOTHEM_TRAIN * 0.5)
+	var t1_dir = (VERTEX_NW - VERTEX_SOUTH).normalized()
+	_add_spawn_marker(t1_spawns, "Spawn1", t1_center - t1_dir * 8.0)
+	_add_spawn_marker(t1_spawns, "Spawn2", t1_center)
+	_add_spawn_marker(t1_spawns, "Spawn3", t1_center + t1_dir * 8.0)
 
-	# Team 2 Spawns on Train 2 (East - rotated -30 deg)
+	# Team 2 Spawns on Train 2 (East - rotated -120 deg)
+	# Center is at (+11.07846, ROCK_PLATFORM_HEIGHT + 0.1, 6.39615)
+	# Train line unit vector from South (0, 25.58) to NE (22.16, -12.79)
 	var t2_spawns = Node3D.new()
 	t2_spawns.name = "Team2_Spawns"
 	spawn_points_container.add_child(t2_spawns)
-	_add_spawn_marker(t2_spawns, "Spawn1", Vector3(9.0, 0.1, APOTHEM * 0.5) + Vector3(6.0 * cos(deg_to_rad(-30.0)), 0.0, -6.0 * sin(deg_to_rad(-30.0))))
-	_add_spawn_marker(t2_spawns, "Spawn2", Vector3(9.0, 0.1, APOTHEM * 0.5))
-	_add_spawn_marker(t2_spawns, "Spawn3", Vector3(9.0, 0.1, APOTHEM * 0.5) + Vector3(-6.0 * cos(deg_to_rad(-30.0)), 0.0, 6.0 * sin(deg_to_rad(-30.0))))
+	var t2_center = Vector3(APOTHEM_TRAIN * 0.8660254, ROCK_PLATFORM_HEIGHT + 0.1, APOTHEM_TRAIN * 0.5)
+	var t2_dir = (VERTEX_NE - VERTEX_SOUTH).normalized()
+	_add_spawn_marker(t2_spawns, "Spawn1", t2_center - t2_dir * 8.0)
+	_add_spawn_marker(t2_spawns, "Spawn2", t2_center)
+	_add_spawn_marker(t2_spawns, "Spawn3", t2_center + t2_dir * 8.0)
 
 func _add_spawn_marker(parent: Node3D, m_name: String, pos: Vector3) -> Marker3D:
 	var marker = Marker3D.new()
@@ -413,6 +426,7 @@ func _create_triangle_map_node(map_id: int, node_name: String, primary_color: Co
 	var map_root = Node3D.new()
 	map_root.name = node_name
 	map_root.set_meta("map_id", map_id)
+	map_root.position = Vector3(0.0, ROCK_PLATFORM_HEIGHT, 0.0)
 
 	# 1. Main Walkable Triangular Platform (AnimatableBody3D on Layer 1)
 	var floor_body = AnimatableBody3D.new()
@@ -435,8 +449,9 @@ func _create_triangle_map_node(map_id: int, node_name: String, primary_color: Co
 	sec_mat.albedo_color = secondary_color
 	sec_mat.roughness = 0.85
 
-	# Create triangular prism mesh & collision
-	var prism_mesh = _generate_triangular_prism_mesh(MAP_NW, MAP_NE, MAP_SOUTH, 1.0, floor_mat)
+	# Create triangular prism mesh & collision raised to match rock platform height
+	const PRISM_DEPTH: float = 3.5
+	var prism_mesh = _generate_triangular_prism_mesh(MAP_NW, MAP_NE, MAP_SOUTH, PRISM_DEPTH, floor_mat)
 	var mesh_inst = MeshInstance3D.new()
 	mesh_inst.name = "FloorMesh"
 	mesh_inst.mesh = prism_mesh
@@ -448,9 +463,9 @@ func _create_triangle_map_node(map_id: int, node_name: String, primary_color: Co
 		Vector3(MAP_NW.x, 0.0, MAP_NW.z),
 		Vector3(MAP_NE.x, 0.0, MAP_NE.z),
 		Vector3(MAP_SOUTH.x, 0.0, MAP_SOUTH.z),
-		Vector3(MAP_NW.x, -1.0, MAP_NW.z),
-		Vector3(MAP_NE.x, -1.0, MAP_NE.z),
-		Vector3(MAP_SOUTH.x, -1.0, MAP_SOUTH.z)
+		Vector3(MAP_NW.x, -PRISM_DEPTH, MAP_NW.z),
+		Vector3(MAP_NE.x, -PRISM_DEPTH, MAP_NE.z),
+		Vector3(MAP_SOUTH.x, -PRISM_DEPTH, MAP_SOUTH.z)
 	])
 	col_shape.shape = poly_shape
 	floor_body.add_child(col_shape)
@@ -468,12 +483,12 @@ func _create_triangle_map_node(map_id: int, node_name: String, primary_color: Co
 	var dep_col = CollisionShape3D.new()
 	var dep_poly = ConvexPolygonShape3D.new()
 	dep_poly.points = PackedVector3Array([
-		Vector3(MAP_NW.x, -0.5, MAP_NW.z),
-		Vector3(MAP_NE.x, -0.5, MAP_NE.z),
-		Vector3(MAP_SOUTH.x, -0.5, MAP_SOUTH.z),
-		Vector3(MAP_NW.x, 8.0, MAP_NW.z),
-		Vector3(MAP_NE.x, 8.0, MAP_NE.z),
-		Vector3(MAP_SOUTH.x, 8.0, MAP_SOUTH.z)
+		Vector3(MAP_NW.x, -1.0, MAP_NW.z),
+		Vector3(MAP_NE.x, -1.0, MAP_NE.z),
+		Vector3(MAP_SOUTH.x, -1.0, MAP_SOUTH.z),
+		Vector3(MAP_NW.x, 10.0, MAP_NW.z),
+		Vector3(MAP_NE.x, 10.0, MAP_NE.z),
+		Vector3(MAP_SOUTH.x, 10.0, MAP_SOUTH.z)
 	])
 	dep_col.shape = dep_poly
 	departure_zone.add_child(dep_col)
@@ -484,6 +499,9 @@ func _create_triangle_map_node(map_id: int, node_name: String, primary_color: Co
 
 	# 5. Three Tactical Cover Pillars (Layer 3 - Wall/Obstacle)
 	_build_tactical_cover_pillars(map_root, trim_mat, sec_mat)
+
+	# 6. Neutral Entities (6 basic mobs in 3 pairs relative to the 3 trains)
+	_build_neutral_entities(map_root)
 
 	return map_root
 
@@ -622,6 +640,79 @@ func _build_tactical_cover_pillars(parent: Node3D, trim_mat: Material, sec_mat: 
 		parent.add_child(pillar)
 
 # -------------------------------------------------------------------------
+# 3.4. NEUTRAL ENTITIES (BASIC MOBS IN PAIRS RELATIVE TO TRAINS)
+# -------------------------------------------------------------------------
+func _build_neutral_entities(map_root: Node3D) -> void:
+	var neutrals_container = Node3D.new()
+	neutrals_container.name = "NeutralEntities"
+	map_root.add_child(neutrals_container)
+
+	# Base pair relative to Train 3 (North train at Z = -APOTHEM_TRAIN, edge at Z = -10.392305)
+	# Entities are placed next to each other along X (-2.4 and +2.4) but staggered in distance to train (4.2m vs 6.6m)
+	# Height Y = 0.8 places the 1.6m capsule base directly on the platform floor (Y = 0.0)
+	# Pair 1: Train 3 (North)
+	var e1_pos = Vector3(-2.4, 0.8, -6.192305)
+	var e2_pos = Vector3(2.4, 0.8, -3.792305)
+
+	var p1_e1 = _create_neutral_entity("Neutral_T3_1", e1_pos, "Train3_Team3", 4.2)
+	var p1_e2 = _create_neutral_entity("Neutral_T3_2", e2_pos, "Train3_Team3", 6.6)
+	neutrals_container.add_child(p1_e1)
+	neutrals_container.add_child(p1_e2)
+
+	# Pair 2: Train 1 (West - rotated +120 deg)
+	var e3_pos = e1_pos.rotated(Vector3.UP, deg_to_rad(120.0))
+	var e4_pos = e2_pos.rotated(Vector3.UP, deg_to_rad(120.0))
+
+	var p2_e1 = _create_neutral_entity("Neutral_T1_1", e3_pos, "Train1_Team1", 4.2)
+	var p2_e2 = _create_neutral_entity("Neutral_T1_2", e4_pos, "Train1_Team1", 6.6)
+	neutrals_container.add_child(p2_e1)
+	neutrals_container.add_child(p2_e2)
+
+	# Pair 3: Train 2 (East - rotated -120 deg)
+	var e5_pos = e1_pos.rotated(Vector3.UP, deg_to_rad(-120.0))
+	var e6_pos = e2_pos.rotated(Vector3.UP, deg_to_rad(-120.0))
+
+	var p3_e1 = _create_neutral_entity("Neutral_T2_1", e5_pos, "Train2_Team2", 4.2)
+	var p3_e2 = _create_neutral_entity("Neutral_T2_2", e6_pos, "Train2_Team2", 6.6)
+	neutrals_container.add_child(p3_e1)
+	neutrals_container.add_child(p3_e2)
+
+func _create_neutral_entity(ent_name: String, local_pos: Vector3, train_rel: String, dist_to_train: float, mat: StandardMaterial3D = null) -> NeutralEntity:
+	var ent = NeutralEntityClass.new()
+	ent.name = ent_name
+	ent.position = local_pos
+	ent.spawn_position = local_pos
+	ent.entity_name = ent_name
+	ent.custom_material = mat
+	ent.neutral_type = NeutralRegistryClass.get_type("basic_mob")
+	ent.set_meta("associated_train", train_rel)
+	ent.set_meta("train_distance", dist_to_train)
+	return ent
+
+func reset_neutral_entities_for_map(map_id: int) -> void:
+	if map_id < 0 or map_id >= area_nodes.size():
+		return
+	var map_root = area_nodes[map_id]
+	var neutrals = map_root.get_node_or_null("NeutralEntities")
+	if neutrals:
+		for child in neutrals.get_children():
+			if child.has_method("reset_entity"):
+				child.reset_entity()
+
+func get_neutral_entities_for_map(map_id: int) -> Array[Node]:
+	var list: Array[Node] = []
+	if map_id >= 0 and map_id < area_nodes.size():
+		var map_root = area_nodes[map_id]
+		var neutrals = map_root.get_node_or_null("NeutralEntities")
+		if neutrals:
+			for child in neutrals.get_children():
+				list.append(child)
+	return list
+
+func get_active_neutral_entities() -> Array[Node]:
+	return get_neutral_entities_for_map(current_area_id)
+
+# -------------------------------------------------------------------------
 # 4. INITIALIZATION & DYNAMIC CYCLING
 # -------------------------------------------------------------------------
 func _activate_initial_map() -> void:
@@ -636,8 +727,9 @@ func _activate_initial_map() -> void:
 		var n = area_nodes[i]
 		var is_active = (i == current_area_id)
 		n.visible = is_active
-		n.position = Vector3.ZERO
+		n.position = Vector3(0.0, ROCK_PLATFORM_HEIGHT, 0.0)
 		n.process_mode = Node.PROCESS_MODE_INHERIT if is_active else Node.PROCESS_MODE_DISABLED
+	reset_neutral_entities_for_map(current_area_id)
 
 func set_area_sequence(sequence: Array) -> void:
 	area_order.clear()
@@ -704,7 +796,7 @@ func depart_current_triangle() -> void:
 			if is_instance_valid(departing_map):
 				departing_map.visible = false
 				departing_map.process_mode = Node.PROCESS_MODE_DISABLED
-				departing_map.position = Vector3(0.0, 0.0, -160.0)
+				departing_map.position = Vector3(0.0, ROCK_PLATFORM_HEIGHT, -160.0)
 			is_transitioning = false
 		)
 	else:
@@ -724,7 +816,8 @@ func arrive_at_triangle(new_area_id: int) -> void:
 	var arriving_map = area_nodes[new_area_id]
 	arriving_map.visible = true
 	arriving_map.process_mode = Node.PROCESS_MODE_INHERIT
-	arriving_map.position = Vector3(0.0, 0.0, -160.0)
+	arriving_map.position = Vector3(0.0, ROCK_PLATFORM_HEIGHT, -160.0)
+	reset_neutral_entities_for_map(new_area_id)
 
 	var tween = create_tween()
 	tween.tween_property(arriving_map, "position:z", 0.0, 3.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -819,17 +912,21 @@ func is_player_on_triangle(player: Node3D) -> bool:
 
 ## Mathematical 2D point-in-equilateral-triangle test for docked map platform
 func is_point_in_triangle_map(pos: Vector3) -> bool:
-	if pos.y < -2.0 or pos.y > 8.0:
+	if pos.y < -3.0 or pos.y > 15.0:
 		return false
 	var x = pos.x
 	var z = pos.z
 
-	# MAP_NW: (-14.8956, -8.6)
-	# MAP_NE: (14.8956, -8.6)
-	# MAP_SOUTH: (0.0, 17.2)
-	var cp1 = 29.7912 * (z + 8.6)
-	var cp2 = -14.8956 * (z + 8.6) - 25.8 * (x - 14.8956)
-	var cp3 = -14.8956 * (z - 17.2) + 25.8 * x
+	# MAP_NW: (-18.0, -10.392305)
+	# MAP_NE: (18.0, -10.392305)
+	# MAP_SOUTH: (0.0, 20.78461)
+	# Points at or beyond the Northern train threshold (z <= -10.392) belong to the train, not the map
+	if z <= -10.392:
+		return false
+
+	var cp1 = 36.0 * (z + 10.392305)
+	var cp2 = -18.0 * (z + 10.392305) - 31.176915 * (x - 18.0)
+	var cp3 = -18.0 * (z - 20.78461) + 31.176915 * x
 
 	var has_neg = (cp1 < -0.01) or (cp2 < -0.01) or (cp3 < -0.01)
 	var has_pos = (cp1 > 0.01) or (cp2 > 0.01) or (cp3 > 0.01)
@@ -837,24 +934,24 @@ func is_point_in_triangle_map(pos: Vector3) -> bool:
 
 ## Verifies if a given world position is on any of the 3 static trains or 3 corner platforms
 func _is_position_on_any_train(pos: Vector3) -> bool:
-	# Train 3 (North): X in [-18.0, 18.0], Z in [-APOTHEM - 2.8, -APOTHEM + 2.8]
-	if pos.x >= -19.0 and pos.x <= 19.0 and pos.z >= -APOTHEM - 3.2 and pos.z <= -APOTHEM + 3.2:
+	# Train 3 (North): X in [-22.5, 22.5], Z in [-APOTHEM_TRAIN - 3.2, -APOTHEM_TRAIN + 3.2]
+	if pos.x >= -22.5 and pos.x <= 22.5 and pos.z >= -APOTHEM_TRAIN - 3.2 and pos.z <= -APOTHEM_TRAIN + 3.2:
 		return true
 
-	# Corner NW: (-18, -10.4), Corner NE: (18, -10.4), Corner South: (0, 20.8)
-	if pos.distance_to(VERTEX_NW) <= 3.8:
+	# Corner NW, NE, and South junctions
+	if pos.distance_to(Vector3(VERTEX_NW.x, pos.y, VERTEX_NW.z)) <= 4.8:
 		return true
-	if pos.distance_to(VERTEX_NE) <= 3.8:
+	if pos.distance_to(Vector3(VERTEX_NE.x, pos.y, VERTEX_NE.z)) <= 4.8:
 		return true
-	if pos.distance_to(VERTEX_SOUTH) <= 3.8:
+	if pos.distance_to(Vector3(VERTEX_SOUTH.x, pos.y, VERTEX_SOUTH.z)) <= 4.8:
 		return true
 
-	# Train 1 (West): Center at (-9.0, 5.196), line from South to NW
+	# Train 1 (West): line from South to NW
 	var d1 = _dist_to_segment_2d(Vector2(pos.x, pos.z), Vector2(VERTEX_SOUTH.x, VERTEX_SOUTH.z), Vector2(VERTEX_NW.x, VERTEX_NW.z))
 	if d1 <= (CAR_WIDTH * 0.5) + 0.6:
 		return true
 
-	# Train 2 (East): Center at (9.0, 5.196), line from South to NE
+	# Train 2 (East): line from South to NE
 	var d2 = _dist_to_segment_2d(Vector2(pos.x, pos.z), Vector2(VERTEX_SOUTH.x, VERTEX_SOUTH.z), Vector2(VERTEX_NE.x, VERTEX_NE.z))
 	if d2 <= (CAR_WIDTH * 0.5) + 0.6:
 		return true

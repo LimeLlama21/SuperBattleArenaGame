@@ -843,7 +843,15 @@ func set_game_mode(mode_str: String) -> void:
 	bo5_score_t1 = 0
 	bo5_score_t2 = 0
 	bo5_score_t3 = 0
+
+	# If the currently selected map is not valid in the new mode's map pool, reset to Random Map (-1)
+	if selected_custom_map >= 0 and not MapRegistry.is_map_valid_for_mode(selected_custom_map, game_mode):
+		selected_custom_map = -1
+		if _is_network_active() and multiplayer.is_server():
+			sync_lobby_map.rpc(selected_custom_map)
+
 	call_deferred("_refresh_battle_royale_zones_for_mode")
+	_refresh_lobby_ui()
 	if _is_network_active() and multiplayer.is_server():
 		sync_bo5_score.rpc(0, 0, 0)
 		sync_lobby_state.rpc(connected_players, game_mode)
@@ -1383,21 +1391,37 @@ func _refresh_lobby_ui() -> void:
 		map_option.clear()
 		if is_training_mode:
 			map_option.disabled = false
-			map_option.add_item("🎯 Standard Training Map", -1)
+			map_option.add_item("🎯 Standard Training Map")
+			map_option.set_item_id(0, -1)
 			for i in range(MAP_NAMES.size()):
 				map_option.add_item("⚔ " + MAP_NAMES[i], i)
 			var sel_idx = 0
 			if training_selected_map >= 0 and training_selected_map < MAP_NAMES.size():
-				sel_idx = training_selected_map + 1
+				for idx in range(map_option.item_count):
+					if map_option.get_item_id(idx) == training_selected_map:
+						sel_idx = idx
+						break
 			map_option.select(sel_idx)
 		else:
 			map_option.disabled = not is_server
-			map_option.add_item("🎲 Random Map", -1)
-			for i in range(MAP_NAMES.size()):
-				map_option.add_item("⚔ " + MAP_NAMES[i], i)
+			map_option.add_item("🎲 Random Map")
+			map_option.set_item_id(0, -1)
+			var valid_maps: Array[int] = MapRegistry.get_map_pool_for_mode(game_mode)
+			for map_id in valid_maps:
+				if map_id >= 0 and map_id < MAP_NAMES.size():
+					map_option.add_item("⚔ " + MAP_NAMES[map_id], map_id)
+			
+			# Validate that selected_custom_map is allowed in this mode's pool
+			if selected_custom_map >= 0 and not MapRegistry.is_map_valid_for_mode(selected_custom_map, game_mode):
+				selected_custom_map = -1
+				if _is_network_active() and multiplayer.is_server():
+					sync_lobby_map.rpc(selected_custom_map)
+
 			var sel_idx = 0
-			if selected_custom_map >= 0 and selected_custom_map < MAP_NAMES.size():
-				sel_idx = selected_custom_map + 1
+			for idx in range(map_option.item_count):
+				if map_option.get_item_id(idx) == selected_custom_map:
+					sel_idx = idx
+					break
 			map_option.select(sel_idx)
 
 	if is_training_mode:
@@ -1578,8 +1602,10 @@ func sync_lobby_map(map_id: int) -> void:
 	selected_custom_map = map_id
 	if map_option and not is_training_mode:
 		var sel_idx = 0
-		if selected_custom_map >= 0 and selected_custom_map < MAP_NAMES.size():
-			sel_idx = selected_custom_map + 1
+		for idx in range(map_option.item_count):
+			if map_option.get_item_id(idx) == selected_custom_map:
+				sel_idx = idx
+				break
 		map_option.select(sel_idx)
 
 func _on_start_match_pressed() -> void:
@@ -1678,8 +1704,6 @@ func start_game() -> void:
 		
 		if not is_training_mode:
 			var next_map = _pick_next_random_map()
-			if game_mode == "trains":
-				next_map = MapRegistry.ID_TRAINS
 			if is_multiplayer_match() and multiplayer.has_multiplayer_peer():
 				sync_active_map.rpc(next_map)
 			else:
@@ -3993,16 +4017,17 @@ func sync_trains_transition(next_area_id: int) -> void:
 	sync_trains_arrival(next_area_id)
 
 func _pick_next_random_map() -> int:
-	if selected_custom_map >= 0 and selected_custom_map < arena_maps.size():
+	var valid_maps: Array[int] = MapRegistry.get_map_pool_for_mode(game_mode)
+	if selected_custom_map >= 0 and MapRegistry.is_map_valid_for_mode(selected_custom_map, game_mode):
 		return selected_custom_map
-	if arena_maps.is_empty():
+	if valid_maps.is_empty():
 		return 0
 	var choices: Array[int] = []
-	for i in range(arena_maps.size()):
-		if i != current_map_id:
-			choices.append(i)
+	for map_id in valid_maps:
+		if map_id != current_map_id:
+			choices.append(map_id)
 	if choices.is_empty():
-		return 0
+		return valid_maps[0]
 	return choices[randi() % choices.size()]
 
 @rpc("authority", "call_local", "reliable")

@@ -223,7 +223,7 @@ func _execute_crash_impact() -> void:
 			for c in get_parent().get_children():
 				if c is BasePlayer and not candidates.has(c):
 					candidates.append(c)
-
+	
 		for player in candidates:
 			if player is Node3D and player != self and str(player.name) != str(peer_id) and not player.get("is_dead") and is_enemy(player):
 				var diff = player.global_position - global_position

@@ -28,7 +28,7 @@ func get_hitbox_radius() -> float:
 func take_damage(amount: float, attacker_id: int = 0, action_type: int = 0, is_projectile: bool = false, damage_type: int = 0) -> void:
 	var target = get_character()
 	if is_instance_valid(target) and target.has_method("take_damage"):
-		if target is BasePlayer:
+		if target is BasePlayer or ("is_neutral" in target and target.is_neutral):
 			target.take_damage(amount, attacker_id, action_type, is_projectile, damage_type)
 		else:
 			target.take_damage(amount, attacker_id, action_type)

@@ -1,0 +1,17 @@
+{
+	"pools": {
+		"standard": [0, 1, 2, 3],
+		"trains": [4]
+	},
+	"mode_pools": {
+		"tdm": "standard",
+		"dm": "standard",
+		"bo5": "standard",
+		"trains": "trains",
+		"default": "standard"
+	},
+	"descriptions": {
+		"standard": "Shared competitive arena pool: Colosseum, The Jagged Chasm, Shattered Archipelago, The Great Expanse",
+		"trains": "High-speed moving triangle circuit: Iron Triangle (Trains)"
+	}
+}

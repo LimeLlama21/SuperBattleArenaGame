@@ -540,8 +540,8 @@ grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="UI/MatchOverPanel" unique_id=385730915]
 layout_mode = 2
-alignment = 1
 theme_override_constants/separation = 6
+alignment = 1
 
 [node name="WinnerLabel" type="Label" parent="UI/MatchOverPanel/VBox" unique_id=1142607700]
 layout_mode = 2
