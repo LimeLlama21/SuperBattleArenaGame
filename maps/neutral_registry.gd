@@ -51,26 +51,26 @@ static func _register_builtin_types() -> void:
 	bm.max_health = 100.0
 	bm.damage = 0.0
 	bm.move_speed = 3.0 # Half player base ms (6.0 * 0.5)
-	bm.aggro_range = 8.5
-	bm.attack_range = 2.4 # Initiation range: exactly 2/3 of attack range (3.6 * 2/3 = 2.4)
-	bm.leash_range = 14.0
+	bm.aggro_range = 10.0
+	bm.attack_range = 4.0 # Initiation range: exactly 2/3 of attack range (6.0 * 2/3 = 4.0)
+	bm.leash_radius = 18.0 # Several meters in radius
 	bm.combo_reset_delay = 2.0
 	bm.team_xp = 50.0
 	bm.team_gold = 25
 	bm.unique_reward = "" # Blank for lowest tier
 	bm.unique_reward_duration = 0.0
 
-	# Single attack for its pattern: small cone in front of it
+	# Single attack for its pattern: frontal cone in front of it (increased reach to 6.0m, initiation 4.0m)
 	var bm_atk = NeutralAttackClass.new()
 	bm_atk.name = "Frontal Cleave"
 	bm_atk.damage = 0.0
-	bm_atk.attack_range = 2.4 # Initiation range
-	bm_atk.cone_range = 3.6 # Full reach of the attack itself (2.4 / 3.6 = 2/3)
+	bm_atk.attack_range = 4.0 # Initiation range
+	bm_atk.cone_range = 6.0 # Full reach of the attack itself (4.0 / 6.0 = 2/3)
 	bm_atk.cone_angle = 60.0 # Small cone in front of it (60 degrees)
 	bm_atk.windup_time = 0.35
 	bm_atk.recovery_time = 0.55
 	bm_atk.attack_type = "cone"
-	bm_atk.hitbox_radius = 3.6
+	bm_atk.hitbox_radius = 6.0
 
 	bm.attack_pattern = [bm_atk]
 	bm.special_attack = null # Blank
@@ -96,7 +96,7 @@ static func _register_builtin_types() -> void:
 	t1.move_speed = 0.0 # Stationary
 	t1.aggro_range = 8.0
 	t1.attack_range = 3.5
-	t1.leash_range = 14.0
+	t1.leash_radius = 14.0
 	t1.combo_reset_delay = 2.5
 	t1.team_xp = 75.0
 	t1.team_gold = 40
@@ -133,7 +133,7 @@ static func _register_builtin_types() -> void:
 	t2.move_speed = 3.2
 	t2.aggro_range = 10.0
 	t2.attack_range = 3.2
-	t2.leash_range = 15.0
+	t2.leash_radius = 16.0
 	t2.combo_reset_delay = 3.0
 	t2.team_xp = 160.0
 	t2.team_gold = 90
@@ -191,7 +191,7 @@ static func _register_builtin_types() -> void:
 	t3.move_speed = 3.6
 	t3.aggro_range = 12.0
 	t3.attack_range = 4.0
-	t3.leash_range = 18.0
+	t3.leash_radius = 20.0
 	t3.combo_reset_delay = 3.5
 	t3.team_xp = 350.0
 	t3.team_gold = 200

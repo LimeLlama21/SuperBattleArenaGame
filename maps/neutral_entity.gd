@@ -38,6 +38,11 @@ enum State {
 @export var neutral_type: Resource = null:
 	set(val):
 		neutral_type = val
+		if neutral_type:
+			if "leash_radius" in neutral_type and neutral_type.leash_radius > 0.0:
+				leash_radius = neutral_type.leash_radius
+			elif "leash_range" in neutral_type and neutral_type.leash_range > 0.0:
+				leash_radius = neutral_type.leash_range
 		if is_inside_tree() or collision_shape != null:
 			_apply_neutral_type()
 
@@ -45,6 +50,23 @@ enum State {
 @export var team_id: int = 0 # Neutral (no team)
 @export var spawn_position: Vector3 = Vector3.ZERO
 @export var custom_material: StandardMaterial3D = null
+@export var leash_radius: float = 0.0 # Radius in meters from spawn_position before disengaging (0 = use neutral_type)
+
+var leash_range: float:
+	get:
+		return get_leash_radius()
+	set(val):
+		leash_radius = val
+
+func get_leash_radius() -> float:
+	if leash_radius > 0.0:
+		return leash_radius
+	if neutral_type:
+		if "leash_radius" in neutral_type and neutral_type.leash_radius > 0.0:
+			return neutral_type.leash_radius
+		if "leash_range" in neutral_type and neutral_type.leash_range > 0.0:
+			return neutral_type.leash_range
+	return 18.0
 
 var max_health: float = 200.0
 var current_health: float = 200.0
@@ -142,6 +164,11 @@ func _apply_neutral_type() -> void:
 	max_health = neutral_type.max_health
 	current_health = max_health
 	health = current_health
+
+	if "leash_radius" in neutral_type and neutral_type.leash_radius > 0.0:
+		leash_radius = neutral_type.leash_radius
+	elif "leash_range" in neutral_type and neutral_type.leash_range > 0.0:
+		leash_radius = neutral_type.leash_range
 
 	var is_capsule: bool = ("mesh_shape" in neutral_type and neutral_type.mesh_shape == "capsule")
 	var mat = custom_material if custom_material else default_material
@@ -286,7 +313,7 @@ func _process_idle_state(delta: float) -> void:
 func _process_chase_state(delta: float) -> void:
 	# 1. Leash check: distance from home anchor
 	var dist_from_spawn = position.distance_to(spawn_position)
-	var max_leash = neutral_type.leash_range if neutral_type else 14.0
+	var max_leash = get_leash_radius()
 	if dist_from_spawn > max_leash:
 		_disengage_and_leash()
 		return
@@ -429,7 +456,7 @@ func is_target_in_cone(target_pos: Vector3, reach: float, cone_angle_deg: float)
 	return forward.angle_to(dir_to_target) <= deg_to_rad(cone_angle_deg * 0.5)
 
 func _strike_cone(atk: Resource) -> Array[Node3D]:
-	var reach: float = atk.cone_range if "cone_range" in atk else 3.6
+	var reach: float = atk.cone_range if "cone_range" in atk else 6.0
 	var angle_deg: float = atk.cone_angle if "cone_angle" in atk else 60.0
 	var hit_targets: Array[Node3D] = []
 	var candidates = _get_players_in_range(reach)
@@ -528,16 +555,19 @@ func _is_target_valid(t: Node3D) -> bool:
 		return false
 	if "is_dead" in t and t.is_dead:
 		return false
-	var max_leash = neutral_type.leash_range if neutral_type else 14.0
+	var max_leash = get_leash_radius()
 	if t.position.distance_to(spawn_position) > max_leash:
 		return false
 	return true
 
 func _find_nearest_target() -> Node3D:
-	var candidates = _get_players_in_range(neutral_type.aggro_range if neutral_type else 8.0)
+	var candidates = _get_players_in_range(neutral_type.aggro_range if neutral_type else 10.0)
 	var best_p: Node3D = null
 	var best_dist: float = INF
+	var max_leash = get_leash_radius()
 	for p in candidates:
+		if p.position.distance_to(spawn_position) > max_leash:
+			continue
 		var d = position.distance_to(p.position)
 		if d < best_dist:
 			best_dist = d

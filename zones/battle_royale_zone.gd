@@ -440,9 +440,7 @@ func clamp_center_to_bounds(pos: Vector3) -> Vector3:
 		clamp(pos.z, eff_min.y, eff_max.y)
 	)
 
-# ==============================================================================
-# STATE MACHINE IMPLEMENTATION
-# ==============================================================================
+# STATE MACHINE
 
 ## Start the battle royale zone state machine
 func start_zone() -> void:

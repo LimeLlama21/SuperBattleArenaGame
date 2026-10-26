@@ -17,9 +17,9 @@ const NeutralSpecialAttackClass = preload("res://maps/neutral_special_attack.gd"
 @export var max_health: float = 100.0
 @export var damage: float = 0.0
 @export var move_speed: float = 3.0 # Half player base ms (6.0 * 0.5)
-@export var aggro_range: float = 8.0 # Detection distance
-@export var attack_range: float = 2.4 # Engagement distance to initiate attack (2/3 of attack reach)
-@export var leash_range: float = 14.0 # Maximum distance from spawn before disengaging and returning home
+@export var aggro_range: float = 10.0 # Detection distance
+@export var attack_range: float = 4.0 # Engagement distance to initiate attack (2/3 of attack reach)
+@export var leash_radius: float = 18.0 # Leash distance in radius (meters from spawn anchor before disengaging)
 @export var combo_reset_delay: float = 2.0 # Grace period before attack rotation resets when no target in range
 
 @export_group("Rewards (Team-wide)")
@@ -52,3 +52,9 @@ var sphere_color: Color:
 		return mesh_color
 	set(v):
 		mesh_color = v
+
+var leash_range: float:
+	get:
+		return leash_radius
+	set(v):
+		leash_radius = v
