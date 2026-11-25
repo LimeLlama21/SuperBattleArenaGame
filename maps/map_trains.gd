@@ -585,7 +585,7 @@ func _build_neutral_entities(map_root: Node3D) -> void:
 	neutrals_container.add_child(p3_e1)
 	neutrals_container.add_child(p3_e2)
 
-func _create_neutral_entity(ent_name: String, local_pos: Vector3, train_rel: String, dist_to_train: float, mat: StandardMaterial3D = null) -> NeutralEntity:
+func _create_neutral_entity(ent_name: String, local_pos: Vector3, train_rel: String, dist_to_train: float, mat: StandardMaterial3D = null) -> CharacterBody3D:
 	var ent = NeutralEntityClass.new()
 	ent.name = ent_name
 	ent.position = local_pos

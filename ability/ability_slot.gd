@@ -26,7 +26,7 @@ var cooldown_style: StyleBoxFlat
 var primary_firing_style: StyleBoxFlat
 
 func _init() -> void:
-	custom_minimum_size = Vector2(78, 78)
+	custom_minimum_size = Vector2(54, 54)
 	mouse_filter = Control.MOUSE_FILTER_PASS
 
 func _ready() -> void:
@@ -51,10 +51,10 @@ func _create_styles() -> void:
 	normal_style.border_width_right = 2
 	normal_style.border_width_bottom = 2
 	normal_style.border_color = Color(0.28, 0.48, 0.70, 0.85)
-	normal_style.corner_radius_top_left = 8
-	normal_style.corner_radius_top_right = 8
-	normal_style.corner_radius_bottom_right = 8
-	normal_style.corner_radius_bottom_left = 8
+	normal_style.corner_radius_top_left = 6
+	normal_style.corner_radius_top_right = 6
+	normal_style.corner_radius_bottom_right = 6
+	normal_style.corner_radius_bottom_left = 6
 
 	cooldown_style = normal_style.duplicate()
 	cooldown_style.border_color = Color(0.20, 0.25, 0.32, 0.75)
@@ -106,10 +106,10 @@ func _build_ui() -> void:
 	icon_label.anchors_preset = Control.PRESET_FULL_RECT
 	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	icon_label.add_theme_font_size_override("font_size", 24)
+	icon_label.add_theme_font_size_override("font_size", 18)
 	icon_label.add_theme_color_override("font_color", Color(0.58, 0.86, 1.0, 0.90))
 	icon_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
-	icon_label.add_theme_constant_override("outline_size", 4)
+	icon_label.add_theme_constant_override("outline_size", 3)
 	icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_label.visible = false
 	content.add_child(icon_label)
@@ -117,9 +117,9 @@ func _build_ui() -> void:
 	# Keybind badge (top-left)
 	key_label = Label.new()
 	key_label.text = key_bind_text
-	key_label.position = Vector2(7, 4)
-	key_label.size = Vector2(64, 18)
-	key_label.add_theme_font_size_override("font_size", 13)
+	key_label.position = Vector2(4, 2)
+	key_label.size = Vector2(42, 14)
+	key_label.add_theme_font_size_override("font_size", 10)
 	key_label.add_theme_color_override("font_color", Color(0.88, 0.94, 1.0, 0.95))
 	key_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
 	key_label.add_theme_constant_override("shadow_offset_x", 1)
@@ -132,10 +132,10 @@ func _build_ui() -> void:
 	cd_label.anchors_preset = Control.PRESET_FULL_RECT
 	cd_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cd_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	cd_label.add_theme_font_size_override("font_size", 24)
+	cd_label.add_theme_font_size_override("font_size", 18)
 	cd_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
 	cd_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
-	cd_label.add_theme_constant_override("outline_size", 5)
+	cd_label.add_theme_constant_override("outline_size", 4)
 	cd_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(cd_label)
 
@@ -146,16 +146,16 @@ func _build_ui() -> void:
 	charges_label.anchor_top = 1.0
 	charges_label.anchor_right = 1.0
 	charges_label.anchor_bottom = 1.0
-	charges_label.offset_left = -34.0
-	charges_label.offset_top = -24.0
-	charges_label.offset_right = -5.0
+	charges_label.offset_left = -26.0
+	charges_label.offset_top = -18.0
+	charges_label.offset_right = -4.0
 	charges_label.offset_bottom = -2.0
 	charges_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	charges_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	charges_label.add_theme_font_size_override("font_size", 14)
+	charges_label.add_theme_font_size_override("font_size", 11)
 	charges_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.25, 1.0))
 	charges_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
-	charges_label.add_theme_constant_override("outline_size", 4)
+	charges_label.add_theme_constant_override("outline_size", 3)
 	charges_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	charges_label.visible = false
 	content.add_child(charges_label)
@@ -251,7 +251,7 @@ func set_cooldown_state(
 	# Cooldown / State text display
 	if not custom_text.is_empty():
 		cd_label.text = custom_text
-		cd_label.add_theme_font_size_override("font_size", 14 if custom_text.length() > 3 else 20)
+		cd_label.add_theme_font_size_override("font_size", 10 if custom_text.length() > 3 else 14)
 		cd_label.visible = true
 		if icon_label: icon_label.modulate = Color(1, 1, 1, 0.25)
 	elif current_timer > 0.0:
@@ -259,7 +259,7 @@ func set_cooldown_state(
 			cd_label.text = "%d" % int(ceil(current_timer))
 		else:
 			cd_label.text = "%.1f" % current_timer
-		cd_label.add_theme_font_size_override("font_size", 24)
+		cd_label.add_theme_font_size_override("font_size", 18)
 		cd_label.visible = true
 		if icon_label: icon_label.modulate = Color(1, 1, 1, 0.35)
 	else:

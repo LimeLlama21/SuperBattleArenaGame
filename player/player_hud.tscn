@@ -4,20 +4,20 @@
 [ext_resource type="Script" path="res://ability/ability_slot.gd" id="2_slot_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tooltip"]
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
 bg_color = Color(0.06, 0.08, 0.12, 0.95)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.28, 0.65, 0.9, 0.9)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_panel"]
 bg_color = Color(0.07, 0.09, 0.13, 0.92)
@@ -26,45 +26,45 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.24, 0.38, 0.54, 0.85)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
 bg_color = Color(0.04, 0.05, 0.07, 0.9)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
 bg_color = Color(0.18, 0.82, 0.44, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gray_fill"]
 bg_color = Color(0.42, 0.45, 0.50, 0.95)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_shield_fill"]
 bg_color = Color(0.25, 0.75, 1, 0.85)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mana_fill"]
 bg_color = Color(0.18, 0.52, 0.98, 0.95)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_bar"]
 
@@ -76,12 +76,12 @@ layer = 10
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -190.0
-offset_right = 780.0
-offset_bottom = -24.0
+offset_left = 20.0
+offset_top = -140.0
+offset_right = 600.0
+offset_bottom = -16.0
 grow_vertical = 0
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 alignment = 2
 
 [node name="StatusCCLabel" type="Label" parent="HUDContainer"]
@@ -89,7 +89,7 @@ layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 
 [node name="AbilityTooltip" type="PanelContainer" parent="HUDContainer"]
 visible = false
@@ -104,40 +104,40 @@ theme_override_constants/separation = 3
 [node name="TitleLabel" type="Label" parent="HUDContainer/AbilityTooltip/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.35, 0.92, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 
 [node name="StatsLabel" type="Label" parent="HUDContainer/AbilityTooltip/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.86, 1, 0.9)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 
 [node name="DescLabel" type="Label" parent="HUDContainer/AbilityTooltip/VBox"]
-custom_minimum_size = Vector2(340, 0)
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.98, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 autowrap_mode = 2
 
 [node name="MainBar" type="HBoxContainer" parent="HUDContainer"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 alignment = 0
 
 [node name="HealthContainer" type="PanelContainer" parent="HUDContainer/MainBar"]
-custom_minimum_size = Vector2(230, 78)
+custom_minimum_size = Vector2(180, 54)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_hp_panel")
 
 [node name="Margin" type="MarginContainer" parent="HUDContainer/MainBar/HealthContainer"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 4
 
 [node name="VBox" type="VBoxContainer" parent="HUDContainer/MainBar/HealthContainer/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 3
 alignment = 1
 
 [node name="HeaderRow" type="HBoxContainer" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox"]
@@ -147,7 +147,7 @@ alignment = 0
 [node name="CharNameLabel" type="Label" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HeaderRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.88, 0.94, 1, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 11
 text = "PLAYER"
 
 [node name="Spacer" type="Control" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HeaderRow"]
@@ -155,12 +155,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="FiringBox" type="ColorRect" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/HeaderRow"]
-custom_minimum_size = Vector2(16, 16)
+custom_minimum_size = Vector2(11, 11)
 layout_mode = 2
 color = Color(0.58, 0.6, 0.65, 0.95)
 
 [node name="HealthBarStack" type="Control" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox"]
-custom_minimum_size = Vector2(206, 32)
+custom_minimum_size = Vector2(160, 20)
 layout_mode = 2
 size_flags_vertical = 3
 
@@ -206,14 +206,14 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.95)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 12
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
 text = "100 / 100 HP"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="ManaBarStack" type="Control" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox"]
-custom_minimum_size = Vector2(206, 16)
+custom_minimum_size = Vector2(160, 10)
 layout_mode = 2
 
 [node name="ManaBar" type="ProgressBar" parent="HUDContainer/MainBar/HealthContainer/Margin/VBox/ManaBarStack"]
@@ -237,19 +237,19 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.9, 0.96, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.95)
-theme_override_constants/outline_size = 3
-theme_override_font_sizes/font_size = 11
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 9
 text = "100 / 100 MP"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="AbilityBar" type="HBoxContainer" parent="HUDContainer/MainBar"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 alignment = 0
 
 [node name="SlotLMB" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
-custom_minimum_size = Vector2(78, 78)
+custom_minimum_size = Vector2(54, 54)
 layout_mode = 2
 script = ExtResource("2_slot_script")
 key_bind_text = "LMB"
@@ -257,35 +257,35 @@ slot_name = "Primary Fire"
 is_primary_fire = true
 
 [node name="SlotRMB" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
-custom_minimum_size = Vector2(78, 78)
+custom_minimum_size = Vector2(54, 54)
 layout_mode = 2
 script = ExtResource("2_slot_script")
 key_bind_text = "RMB"
 slot_name = "Secondary"
 
 [node name="SlotShift" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
-custom_minimum_size = Vector2(78, 78)
+custom_minimum_size = Vector2(54, 54)
 layout_mode = 2
 script = ExtResource("2_slot_script")
 key_bind_text = "SHIFT"
 slot_name = "Dash"
 
 [node name="SlotQ" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
-custom_minimum_size = Vector2(78, 78)
+custom_minimum_size = Vector2(54, 54)
 layout_mode = 2
 script = ExtResource("2_slot_script")
 key_bind_text = "Q"
 slot_name = "Ability 2"
 
 [node name="SlotE" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
-custom_minimum_size = Vector2(78, 78)
+custom_minimum_size = Vector2(54, 54)
 layout_mode = 2
 script = ExtResource("2_slot_script")
 key_bind_text = "E"
 slot_name = "Ability 3"
 
 [node name="SlotR" type="PanelContainer" parent="HUDContainer/MainBar/AbilityBar"]
-custom_minimum_size = Vector2(78, 78)
+custom_minimum_size = Vector2(54, 54)
 layout_mode = 2
 script = ExtResource("2_slot_script")
 key_bind_text = "R"

@@ -64,10 +64,10 @@ func _setup_hud_level_badge() -> void:
 	
 	var row = HBoxContainer.new()
 	row.name = "HealthBarRow"
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
-	hud_level_badge = LevelBadgeClass.create_badge("mortal", 1, Vector2(32, 32), 15)
+	hud_level_badge = LevelBadgeClass.create_badge("mortal", 1, Vector2(20, 20), 10)
 	hud_level_badge.name = "HUDLevelBadge"
 	row.add_child(hud_level_badge)
 	
